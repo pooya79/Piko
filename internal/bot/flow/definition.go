@@ -10,6 +10,7 @@ import (
 )
 
 const MaxChoices = 6
+const MaxQuestions = 12
 
 type Definition struct {
 	Version  int     `json:"version"`
@@ -27,13 +28,20 @@ type Form struct {
 }
 
 type Question struct {
-	ID       string       `json:"id"`
-	Label    string       `json:"label"`
-	Prompt   string       `json:"prompt"`
-	Type     string       `json:"type"`
-	Required bool         `json:"required"`
-	Options  []string     `json:"options,omitempty"`
-	Number   *NumberRules `json:"number,omitempty"`
+	ID        string       `json:"id"`
+	Label     string       `json:"label"`
+	Prompt    string       `json:"prompt"`
+	Type      string       `json:"type"`
+	Required  bool         `json:"required"`
+	Options   []string     `json:"options,omitempty"`
+	Number    *NumberRules `json:"number,omitempty"`
+	MaxLength int          `json:"max_length,omitempty"`
+	Date      *DateRules   `json:"date,omitempty"`
+}
+
+type DateRules struct {
+	Min string `json:"min,omitempty"`
+	Max string `json:"max,omitempty"`
 }
 
 type NumberRules struct {
@@ -130,7 +138,7 @@ func (d Definition) Validate() error {
 	}
 	choices, targets, labels := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, f := range d.Forms {
-		if !text(f.ID, 64) || ids[f.ID] || !text(f.Review, 2000) || !text(f.Acknowledgement, 2000) || len(f.Questions) < 1 || len(f.Questions) > 12 {
+		if !text(f.ID, 64) || ids[f.ID] || !text(f.Review, 2000) || !text(f.Acknowledgement, 2000) || len(f.Questions) < 1 || len(f.Questions) > MaxQuestions {
 			return invalid("definition")
 		}
 		ids[f.ID], messages[f.ID] = true, true
@@ -140,6 +148,12 @@ func (d Definition) Validate() error {
 				return invalid("definition")
 			}
 			questionIDs[q.ID] = true
+			if q.MaxLength < 0 || (q.MaxLength != 0 && q.Type != "short_text" && q.Type != "long_text") || (q.Date != nil && q.Type != "date") {
+				return invalid("definition")
+			}
+			if (q.Type == "short_text" && q.MaxLength > 200) || q.MaxLength > 2000 || !validDateRules(q.Date) {
+				return invalid("definition")
+			}
 			switch q.Type {
 			case "short_text", "long_text", "phone", "date":
 				if len(q.Options) != 0 || q.Number != nil {

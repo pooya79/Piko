@@ -778,5 +778,68 @@
   },
   "inquiry.type.number": {
     "other": "عدد"
+  },
+  "composition.copy": {
+    "other": "چند فرم مستقل را پشت منوی یک ربات قرار دهید، پرسش‌ها را تنظیم کنید و پیش از انتشار آزمایش کنید."
+  },
+  "composition.catalog": {
+    "other": "افزودن فرم از قالب‌ها"
+  },
+  "composition.catalog.hint": {
+    "other": "حداکثر ۶ گزینه منو و ۱۲ پرسش در هر فرم. افزودن قالب، فرم‌های فعلی را نگه می‌دارد."
+  },
+  "composition.add": {
+    "other": "افزودن"
+  },
+  "composition.add.message": {
+    "other": "افزودن گزینه با پاسخ متنی"
+  },
+  "composition.menu": {
+    "other": "گزینه‌های منو و فرم‌ها"
+  },
+  "composition.menu.hint": {
+    "other": "هر گزینه به فرم یا پاسخ خودش می‌رود. ترتیب گزینه‌ها و پرسش‌ها را با دکمه‌ها تغییر دهید."
+  },
+  "composition.empty": {
+    "other": "برای شروع، یک قالب یا پاسخ متنی اضافه کنید."
+  },
+  "composition.up": {
+    "other": "بالاتر"
+  },
+  "composition.down": {
+    "other": "پایین‌تر"
+  },
+  "composition.remove": {
+    "other": "حذف گزینه و فرم"
+  },
+  "composition.question.type": {
+    "other": "نوع پرسش تازه"
+  },
+  "composition.question.add": {
+    "other": "افزودن پرسش"
+  },
+  "composition.question.remove": {
+    "other": "حذف پرسش"
+  },
+  "composition.ack.hint": {
+    "other": "متن تأیید باید دریافت درخواست را بیان کند؛ ثبت‌نام به معنی پذیرش و درخواست رزرو به معنی رزرو قطعی نیست."
+  },
+  "composition.unsaved": {
+    "other": "افزودن، حذف و جابه‌جایی تا ذخیره پیش‌نویس ماندگار نمی‌شوند. تغییرات ذخیره‌شده هم تا انتشار روی ربات فعال اثر ندارند."
+  },
+  "composition.text.max": {
+    "other": "حداکثر تعداد نویسه پاسخ"
+  },
+  "composition.text.hint": {
+    "other": "خالی: پیش‌فرض ۲۰۰ نویسه برای متن کوتاه و ۲۰۰۰ برای متن بلند."
+  },
+  "composition.phone.hint": {
+    "other": "شماره تماس با ۷ تا ۱۵ رقم، با + اختیاری و ارقام فارسی یا لاتین. ورود شماره به معنی تأیید هویت نیست."
+  },
+  "composition.date.min": {
+    "other": "نخستین تاریخ مجاز (اختیاری)"
+  },
+  "composition.date.max": {
+    "other": "آخرین تاریخ مجاز (اختیاری)"
   }
 }

@@ -1,4 +1,17 @@
 @layer components {
+ .piko-template-catalog { @apply grid gap-4; grid-template-columns: repeat(3,minmax(0,1fr)); }
+ .piko-template-catalog > div { @apply flex flex-col items-start gap-3 rounded-2xl border border-base-300 p-4; }
+ .piko-template-catalog h3 { @apply font-bold; }
+ .piko-template-catalog .piko-secondary-action { @apply mt-auto; }
+ .piko-form-settings, .piko-question-settings { @apply rounded-2xl border border-base-300; min-width:0; }
+ .piko-form-settings > summary, .piko-question-settings > summary { @apply cursor-pointer p-5 font-bold; overflow-wrap:anywhere; }
+ .piko-question-settings > summary .piko-helper { @apply ms-3; }
+ .piko-form-content { @apply space-y-4 border-t border-base-300 p-5; }
+ .piko-question-type { max-width:16rem; }
+ .piko-form-settings button { min-height:44px; white-space:normal; }
+ .piko-form-settings summary:focus-visible, .piko-question-settings summary:focus-visible { outline:2px solid var(--color-primary); outline-offset:3px; }
+ @media (max-width: 767px) { .piko-template-catalog { grid-template-columns:1fr; } .piko-form-content { @apply p-4; } }
+
  .piko-primary-action, .piko-secondary-action, .piko-subtle-action { @apply inline-flex items-center justify-center gap-2; }
  .piko-token-card .piko-primary-action { @apply min-h-12 w-full text-sm; }
  .piko-connect-grid { @apply mt-8 grid gap-6; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); }

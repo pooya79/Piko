@@ -234,6 +234,9 @@ func validateAnswer(q flow.Question, raw string) (string, string) {
 	if q.Type == "short_text" {
 		limit = 200
 	}
+	if q.MaxLength > 0 {
+		limit = q.MaxLength
+	}
 	if utf8.RuneCountInString(value) > limit {
 		return "", "پاسخ بیش از اندازه طولانی است."
 	}
@@ -270,6 +273,20 @@ func validateAnswer(q flow.Question, raw string) (string, string) {
 		date, err := flow.ParseDate(value)
 		if err != nil {
 			return "", "تاریخ شمسی معتبر به صورت سال/ماه/روز وارد کنید؛ مانند ۱۴۰۵/۰۷/۱۱."
+		}
+		if q.Date != nil {
+			if q.Date.Min != "" {
+				min, _ := flow.ParseDate(q.Date.Min)
+				if date < min {
+					return "", "تاریخ باید از " + locale.Digits(min) + " باشد."
+				}
+			}
+			if q.Date.Max != "" {
+				max, _ := flow.ParseDate(q.Date.Max)
+				if date > max {
+					return "", "تاریخ باید تا " + locale.Digits(max) + " باشد."
+				}
+			}
 		}
 		return date, ""
 	}

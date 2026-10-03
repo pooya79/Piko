@@ -8,7 +8,19 @@ import (
 )
 
 func registrationDraft() url.Values {
-	return url.Values{"template": {"registration"}, "welcome": {"سلام"}, "menu_prompt": {"انتخاب کنید"}, "form_label": {"درخواست ثبت\u200cنام"}, "review_message": {"پاسخ\u200cها را بررسی کنید"}, "acknowledgement": {"درخواست ثبت\u200cنام دریافت شد؛ پذیرش یا ظرفیت تضمین نمی\u200cشود."}, "question_label": {"نام", "دوره", "مقدار"}, "question_prompt": {"نام شما چیست؟", "کدام دوره؟", "چه مقدار؟"}, "question_required": {"yes", "yes", "no"}, "question_options": {"هنر\nعلوم"}, "number_min": {"۰٫۱"}, "number_max": {"9007199254740993.1234567890123456789"}}
+	v := url.Values{"welcome": {"سلام"}, "menu_prompt": {"انتخاب کنید"}, "form_label": {"درخواست ثبت\u200cنام"}, "review_message": {"پاسخ\u200cها را بررسی کنید"}, "acknowledgement": {"درخواست ثبت\u200cنام دریافت شد؛ پذیرش یا ظرفیت تضمین نمی\u200cشود."}, "question_label": {"نام", "دوره", "مقدار"}, "question_prompt": {"نام شما چیست؟", "کدام دوره؟", "چه مقدار؟"}, "question_required": {"yes", "yes", "no"}}
+	v["form_id"] = []string{"registration"}
+	v["form_choice_id"] = []string{"registration"}
+	v["question_form"] = []string{"registration", "registration", "registration"}
+	v["question_id"] = []string{"name", "service", "quantity"}
+	v["question_type"] = []string{"short_text", "single_choice", "number"}
+	v["question_options"] = []string{"", "هنر\nعلوم", ""}
+	v["number_min"] = []string{"", "", "۰٫۱"}
+	v["number_max"] = []string{"", "", "9007199254740993.1234567890123456789"}
+	v["text_max"] = []string{"", "", ""}
+	v["date_min"] = []string{"", "", ""}
+	v["date_max"] = []string{"", "", ""}
+	return v
 }
 
 func TestRegistrationTelegramReviewsEditsAndStoresExactAnswersOncePerAttempt(t *testing.T) {
@@ -86,15 +98,15 @@ func TestRegistrationConfigurationRejectsInvalidOptionsAndBoundsWithoutChangingD
 		name   string
 		change func(url.Values)
 	}{
-		{"one option", func(v url.Values) { v.Set("question_options", "هنر") }},
-		{"duplicate option", func(v url.Values) { v.Set("question_options", "هنر\n هنر ") }},
-		{"empty option", func(v url.Values) { v.Set("question_options", "هنر\n\nعلوم") }},
-		{"too many options", func(v url.Values) { v.Set("question_options", "1\n2\n3\n4\n5\n6\n7") }},
-		{"long option", func(v url.Values) { v.Set("question_options", strings.Repeat("س", 81)+"\nعلوم") }},
+		{"one option", func(v url.Values) { v["question_options"][1] = "هنر" }},
+		{"duplicate option", func(v url.Values) { v["question_options"][1] = "هنر\n هنر " }},
+		{"empty option", func(v url.Values) { v["question_options"][1] = "هنر\n\nعلوم" }},
+		{"too many options", func(v url.Values) { v["question_options"][1] = "1\n2\n3\n4\n5\n6\n7" }},
+		{"long option", func(v url.Values) { v["question_options"][1] = strings.Repeat("س", 81) + "\nعلوم" }},
 		{"missing options", func(v url.Values) { v.Del("question_options") }},
-		{"invalid minimum", func(v url.Values) { v.Set("number_min", "NaN") }},
-		{"exponent maximum", func(v url.Values) { v.Set("number_max", "1e1000000000") }},
-		{"reversed bounds", func(v url.Values) { v.Set("number_min", "1.00000000000000000001"); v.Set("number_max", "1") }},
+		{"invalid minimum", func(v url.Values) { v["number_min"][2] = "NaN" }},
+		{"exponent maximum", func(v url.Values) { v["number_max"][2] = "1e1000000000" }},
+		{"reversed bounds", func(v url.Values) { v["number_min"][2] = "1.00000000000000000001"; v["number_max"][2] = "1" }},
 		{"missing bound field", func(v url.Values) { v.Del("number_max") }},
 		{"invalid required", func(v url.Values) { v["question_required"][1] = "maybe" }},
 		{"missing question", func(v url.Values) { v["question_label"] = v["question_label"][:2] }},

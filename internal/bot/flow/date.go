@@ -28,3 +28,24 @@ func ParseDate(raw string) (string, error) {
 	}
 	return fmt.Sprintf("%04d/%02d/%02d", year, month, day), nil
 }
+
+func validDateRules(r *DateRules) bool {
+	if r == nil {
+		return true
+	}
+	min, max := "", ""
+	var err error
+	if r.Min != "" {
+		min, err = ParseDate(r.Min)
+		if err != nil {
+			return false
+		}
+	}
+	if r.Max != "" {
+		max, err = ParseDate(r.Max)
+		if err != nil {
+			return false
+		}
+	}
+	return min == "" || max == "" || min <= max
+}

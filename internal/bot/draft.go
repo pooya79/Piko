@@ -11,67 +11,215 @@ import (
 	"github.com/pooya79/Piko/internal/bot/templates/registration"
 )
 
-type MenuMessage struct{ Label, Message string }
-type DraftSettings struct {
-	Template            string
-	Inquiry             inquiry.Settings
-	Registration        registration.Settings
-	Booking             booking.Settings
-	Welcome, MenuPrompt string
-	Choices             []MenuMessage
+// Draft edits preserve identities while labels, ordering and questions change.
+func emptyDraft() flow.Definition {
+	return flow.Definition{Version: 1, Welcome: flow.Block{ID: "welcome", Type: "message", Text: "سلام! از منو شروع کنید."}, Menu: flow.Block{ID: "menu", Type: "menu", Text: "چه کاری می\u200cخواهید انجام دهید؟"}}
 }
 
-func (s DraftSettings) Definition() flow.Definition {
-	if s.Template == "booking" {
-		return s.Booking.Definition()
+func templateDefinition(name string) (flow.Definition, bool) {
+	switch name {
+	case "inquiry":
+		return inquiry.Default().Definition(), true
+	case "registration":
+		return registration.Default().Definition(), true
+	case "booking":
+		return booking.Default().Definition(), true
+	default:
+		return flow.Definition{}, false
 	}
-	if s.Template == "registration" {
-		return s.Registration.Definition()
-	}
-	if s.Template == "inquiry" {
-		return s.Inquiry.Definition()
-	}
-	d := flow.Definition{Version: 1, Welcome: flow.Block{ID: "welcome", Type: "message", Text: s.Welcome}, Menu: flow.Block{ID: "menu", Type: "menu", Text: s.MenuPrompt}}
-	for i, c := range s.Choices {
-		if strings.TrimSpace(c.Label) == "" && strings.TrimSpace(c.Message) == "" {
-			continue
-		}
-		id := strconv.Itoa(i + 1)
-		d.Menu.Choices = append(d.Menu.Choices, flow.Choice{ID: id, Label: c.Label, Target: "reply-" + id})
-		d.Messages = append(d.Messages, flow.Block{ID: "reply-" + id, Type: "message", Text: c.Message})
-	}
-	return d
 }
 
-func settings(d flow.Definition) DraftSettings {
-	s := DraftSettings{Welcome: d.Welcome.Text, MenuPrompt: d.Menu.Text}
-	if len(d.Forms) > 0 {
-		f := d.Forms[0]
-		s.Template = "inquiry"
-		s.Inquiry = inquiry.Settings{Welcome: d.Welcome.Text, MenuPrompt: d.Menu.Text, Label: d.Menu.Choices[0].Label, Review: f.Review, Acknowledgement: f.Acknowledgement, Questions: f.Questions}
-		if f.ID == "registration" {
-			s.Template = "registration"
-			s.Registration = registration.Settings{Welcome: d.Welcome.Text, MenuPrompt: d.Menu.Text, Label: d.Menu.Choices[0].Label, Review: f.Review, Acknowledgement: f.Acknowledgement, Questions: f.Questions}
+func uniqueID(base string, used func(string) bool) string {
+	for n := 1; ; n++ {
+		id := base
+		if n > 1 {
+			id += "-" + strconv.Itoa(n)
 		}
-		if f.ID == "booking" {
-			s.Template = "booking"
-			s.Booking = booking.Settings{Welcome: d.Welcome.Text, MenuPrompt: d.Menu.Text, Label: d.Menu.Choices[0].Label, Review: f.Review, Acknowledgement: f.Acknowledgement, Questions: f.Questions}
+		if !used(id) {
+			return id
 		}
 	}
+}
+
+func addTemplate(d *flow.Definition, name string) error {
+	if len(d.Menu.Choices) >= flow.MaxChoices {
+		return &flow.Invalid{Key: "draft.error.choices"}
+	}
+	if name == "message" {
+		id := uniqueID("reply", func(id string) bool { return blockIDUsed(*d, id) })
+		choice := uniqueID("message", func(id string) bool { return choiceIDUsed(*d, id) })
+		d.Messages = append(d.Messages, flow.Block{ID: id, Type: "message", Text: "پیام خود را بنویسید."})
+		d.Menu.Choices = append(d.Menu.Choices, flow.Choice{ID: choice, Label: "پیام " + strconv.Itoa(len(d.Menu.Choices)+1), Target: id})
+		return nil
+	}
+	t, ok := templateDefinition(name)
+	if !ok {
+		return &flow.Invalid{Key: "draft.error.definition"}
+	}
+	f := t.Forms[0]
+	f.ID = uniqueID(f.ID, func(id string) bool { return blockIDUsed(*d, id) })
+	c := t.Menu.Choices[0]
+	c.ID = uniqueID(c.ID, func(id string) bool { return choiceIDUsed(*d, id) })
+	c.Target = f.ID
+	for _, existing := range d.Menu.Choices {
+		if existing.Label == c.Label {
+			c.Label += " " + strconv.Itoa(len(d.Menu.Choices)+1)
+			break
+		}
+	}
+	d.Version = 2
+	d.Forms = append(d.Forms, f)
+	d.Menu.Choices = append(d.Menu.Choices, c)
+	return nil
+}
+
+func blockIDUsed(d flow.Definition, id string) bool {
+	if d.Welcome.ID == id || d.Menu.ID == id {
+		return true
+	}
+	if _, ok := d.Form(id); ok {
+		return true
+	}
+	_, ok := d.Message(id)
+	return ok
+}
+func choiceIDUsed(d flow.Definition, id string) bool {
 	for _, c := range d.Menu.Choices {
-		if message, ok := d.Message(c.Target); ok {
-			s.Choices = append(s.Choices, MenuMessage{Label: c.Label, Message: message})
+		if c.ID == id {
+			return true
 		}
 	}
-	return s
+	return false
 }
 
-func (s DraftSettings) Fields() []MenuMessage {
-	fields := append([]MenuMessage(nil), s.Choices...)
-	for len(fields) < flow.MaxChoices {
-		fields = append(fields, MenuMessage{})
+// Editing changes only the rendered settings. Save is the persistence boundary.
+func editDraft(d *flow.Definition, action, questionType string) (draftEditor, error) {
+	parts := strings.Split(action, ":")
+	bad := &flow.Invalid{Key: "draft.error.definition"}
+	if len(parts) == 2 && parts[0] == "add" {
+		if err := addTemplate(d, parts[1]); err != nil {
+			return draftEditor{}, err
+		}
+		return draftEditor{Target: d.Menu.Choices[len(d.Menu.Choices)-1].Target}, nil
 	}
-	return fields
+	if len(parts) < 3 {
+		return draftEditor{}, bad
+	}
+	index, err := strconv.Atoi(parts[2])
+	if err != nil || index < 0 {
+		return draftEditor{}, bad
+	}
+	if parts[0] == "menu" && len(parts) == 3 {
+		if index >= len(d.Menu.Choices) {
+			return draftEditor{}, bad
+		}
+		switch parts[1] {
+		case "up":
+			if index == 0 {
+				return draftEditor{}, bad
+			}
+			d.Menu.Choices[index-1], d.Menu.Choices[index] = d.Menu.Choices[index], d.Menu.Choices[index-1]
+			index--
+		case "down":
+			if index+1 >= len(d.Menu.Choices) {
+				return draftEditor{}, bad
+			}
+			d.Menu.Choices[index+1], d.Menu.Choices[index] = d.Menu.Choices[index], d.Menu.Choices[index+1]
+			index++
+		case "remove":
+			target := d.Menu.Choices[index].Target
+			for i, f := range d.Forms {
+				if f.ID == target {
+					d.Forms = append(d.Forms[:i], d.Forms[i+1:]...)
+					break
+				}
+			}
+			for i, m := range d.Messages {
+				if m.ID == target {
+					d.Messages = append(d.Messages[:i], d.Messages[i+1:]...)
+					break
+				}
+			}
+			d.Menu.Choices = append(d.Menu.Choices[:index], d.Menu.Choices[index+1:]...)
+			if index == len(d.Menu.Choices) {
+				index--
+			}
+		default:
+			return draftEditor{}, bad
+		}
+		if index >= 0 {
+			return draftEditor{Target: d.Menu.Choices[index].Target}, nil
+		}
+		return draftEditor{}, nil
+	}
+	if parts[0] != "question" || index >= len(d.Forms) {
+		return draftEditor{}, bad
+	}
+	f := &d.Forms[index]
+	if len(parts) == 3 && parts[1] == "add" {
+		if len(f.Questions) >= flow.MaxQuestions {
+			return draftEditor{}, bad
+		}
+		q := flow.Question{ID: uniqueID("question", func(id string) bool {
+			for _, q := range f.Questions {
+				if q.ID == id {
+					return true
+				}
+			}
+			return false
+		}), Label: "پرسش تازه", Prompt: "پرسش خود را بنویسید.", Type: questionType, Required: true}
+		switch questionType {
+		case "short_text", "long_text", "phone", "date", "number":
+		case "single_choice":
+			q.Options = []string{"گزینه اول", "گزینه دوم"}
+		default:
+			return draftEditor{}, bad
+		}
+		f.Questions = append(f.Questions, q)
+		return draftEditor{Target: f.ID, Question: q.ID}, nil
+	}
+	if len(parts) != 4 {
+		return draftEditor{}, bad
+	}
+	qi, err := strconv.Atoi(parts[3])
+	if err != nil || qi < 0 || qi >= len(f.Questions) {
+		return draftEditor{}, bad
+	}
+	switch parts[1] {
+	case "up":
+		if qi == 0 {
+			return draftEditor{}, bad
+		}
+		f.Questions[qi-1], f.Questions[qi] = f.Questions[qi], f.Questions[qi-1]
+		qi--
+	case "down":
+		if qi+1 >= len(f.Questions) {
+			return draftEditor{}, bad
+		}
+		f.Questions[qi+1], f.Questions[qi] = f.Questions[qi], f.Questions[qi+1]
+		qi++
+	case "remove":
+		f.Questions = append(f.Questions[:qi], f.Questions[qi+1:]...)
+		if qi == len(f.Questions) {
+			qi--
+		}
+	default:
+		return draftEditor{}, bad
+	}
+	focus := draftEditor{Target: f.ID}
+	if qi >= 0 {
+		focus.Question = f.Questions[qi].ID
+	}
+	return focus, nil
+}
+
+func formIndex(d flow.Definition, id string) int {
+	for i, f := range d.Forms {
+		if f.ID == id {
+			return i
+		}
+	}
+	return -1
 }
 
 func (s *Service) LoadDraft(ctx context.Context, botID int64) (flow.Definition, bool, error) {
@@ -108,3 +256,39 @@ func numberBound(q flow.Question, minimum bool) string {
 	}
 	return q.Number.Max
 }
+
+func dateBound(q flow.Question, minimum bool) string {
+	if q.Date == nil {
+		return ""
+	}
+	if minimum {
+		return q.Date.Min
+	}
+	return q.Date.Max
+}
+
+// Editor state retains raw validator input on errors and follows edited IDs.
+type questionRef struct{ Form, Question string }
+type draftEditor struct {
+	Target, Question string
+	TextLimits       map[questionRef]string
+}
+
+func (e draftEditor) textBound(formID string, q flow.Question) string {
+	if raw, ok := e.TextLimits[questionRef{formID, q.ID}]; ok {
+		return raw
+	}
+	if q.MaxLength == 0 {
+		return ""
+	}
+	return strconv.Itoa(q.MaxLength)
+}
+
+func questionTypes() []string {
+	return []string{"short_text", "long_text", "phone", "single_choice", "date", "number"}
+}
+func questionTypeKey(value string) string {
+	return "inquiry.type." + strings.ReplaceAll(value, "_", ".")
+}
+
+func templateNames() []string { return []string{"inquiry", "registration", "booking"} }

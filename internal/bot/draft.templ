@@ -8,22 +8,13 @@ import (
  "github.com/pooya79/Piko/internal/web/shell"
 )
 
-templ DraftPage(displayName, csrf string, b Bot, s DraftSettings, saved, notice bool, message string) {
- @shell.Workspace(displayName, csrf, flowPage(ctx, b, "draft.title"), draftContent(csrf,b,s,saved,notice,message))
+templ DraftPage(displayName, csrf string, b Bot, d flow.Definition, saved, notice bool, message string, editor draftEditor) {
+ @shell.Workspace(displayName, csrf, flowPage(ctx, b, "draft.title"), draftContent(csrf,b,d,saved,notice,message,editor))
 }
 
-templ draftContent(csrf string, b Bot, s DraftSettings, saved, notice bool, message string) {
+templ draftContent(csrf string, b Bot, d flow.Definition, saved, notice bool, message string, editor draftEditor) {
  <div class="piko-section-heading"><div><p class="piko-draft-eyebrow">{ locale.T(ctx,"draft.badge") }</p><h1 class="piko-page-title">{ locale.T(ctx,"draft.title") }</h1></div><a class="piko-text-link" href={ templ.URL(b.URL()) }><bdi dir="auto">{ b.Name }</bdi></a></div>
- if s.Template=="inquiry" {
- <p class="piko-page-copy">{ locale.T(ctx,"inquiry.copy") }</p>
- } else if s.Template=="registration" {
- <p class="piko-page-copy">{ locale.T(ctx,"registration.copy") }</p>
- } else if s.Template=="booking" {
- <p class="piko-page-copy">{ locale.T(ctx,"booking.copy") }</p>
- } else {
- <p class="piko-page-copy">{ locale.T(ctx,"draft.copy") }</p>
- }
- <nav class="piko-preview-buttons" aria-label={ locale.T(ctx,"inquiry.template") }><a class="piko-secondary-action" href={ templ.URL(b.URL()+"/draft?template=welcome") }>{ locale.T(ctx,"inquiry.welcome") }</a><a class="piko-secondary-action" href={ templ.URL(b.URL()+"/draft?template=inquiry") }>{ locale.T(ctx,"inquiry.template") }</a><a class="piko-secondary-action" href={ templ.URL(b.URL()+"/draft?template=registration") }>{ locale.T(ctx,"registration.template") }</a><a class="piko-secondary-action" href={ templ.URL(b.URL()+"/draft?template=booking") }>{ locale.T(ctx,"booking.template") }</a></nav>
+ <p class="piko-page-copy">{ locale.T(ctx,"composition.copy") }</p>
  if notice && saved {
  <p class="piko-draft-notice" role="status">{ locale.T(ctx,"draft.saved") }</p>
  }
@@ -32,26 +23,53 @@ templ draftContent(csrf string, b Bot, s DraftSettings, saved, notice bool, mess
  }
  <form class="piko-draft-form" method="post" action={ templ.URL(b.URL()+"/draft") }>
   <input type="hidden" name="csrf_token" value={ csrf }/>
-  <section class="piko-card piko-draft-section" aria-labelledby="welcome-heading"><h2 id="welcome-heading">{ locale.T(ctx,"draft.welcome.title") }</h2><label class="piko-label" for="welcome">{ locale.T(ctx,"draft.welcome.label") }</label><textarea class="piko-input piko-draft-textarea" id="welcome" name="welcome" dir="auto" required maxlength="2000">{ s.Welcome }</textarea><label class="piko-label" for="menu-prompt">{ locale.T(ctx,"draft.menu.label") }</label><textarea class="piko-input piko-draft-textarea" id="menu-prompt" name="menu_prompt" dir="auto" required maxlength="2000">{ s.MenuPrompt }</textarea></section>
-  if s.Template=="inquiry" || s.Template=="registration" || s.Template=="booking" {
-   <input type="hidden" name="template" value={ s.Template }/>
-   if s.Template=="registration" {
-    @formFields("registration",s.Registration.Label,s.Registration.Review,s.Registration.Acknowledgement,s.Registration.Questions)
-   } else if s.Template=="booking" {
-    @formFields("booking",s.Booking.Label,s.Booking.Review,s.Booking.Acknowledgement,s.Booking.Questions)
-   } else {
-    @formFields("inquiry",s.Inquiry.Label,s.Inquiry.Review,s.Inquiry.Acknowledgement,s.Inquiry.Questions)
+  <input type="hidden" name="welcome_id" value={ d.Welcome.ID }/>
+  <input type="hidden" name="menu_id" value={ d.Menu.ID }/>
+  <section class="piko-card piko-draft-section" aria-labelledby="welcome-heading"><h2 id="welcome-heading">{ locale.T(ctx,"draft.welcome.title") }</h2><label class="piko-label" for="welcome">{ locale.T(ctx,"draft.welcome.label") }</label><textarea class="piko-input piko-draft-textarea" id="welcome" name="welcome" dir="auto" required maxlength="2000">{ d.Welcome.Text }</textarea><label class="piko-label" for="menu-prompt">{ locale.T(ctx,"draft.menu.label") }</label><textarea class="piko-input piko-draft-textarea" id="menu-prompt" name="menu_prompt" dir="auto" required maxlength="2000">{ d.Menu.Text }</textarea></section>
+  <section class="piko-card piko-draft-section" aria-labelledby="catalog-heading"><h2 id="catalog-heading">{ locale.T(ctx,"composition.catalog") }</h2><p class="piko-helper">{ locale.T(ctx,"composition.catalog.hint") }</p><div class="piko-template-catalog">
+   for _, name := range templateNames() {
+    <div><h3>{ locale.T(ctx,name+".template") }</h3><p class="piko-helper">{ locale.T(ctx,name+".hint") }</p><button class="piko-secondary-action" type="submit" name="edit" value={ "add:"+name } formnovalidate disabled?={ len(d.Menu.Choices)>=flow.MaxChoices }>{ locale.T(ctx,"composition.add") + " " + locale.T(ctx,name+".template") }</button></div>
    }
-  } else {
-  <section class="piko-card piko-draft-section" aria-labelledby="choices-heading"><h2 id="choices-heading">{ locale.T(ctx,"draft.choices.title") }</h2><p class="piko-helper" id="choices-hint">{ locale.T(ctx,"draft.choices.hint") }</p>
-   <div class="piko-draft-choices">
-    for i, choice := range s.Fields() {
-     <fieldset class="piko-draft-choice"><legend>{ locale.T(ctx,"draft.choice") + " " + locale.Digits(strconv.Itoa(i+1)) }</legend><label class="piko-label" for={ "choice-label-"+strconv.Itoa(i) }>{ locale.T(ctx,"draft.choice.label") }</label><input class="piko-input" id={ "choice-label-"+strconv.Itoa(i) } name="choice_label" value={ choice.Label } dir="auto" maxlength="80" aria-describedby="choices-hint"/><label class="piko-label" for={ "choice-message-"+strconv.Itoa(i) }>{ locale.T(ctx,"draft.choice.message") }</label><textarea class="piko-input piko-draft-textarea" id={ "choice-message-"+strconv.Itoa(i) } name="choice_message" dir="auto" maxlength="2000">{ choice.Message }</textarea></fieldset>
-    }
-   </div>
-  </section>
+  </div><button class="piko-text-link" type="submit" name="edit" value="add:message" formnovalidate disabled?={ len(d.Menu.Choices)>=flow.MaxChoices }>{ locale.T(ctx,"composition.add.message") }</button></section>
+  <section class="piko-card piko-draft-section" aria-labelledby="menu-heading"><h2 id="menu-heading">{ locale.T(ctx,"composition.menu") }</h2><p class="piko-helper">{ locale.T(ctx,"composition.menu.hint") }</p>
+  if len(d.Menu.Choices)==0 {
+ <p class="piko-helper">{ locale.T(ctx,"composition.empty") }</p>
+ }
+  for ci,c := range d.Menu.Choices {
+   <input type="hidden" name="menu_order" value={ c.ID }/>
+   <details class="piko-form-settings" open?={ c.Target==editor.Target || (editor.Target=="" && ci==0) }>
+    <summary autofocus?={ c.Target==editor.Target && editor.Question=="" }><span>{ locale.Digits(strconv.Itoa(ci+1)) + " · " }<bdi dir="auto">{ c.Label }</bdi></span></summary>
+    <div class="piko-form-content">
+     <div class="piko-draft-actions">
+      <button class="piko-secondary-action" type="submit" name="edit" value={ "menu:up:"+strconv.Itoa(ci) } formnovalidate disabled?={ ci==0 } aria-label={ locale.T(ctx,"composition.up")+" · "+c.Label }>{ locale.T(ctx,"composition.up") }</button>
+      <button class="piko-secondary-action" type="submit" name="edit" value={ "menu:down:"+strconv.Itoa(ci) } formnovalidate disabled?={ ci+1==len(d.Menu.Choices) } aria-label={ locale.T(ctx,"composition.down")+" · "+c.Label }>{ locale.T(ctx,"composition.down") }</button>
+      <button class="piko-text-link" type="submit" name="edit" value={ "menu:remove:"+strconv.Itoa(ci) } formnovalidate aria-label={ locale.T(ctx,"composition.remove")+" · "+c.Label }>{ locale.T(ctx,"composition.remove") }</button>
+     </div>
+     {{ f,isForm:=d.Form(c.Target); text,isMessage:=d.Message(c.Target) }}
+     if isForm {
+      <input type="hidden" name="form_id" value={ f.ID }/><input type="hidden" name="form_choice_id" value={ c.ID }/>
+      <label class="piko-label" for={ "form-label-"+strconv.Itoa(ci) }>{ locale.T(ctx,"inquiry.menu.label") }</label><input class="piko-input" id={ "form-label-"+strconv.Itoa(ci) } name="form_label" value={ c.Label } dir="auto" required maxlength="80"/>
+      <label class="piko-label" for={ "review-"+strconv.Itoa(ci) }>{ locale.T(ctx,"inquiry.review") }</label><textarea class="piko-input piko-draft-textarea" id={ "review-"+strconv.Itoa(ci) } name="review_message" dir="auto" required maxlength="2000">{ f.Review }</textarea>
+      <label class="piko-label" for={ "ack-"+strconv.Itoa(ci) }>{ locale.T(ctx,"inquiry.acknowledgement") }</label><textarea class="piko-input piko-draft-textarea" id={ "ack-"+strconv.Itoa(ci) } name="acknowledgement" dir="auto" required maxlength="2000">{ f.Acknowledgement }</textarea><p class="piko-helper">{ locale.T(ctx,"composition.ack.hint") }</p>
+      <h3>{ locale.T(ctx,"inquiry.questions") }</h3>
+      for qi,q := range f.Questions {
+ @questionFields(formIndex(d,f.ID),qi,len(f.Questions),f.ID,q,editor)
+ }
+      <div class="piko-draft-actions"><label class="piko-label" for={ "add-type-"+strconv.Itoa(ci) }>{ locale.T(ctx,"composition.question.type") }</label><select class="piko-input piko-question-type" id={ "add-type-"+strconv.Itoa(ci) } name={ "add_type_"+strconv.Itoa(formIndex(d,f.ID)) }>
+       for _,kind:=range questionTypes() {
+ <option value={ kind }>{ locale.T(ctx,questionTypeKey(kind)) }</option>
+ }
+      </select><button class="piko-secondary-action" type="submit" name="edit" value={ "question:add:"+strconv.Itoa(formIndex(d,f.ID)) } formnovalidate disabled?={ len(f.Questions)>=flow.MaxQuestions }>{ locale.T(ctx,"composition.question.add") }</button></div>
+     } else if isMessage {
+      <input type="hidden" name="choice_id" value={ c.ID }/><input type="hidden" name="choice_target" value={ c.Target }/>
+      <label class="piko-label" for={ "choice-label-"+strconv.Itoa(ci) }>{ locale.T(ctx,"draft.choice.label") }</label><input class="piko-input" id={ "choice-label-"+strconv.Itoa(ci) } name="choice_label" value={ c.Label } dir="auto" required maxlength="80"/>
+      <label class="piko-label" for={ "choice-message-"+strconv.Itoa(ci) }>{ locale.T(ctx,"draft.choice.message") }</label><textarea class="piko-input piko-draft-textarea" id={ "choice-message-"+strconv.Itoa(ci) } name="choice_message" dir="auto" required maxlength="2000">{ text }</textarea>
+     }
+    </div>
+   </details>
   }
-  <div class="piko-draft-actions"><button class="piko-primary-action" type="submit">@shell.Icon("check-circle")<span>{ locale.T(ctx,"draft.save") }</span></button><p class="piko-helper">{ locale.T(ctx,"draft.inactive") }</p></div>
+  </section>
+  <div class="piko-draft-actions"><button class="piko-primary-action" type="submit">@shell.Icon("check-circle")<span>{ locale.T(ctx,"draft.save") }</span></button><p class="piko-helper">{ locale.T(ctx,"composition.unsaved") }</p></div>
  </form>
  <section class="piko-card piko-draft-section piko-preview-launch"><div><h2>{ locale.T(ctx,"preview.title") }</h2><p class="piko-helper">{ locale.T(ctx,"preview.launch.copy") }</p></div>
  if saved {
@@ -62,25 +80,40 @@ templ draftContent(csrf string, b Bot, s DraftSettings, saved, notice bool, mess
  </section>
 }
 
-templ formFields(templateName,label,review,acknowledgement string,questions []flow.Question) {
- <section class="piko-card piko-draft-section"><h2>{ locale.T(ctx,templateName+".template") }</h2><p class="piko-helper">{ locale.T(ctx,templateName+".hint") }</p>
- <label class="piko-label" for="form-label">{ locale.T(ctx,"inquiry.menu.label") }</label><input class="piko-input" id="form-label" name="form_label" value={ label } dir="auto" required maxlength="80"/>
- <label class="piko-label" for="review-message">{ locale.T(ctx,"inquiry.review") }</label><textarea class="piko-input piko-draft-textarea" id="review-message" name="review_message" dir="auto" required maxlength="2000">{ review }</textarea>
- <label class="piko-label" for="acknowledgement">{ locale.T(ctx,"inquiry.acknowledgement") }</label><textarea class="piko-input piko-draft-textarea" id="acknowledgement" name="acknowledgement" dir="auto" required maxlength="2000">{ acknowledgement }</textarea>
- </section>
- <section class="piko-card piko-draft-section"><h2>{ locale.T(ctx,"inquiry.questions") }</h2><div class="piko-draft-choices">
- for i,q := range questions {
- <fieldset class="piko-draft-choice"><legend>{ locale.T(ctx,"inquiry.type."+strings.ReplaceAll(q.Type,"_",".")) }</legend><label class="piko-label" for={ "question-label-"+strconv.Itoa(i) }>{ locale.T(ctx,"inquiry.question.label") }</label><input class="piko-input" id={ "question-label-"+strconv.Itoa(i) } name="question_label" value={ q.Label } dir="auto" required maxlength="80"/><label class="piko-label" for={ "question-prompt-"+strconv.Itoa(i) }>{ locale.T(ctx,"inquiry.question.prompt") }</label><textarea class="piko-input piko-draft-textarea" id={ "question-prompt-"+strconv.Itoa(i) } name="question_prompt" dir="auto" required maxlength="2000">{ q.Prompt }</textarea><label class="piko-label" for={ "question-required-"+strconv.Itoa(i) }>{ locale.T(ctx,"inquiry.required") }</label><select class="piko-input" id={ "question-required-"+strconv.Itoa(i) } name="question_required"><option value="yes" selected?={ q.Required }>{ locale.T(ctx,"inquiry.required.yes") }</option><option value="no" selected?={ !q.Required }>{ locale.T(ctx,"inquiry.required.no") }</option></select>
- if q.Type=="date" {
- <p class="piko-helper">{ locale.T(ctx,"booking.date.hint") }</p>
- }
+templ questionFields(fi,qi,count int,formID string,q flow.Question,editor draftEditor) {
+ {{ prefix := "q-"+strconv.Itoa(fi)+"-"+strconv.Itoa(qi) }}
+ <details class="piko-question-settings" open?={ editor.Target==formID && editor.Question==q.ID }><summary autofocus?={ editor.Target==formID && editor.Question==q.ID }>{ locale.Digits(strconv.Itoa(qi+1))+" · " }<bdi dir="auto">{ q.Label }</bdi><span class="piko-helper">{ locale.T(ctx,questionTypeKey(q.Type)) }</span></summary><div class="piko-form-content">
+ <input type="hidden" name="question_form" value={ formID }/><input type="hidden" name="question_id" value={ q.ID }/><input type="hidden" name="question_type" value={ q.Type }/>
+ <div class="piko-draft-actions">
+  <button class="piko-secondary-action" type="submit" name="edit" value={ "question:up:"+strconv.Itoa(fi)+":"+strconv.Itoa(qi) } formnovalidate disabled?={ qi==0 } aria-label={ locale.T(ctx,"composition.up")+" · "+q.Label }>{ locale.T(ctx,"composition.up") }</button>
+  <button class="piko-secondary-action" type="submit" name="edit" value={ "question:down:"+strconv.Itoa(fi)+":"+strconv.Itoa(qi) } formnovalidate disabled?={ qi+1==count } aria-label={ locale.T(ctx,"composition.down")+" · "+q.Label }>{ locale.T(ctx,"composition.down") }</button>
+  <button class="piko-text-link" type="submit" name="edit" value={ "question:remove:"+strconv.Itoa(fi)+":"+strconv.Itoa(qi) } formnovalidate aria-label={ locale.T(ctx,"composition.question.remove")+" · "+q.Label }>{ locale.T(ctx,"composition.question.remove") }</button>
+ </div>
+ <label class="piko-label" for={ prefix+"-label" }>{ locale.T(ctx,"inquiry.question.label") }</label><input class="piko-input" id={ prefix+"-label" } name="question_label" value={ q.Label } dir="auto" required maxlength="80"/>
+ <label class="piko-label" for={ prefix+"-prompt" }>{ locale.T(ctx,"inquiry.question.prompt") }</label><textarea class="piko-input piko-draft-textarea" id={ prefix+"-prompt" } name="question_prompt" dir="auto" required maxlength="2000">{ q.Prompt }</textarea>
+ <label class="piko-label" for={ prefix+"-required" }>{ locale.T(ctx,"inquiry.required") }</label><select class="piko-input" id={ prefix+"-required" } name="question_required"><option value="yes" selected?={ q.Required }>{ locale.T(ctx,"inquiry.required.yes") }</option><option value="no" selected?={ !q.Required }>{ locale.T(ctx,"inquiry.required.no") }</option></select>
  if q.Type=="single_choice" {
- <label class="piko-label" for={ "question-options-"+strconv.Itoa(i) }>{ locale.T(ctx,"registration.options") }</label><textarea class="piko-input piko-draft-textarea" id={ "question-options-"+strconv.Itoa(i) } name="question_options" dir="auto" required maxlength="500" aria-describedby="registration-options-hint">{ strings.Join(q.Options,"\n") }</textarea><p id="registration-options-hint" class="piko-helper">{ locale.T(ctx,"registration.options.hint") }</p>
+  <label class="piko-label" for={ prefix+"-options" }>{ locale.T(ctx,"registration.options") }</label><textarea class="piko-input piko-draft-textarea" id={ prefix+"-options" } name="question_options" dir="auto" required maxlength="500">{ strings.Join(q.Options,"\n") }</textarea><p class="piko-helper">{ locale.T(ctx,"registration.options.hint") }</p>
+ } else {
+ <input type="hidden" name="question_options" value=""/>
  }
  if q.Type=="number" {
- <label class="piko-label" for={ "number-min-"+strconv.Itoa(i) }>{ locale.T(ctx,"registration.min") }</label><input class="piko-input" id={ "number-min-"+strconv.Itoa(i) } name="number_min" value={ numberBound(q,true) } dir="ltr" maxlength="200" aria-describedby="registration-number-hint"/><label class="piko-label" for={ "number-max-"+strconv.Itoa(i) }>{ locale.T(ctx,"registration.max") }</label><input class="piko-input" id={ "number-max-"+strconv.Itoa(i) } name="number_max" value={ numberBound(q,false) } dir="ltr" maxlength="200" aria-describedby="registration-number-hint"/><p id="registration-number-hint" class="piko-helper">{ locale.T(ctx,"registration.number.hint") }</p>
+  <label class="piko-label" for={ prefix+"-min" }>{ locale.T(ctx,"registration.min") }</label><input class="piko-input" id={ prefix+"-min" } name="number_min" value={ numberBound(q,true) } dir="ltr" maxlength="200"/><label class="piko-label" for={ prefix+"-max" }>{ locale.T(ctx,"registration.max") }</label><input class="piko-input" id={ prefix+"-max" } name="number_max" value={ numberBound(q,false) } dir="ltr" maxlength="200"/><p class="piko-helper">{ locale.T(ctx,"registration.number.hint") }</p>
+ } else {
+ <input type="hidden" name="number_min" value=""/><input type="hidden" name="number_max" value=""/>
  }
- </fieldset>
+ if q.Type=="short_text" || q.Type=="long_text" {
+  <label class="piko-label" for={ prefix+"-length" }>{ locale.T(ctx,"composition.text.max") }</label><input class="piko-input" id={ prefix+"-length" } name="text_max" value={ editor.textBound(formID,q) } inputmode="numeric" pattern="[0-9]+" dir="ltr"/><p class="piko-helper">{ locale.T(ctx,"composition.text.hint") }</p>
+ } else {
+ <input type="hidden" name="text_max" value=""/>
  }
- </div></section>
+ if q.Type=="phone" {
+ <p class="piko-helper">{ locale.T(ctx,"composition.phone.hint") }</p>
+ }
+ if q.Type=="date" {
+  <p class="piko-helper">{ locale.T(ctx,"booking.date.hint") }</p><label class="piko-label" for={ prefix+"-date-min" }>{ locale.T(ctx,"composition.date.min") }</label><input class="piko-input" id={ prefix+"-date-min" } name="date_min" value={ dateBound(q,true) } dir="ltr" maxlength="20"/><label class="piko-label" for={ prefix+"-date-max" }>{ locale.T(ctx,"composition.date.max") }</label><input class="piko-input" id={ prefix+"-date-max" } name="date_max" value={ dateBound(q,false) } dir="ltr" maxlength="20"/>
+ } else {
+ <input type="hidden" name="date_min" value=""/><input type="hidden" name="date_max" value=""/>
+ }
+ </div></details>
 }
