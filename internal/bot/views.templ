@@ -72,5 +72,5 @@ templ detailContent(bot Bot) {
    <p class="piko-helper">{ locale.T(ctx, "bot.delivery.checked") }: <time datetime={ bot.VerifiedAt.UTC().Format("2006-01-02T15:04:05Z") } data-persian-date>{ locale.T(ctx, "bot.delivery.checked") }</time></p>
   </section>
  </div>
- <section class="piko-bot-next"><h2>{ locale.T(ctx, "bot.next.title") }</h2><p class="piko-page-copy">{ locale.T(ctx, "bot.next.copy") }</p>@shell.ComingSoon(locale.T(ctx, "bot.next.activate"), "lightning", "piko-secondary-action")</section>
+ <section class="piko-bot-next"><h2>{ locale.T(ctx, "bot.next.title") }</h2><p class="piko-page-copy">{ locale.T(ctx, "bot.next.copy") }</p><a class="piko-primary-action" href={ templ.URL(bot.URL()+"/draft") }>{ locale.T(ctx,"draft.title") }</a>@shell.ComingSoon(locale.T(ctx, "bot.next.activate"), "lightning", "piko-secondary-action")</section>
 }

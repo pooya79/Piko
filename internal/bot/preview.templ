@@ -1,0 +1,53 @@
+package bot
+
+import (
+ "strconv"
+ "github.com/pooya79/Piko/internal/locale"
+ "github.com/pooya79/Piko/internal/web/shell"
+)
+
+templ PreviewLandingPage(displayName,csrf string,b Bot,saved bool) {
+ @shell.Workspace(displayName,csrf,flowPage(ctx,b,"preview.title"),previewLanding(csrf,b,saved))
+}
+
+templ previewLanding(csrf string,b Bot,saved bool) {
+ <h1 class="piko-page-title">{ locale.T(ctx,"preview.title") }</h1><p class="piko-page-copy">{ locale.T(ctx,"preview.copy") }</p>
+ <section class="piko-card piko-draft-section piko-preview-launch"><div><h2><bdi dir="auto">{ b.Name }</bdi></h2><p class="piko-helper">{ locale.T(ctx,"preview.launch.copy") }</p></div>
+ if saved {
+  <form method="post" action={ templ.URL(b.URL()+"/preview") }><input type="hidden" name="csrf_token" value={ csrf }/><button class="piko-primary-action" type="submit">{ locale.T(ctx,"preview.start") }</button></form>
+ } else {
+  <p class="piko-helper" role="status">{ locale.T(ctx,"preview.save.first") }</p>
+ }
+ <a class="piko-text-link" href={ templ.URL(b.URL()+"/draft") }>{ locale.T(ctx,"draft.title") }</a></section>
+}
+
+templ PreviewPage(displayName,csrf string,b Bot,p Preview,message string) {
+ @shell.Workspace(displayName,csrf,flowPage(ctx,b,"preview.title"),previewContent(csrf,b,p,message))
+}
+
+templ previewContent(csrf string,b Bot,p Preview,message string) {
+ <script src="/static/preview.js" defer></script>
+ <div class="piko-section-heading"><div><p class="piko-draft-eyebrow">{ locale.T(ctx,"preview.badge") }</p><h1 class="piko-page-title">{ locale.T(ctx,"preview.title") }</h1></div><a class="piko-text-link" href={ templ.URL(b.URL()+"/draft") }>{ locale.T(ctx,"draft.title") }</a></div>
+ <p class="piko-page-copy">{ locale.T(ctx,"preview.copy") }</p>
+ if message != "" {
+  <p class="piko-field-error piko-bot-error" role="alert">{ message }</p>
+ }
+ <section class="piko-card piko-preview-chat" aria-labelledby="preview-chat-heading"><header><span class="piko-empty-icon">@shell.Icon("robot")</span><div><h2 id="preview-chat-heading"><bdi dir="auto">{ b.Name }</bdi></h2><p class="piko-helper">{ locale.T(ctx,"preview.simulated") }</p></div></header>
+ <ol class="piko-preview-transcript" tabindex="0" aria-label={ locale.T(ctx,"preview.conversation") }>
+ for _, msg := range p.Conversation.Messages {
+  <li class={ "piko-preview-message", templ.KV("piko-preview-participant",msg.Participant) }><span class="piko-helper">
+  if msg.Participant {
+   { locale.T(ctx,"preview.participant") }
+  } else {
+   { locale.T(ctx,"preview.bot") }
+  }
+  </span><p><bdi dir="auto">{ msg.Text }</bdi></p></li>
+ }
+ </ol>
+ <form class="piko-preview-buttons" data-preview-revision={ strconv.FormatInt(p.Revision,10) } method="post" action={ templ.URL(b.URL()+"/preview/"+p.ID+"/choose") }><input type="hidden" name="csrf_token" value={ csrf }/><input type="hidden" name="revision" value={ strconv.FormatInt(p.Revision,10) }/>
+ for _, choice := range p.Conversation.Choices {
+  <button class="piko-secondary-action" type="submit" name="choice" value={ choice.ID }><bdi dir="auto">{ choice.Label }</bdi></button>
+ }
+ </form></section>
+ <div class="piko-preview-footer"><form method="post" action={ templ.URL(b.URL()+"/preview/"+p.ID+"/restart") }><input type="hidden" name="csrf_token" value={ csrf }/><input type="hidden" name="revision" value={ strconv.FormatInt(p.Revision,10) }/><button class="piko-subtle-action" type="submit">@shell.Icon("arrow-clockwise")<span>{ locale.T(ctx,"preview.restart") }</span></button></form><p class="piko-helper">{ locale.T(ctx,"preview.restart.hint") }</p><a class="piko-text-link" href={ templ.URL(b.URL()+"/preview") }>{ locale.T(ctx,"preview.new") }</a></div>
+}

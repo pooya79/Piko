@@ -181,6 +181,13 @@ func buildRouter(db *sql.DB, mw webx.Middleware, limiter *webx.RateLimiter, ah *
 		r.Get("/bots/connect", bh.ConnectForm)
 		r.With(limiter.MiddlewareStrict("bot-connect", 10, time.Minute)).Post("/bots/connect", bh.Connect)
 		r.Get("/bots/{botID}", bh.Detail)
+		r.Get("/bots/{botID}/draft", bh.Draft)
+		r.Post("/bots/{botID}/draft", bh.SaveDraft)
+		r.Get("/bots/{botID}/preview", bh.PreviewLanding)
+		r.With(limiter.MiddlewareStrict("bot-preview", 20, time.Minute)).Post("/bots/{botID}/preview", bh.StartPreview)
+		r.Get("/bots/{botID}/preview/{previewID}", bh.Preview)
+		r.Post("/bots/{botID}/preview/{previewID}/choose", bh.ChoosePreview)
+		r.Post("/bots/{botID}/preview/{previewID}/restart", bh.RestartPreview)
 	})
 	return r
 }

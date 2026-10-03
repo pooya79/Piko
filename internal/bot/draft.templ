@@ -1,0 +1,41 @@
+package bot
+
+import (
+ "strconv"
+ "github.com/pooya79/Piko/internal/locale"
+ "github.com/pooya79/Piko/internal/web/shell"
+)
+
+templ DraftPage(displayName, csrf string, b Bot, s DraftSettings, saved, notice bool, message string) {
+ @shell.Workspace(displayName, csrf, flowPage(ctx, b, "draft.title"), draftContent(csrf,b,s,saved,notice,message))
+}
+
+templ draftContent(csrf string, b Bot, s DraftSettings, saved, notice bool, message string) {
+ <div class="piko-section-heading"><div><p class="piko-draft-eyebrow">{ locale.T(ctx,"draft.badge") }</p><h1 class="piko-page-title">{ locale.T(ctx,"draft.title") }</h1></div><a class="piko-text-link" href={ templ.URL(b.URL()) }><bdi dir="auto">{ b.Name }</bdi></a></div>
+ <p class="piko-page-copy">{ locale.T(ctx,"draft.copy") }</p>
+ if notice && saved {
+ <p class="piko-draft-notice" role="status">{ locale.T(ctx,"draft.saved") }</p>
+ }
+ if message != "" {
+ <p id="draft-error" class="piko-field-error piko-bot-error" role="alert">{ message }</p>
+ }
+ <form class="piko-draft-form" method="post" action={ templ.URL(b.URL()+"/draft") }>
+  <input type="hidden" name="csrf_token" value={ csrf }/>
+  <section class="piko-card piko-draft-section" aria-labelledby="welcome-heading"><h2 id="welcome-heading">{ locale.T(ctx,"draft.welcome.title") }</h2><label class="piko-label" for="welcome">{ locale.T(ctx,"draft.welcome.label") }</label><textarea class="piko-input piko-draft-textarea" id="welcome" name="welcome" dir="auto" required maxlength="2000">{ s.Welcome }</textarea><label class="piko-label" for="menu-prompt">{ locale.T(ctx,"draft.menu.label") }</label><textarea class="piko-input piko-draft-textarea" id="menu-prompt" name="menu_prompt" dir="auto" required maxlength="2000">{ s.MenuPrompt }</textarea></section>
+  <section class="piko-card piko-draft-section" aria-labelledby="choices-heading"><h2 id="choices-heading">{ locale.T(ctx,"draft.choices.title") }</h2><p class="piko-helper" id="choices-hint">{ locale.T(ctx,"draft.choices.hint") }</p>
+   <div class="piko-draft-choices">
+    for i, choice := range s.Fields() {
+     <fieldset class="piko-draft-choice"><legend>{ locale.T(ctx,"draft.choice") + " " + locale.Digits(strconv.Itoa(i+1)) }</legend><label class="piko-label" for={ "choice-label-"+strconv.Itoa(i) }>{ locale.T(ctx,"draft.choice.label") }</label><input class="piko-input" id={ "choice-label-"+strconv.Itoa(i) } name="choice_label" value={ choice.Label } dir="auto" maxlength="80" aria-describedby="choices-hint"/><label class="piko-label" for={ "choice-message-"+strconv.Itoa(i) }>{ locale.T(ctx,"draft.choice.message") }</label><textarea class="piko-input piko-draft-textarea" id={ "choice-message-"+strconv.Itoa(i) } name="choice_message" dir="auto" maxlength="2000">{ choice.Message }</textarea></fieldset>
+    }
+   </div>
+  </section>
+  <div class="piko-draft-actions"><button class="piko-primary-action" type="submit">@shell.Icon("check-circle")<span>{ locale.T(ctx,"draft.save") }</span></button><p class="piko-helper">{ locale.T(ctx,"draft.inactive") }</p></div>
+ </form>
+ <section class="piko-card piko-draft-section piko-preview-launch"><div><h2>{ locale.T(ctx,"preview.title") }</h2><p class="piko-helper">{ locale.T(ctx,"preview.launch.copy") }</p></div>
+ if saved {
+ <a class="piko-secondary-action" href={ templ.URL(b.URL()+"/preview") }>{ locale.T(ctx,"preview.open") }</a>
+ } else {
+ <p class="piko-helper">{ locale.T(ctx,"preview.save.first") }</p>
+ }
+ </section>
+}

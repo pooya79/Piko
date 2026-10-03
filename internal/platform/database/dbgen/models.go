@@ -16,6 +16,21 @@ type Bot struct {
 	VerifiedAt     int64
 }
 
+type BotDraft struct {
+	BotID      int64
+	Definition string
+	UpdatedAt  int64
+}
+
+type BotPreview struct {
+	ID           string
+	BotID        int64
+	Definition   string
+	Conversation string
+	Revision     int64
+	ExpiresAt    int64
+}
+
 type RateLimit struct {
 	Key       string
 	Count     int64

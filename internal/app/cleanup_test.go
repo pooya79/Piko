@@ -16,14 +16,18 @@ func seedCleanupRecords(t *testing.T, db *sql.DB) {
 	t.Helper()
 	if _, err := db.Exec(`INSERT INTO users(id,email,display_name,password_hash) VALUES (1,'cleanup@example.test','Mina','unused');
  INSERT INTO sessions(token_hash,user_id,csrf_hash,expires_at) VALUES (x'01',1,x'01',0),(x'02',1,x'02',4102444800000);
- INSERT INTO rate_limits(key,count,expires_at) VALUES ('expired',1,0),('live',1,4102444800000);`); err != nil {
+ INSERT INTO rate_limits(key,count,expires_at) VALUES ('expired',1,0),('live',1,4102444800000);
+ INSERT INTO bots(id,owner_id,telegram_id,name,username,encrypted_token,has_webhook,pending_updates,verified_at)
+ VALUES (1,1,1,'Cleanup Bot','cleanup_bot',x'01',0,0,0);
+ INSERT INTO bot_previews(id,bot_id,definition,conversation,expires_at)
+ VALUES ('expired',1,'{}','{}',0),('live',1,'{}','{}',4102444800000);`); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func assertCleanupRecords(t *testing.T, db *sql.DB) {
 	t.Helper()
-	for _, table := range []string{"sessions", "rate_limits"} {
+	for _, table := range []string{"sessions", "rate_limits", "bot_previews"} {
 		var count, expires int64
 		if err := db.QueryRow("SELECT count(*), min(expires_at) FROM "+table).Scan(&count, &expires); err != nil || count != 1 || expires != 4102444800000 {
 			t.Fatalf("%s cleanup lost live or retained expired records: count=%d expires=%d err=%v", table, count, expires, err)
