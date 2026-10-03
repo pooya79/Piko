@@ -1,0 +1,155 @@
+@layer components {
+ .piko-icon { width: 20px; height: 20px; flex-shrink: 0; fill: currentColor; }
+ .piko-workspace { display: grid; grid-template-columns: 238px minmax(0, 1fr); min-height: 100dvh; }
+ .piko-workspace-main { min-width: 0; }
+ .piko-sidebar { position: sticky; top: 0; height: 100dvh; overflow-y: auto; scrollbar-width: thin; display: flex; flex-direction: column; gap: 24px; padding: 26px 20px 18px; border-inline-end: 1px solid var(--color-base-300); background: var(--color-base-100); }
+ .piko-sidebar > * { flex-shrink: 0; }
+ .piko-workspace-brand { display: flex; align-items: center; gap: 7px; }
+ .piko-workspace-brand > span { font-size: 30px; font-weight: 800; line-height: 1.3; }
+ .piko-workspace-brand small { display: block; font-size: 10px; font-weight: 400; color: var(--piko-text-secondary); margin-top: 5px; }
+ .piko-workspace-brand .piko-latin-brand { margin-inline-start: auto; font-family: Manrope, sans-serif; font-size: 21px; color: var(--piko-text-secondary); }
+ .piko-workspace-identity { display: flex; align-items: center; gap: 9px; padding: 11px 9px; border: 1px solid var(--color-base-300); border-radius: 12px; }
+ .piko-workspace-identity > .piko-icon:first-child { box-sizing: content-box; padding: 8px; border-radius: 9px; background: var(--piko-surface-lilac); }
+ .piko-workspace-identity > .piko-icon:last-child { width: 14px; margin-inline-start: auto; }
+ .piko-workspace-identity div, .piko-account-link div { min-width: 0; }
+ .piko-workspace-identity bdi, .piko-account-link bdi { display: block; font-size: 11px; font-weight: 600; overflow-wrap: anywhere; }
+ .piko-workspace-identity small, .piko-account-link small { display: block; font-size: 10px; color: var(--piko-text-secondary); margin-top: 3px; }
+ .piko-sidebar-label { display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: var(--piko-text-secondary); padding: 0 11px 12px; }
+ .piko-sidebar-label h2 { font-weight: 400; }
+ .piko-sidebar-label .piko-icon { width: 14px; height: 14px; }
+ .piko-nav-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 45px; margin-bottom: 5px; padding: 10px; border-radius: 10px; text-align: start; font-size: 12px; color: var(--piko-text-secondary); }
+ .piko-nav-active { background: var(--piko-selection); color: var(--color-primary); font-weight: 650; }
+ .piko-coming-soon { display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: not-allowed; text-align: start; }
+ .piko-coming-soon small { flex-shrink: 0; font-size: 9px; font-weight: 400; padding: 2px 5px; border-radius: 5px; background: var(--color-base-100); color: var(--piko-text-secondary); }
+ .piko-nav-item.piko-coming-soon { justify-content: flex-start; gap: 8px; }
+ .piko-nav-item small { margin-inline-start: auto; font-size: 8px; }
+ .piko-nav-item span { min-width: 0; }
+ .piko-nav-item .piko-icon { width: 18px; height: 18px; }
+ .piko-sidebar-empty { padding: 10px 12px; font-size: 11px; line-height: 1.9; color: var(--piko-text-secondary); }
+ .piko-sidebar-bottom { margin-top: auto; }
+ .piko-upgrade-card { padding: 18px 16px; border-radius: 16px; background: var(--piko-surface-lilac); }
+ .piko-upgrade-card h2 { font-size: 12px; font-weight: 650; margin-top: 9px; }
+ .piko-upgrade-card p { font-size: 10px; line-height: 1.9; color: var(--piko-text-secondary); margin: 5px 0 12px; }
+ .piko-secondary-action { padding: 9px 11px; border-radius: 8px; font-size: 10px; background: var(--color-base-100); border: 1px solid var(--color-base-300); }
+ .piko-upgrade-card .piko-secondary-action { width: 100%; }
+ .piko-secondary-action .piko-icon { width: 16px; height: 16px; }
+ .piko-help-link { width: 100%; justify-content: flex-start; font-size: 10px; padding: 22px 6px; color: var(--piko-text-secondary); }
+ .piko-help-link small { margin-inline-start: auto; }
+ .piko-sidebar-account { display: flex; align-items: center; gap: 8px; padding-top: 15px; border-top: 1px solid var(--color-base-300); }
+ .piko-account-link { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+ .piko-account-link > .piko-icon { box-sizing: content-box; padding: 8px; border-radius: 50%; background: var(--piko-surface-peach); }
+ .piko-logout { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 8px; color: var(--piko-text-secondary); cursor: pointer; }
+ .piko-logout:hover { background: var(--piko-selection); color: var(--color-primary); }
+ .piko-topbar { min-height: 77px; padding: 14px 36px; display: flex; align-items: center; justify-content: space-between; gap: 20px; background: var(--color-base-100); border-bottom: 1px solid var(--color-base-300); }
+ .piko-breadcrumb { display: flex; align-items: center; gap: 11px; font-size: 11px; color: var(--piko-text-secondary); }
+ .piko-breadcrumb strong { color: var(--color-base-content); font-weight: 550; }
+ .piko-breadcrumb .piko-icon { width: 12px; height: 12px; }
+ .piko-header-actions { display: flex; align-items: center; gap: 17px; }
+ .piko-primary-action { min-height: 36px; padding: 8px 12px; border-radius: 10px; background: var(--color-primary); color: var(--color-primary-content); font-size: 11px; font-weight: 600; }
+ .piko-primary-action .piko-icon { width: 16px; height: 16px; }
+ .piko-primary-action small { background: transparent; color: inherit; padding: 0; }
+ .piko-notifications { position: relative; }
+ .piko-notifications summary { display: grid; place-items: center; width: 36px; height: 36px; cursor: pointer; border-radius: 8px; color: var(--piko-text-secondary); list-style: none; }
+ .piko-notifications summary::-webkit-details-marker { display: none; }
+ .piko-notifications summary:hover { background: var(--color-base-200); }
+ .piko-notifications summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+ .piko-notification-panel { position: absolute; z-index: 30; top: 48px; inset-inline-end: 0; width: 260px; padding: 20px; background: var(--color-base-100); border: 1px solid var(--color-base-300); border-radius: 16px; box-shadow: var(--piko-shadow); }
+ .piko-notification-panel h2 { font-size: 14px; font-weight: 650; }
+ .piko-notification-panel p { margin-top: 14px; font-size: 12px; color: var(--piko-text-secondary); }
+ .piko-dashboard-main { max-width: 1500px; margin: 0 auto; padding: 29px 36px 0; }
+ .piko-dashboard-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 26px; }
+ .piko-dashboard-heading > div:first-child { min-width: 0; }
+ .piko-dashboard-heading h1 { font-size: 29px; font-weight: 700; line-height: 1.7; letter-spacing: -.7px; overflow-wrap: anywhere; }
+ .piko-dashboard-heading p { font-size: 12px; line-height: 1.9; color: var(--piko-text-secondary); }
+ .piko-dashboard-date { display: flex; align-items: center; gap: 8px; flex-shrink: 0; font-size: 11px; color: var(--piko-text-secondary); }
+ .piko-dashboard-date .piko-icon { width: 17px; height: 17px; }
+ .piko-welcome-grid { display: grid; grid-template-columns: minmax(0, 2.55fr) minmax(250px, 1fr); gap: 20px; margin-bottom: 30px; }
+ .piko-idea-banner { display: flex; align-items: center; position: relative; overflow: hidden; min-height: 232px; border-radius: 20px; padding: 27px 28px; background: var(--piko-surface-lilac); }
+ .piko-idea-copy { position: relative; z-index: 1; min-width: 0; width: 75%; }
+ .piko-small-label { display: flex; align-items: center; gap: 7px; font-size: 10px; color: var(--piko-text-secondary); }
+ .piko-small-label .piko-icon { width: 17px; height: 17px; }
+ .piko-idea-banner h2 { font-size: 23px; line-height: 1.8; font-weight: 700; margin-top: 10px; letter-spacing: -.5px; }
+ .piko-idea-copy > p { font-size: 12px; line-height: 1.9; color: var(--piko-text-secondary); margin-top: 4px; }
+ .piko-idea-prompt { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 20px; padding: 8px; border: 1px solid var(--color-base-300); background: var(--color-base-100); border-radius: 12px; }
+ .piko-idea-prompt > span { font-size: 10px; line-height: 1.8; color: var(--piko-text-secondary); }
+ .piko-idea-prompt .piko-primary-action { flex-shrink: 0; flex-wrap: wrap; gap: 4px; max-width: 110px; font-size: 10px; }
+ .piko-idea-copy > .piko-idea-note { margin-top: 9px; font-size: 10px; }
+ .piko-companion { position: absolute; width: 220px; height: 200px; object-fit: contain; inset-inline-end: -7px; bottom: 12px; pointer-events: none; }
+ .piko-monitoring-card { padding: 24px; border-radius: 20px; background: var(--piko-surface-mint); }
+ .piko-monitoring-card h2 { font-size: 18px; line-height: 1.8; font-weight: 650; margin-top: 16px; }
+ .piko-monitoring-card p { font-size: 11px; line-height: 1.9; color: var(--piko-text-secondary); margin: 10px 0 16px; }
+ .piko-subtle-action { color: var(--piko-text-secondary); font-size: 10px; gap: 7px; }
+ .piko-subtle-action .piko-icon { width: 16px; height: 16px; }
+ .piko-subtle-action small { background: transparent; border: 1px solid var(--color-base-300); }
+ .piko-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+ .piko-section-heading h2 { font-size: 18px; font-weight: 700; }
+ .piko-section-copy { font-size: 11px; color: var(--piko-text-secondary); margin-bottom: 16px; }
+ .piko-period { font-size: 10px; color: var(--piko-text-secondary); }
+ .piko-period .piko-icon { width: 15px; height: 15px; }
+ .piko-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 17px; margin-bottom: 24px; }
+ .piko-metric { padding: 18px 20px; }
+ .piko-metric h3 { display: flex; align-items: center; gap: 9px; font-size: 11px; color: var(--piko-text-secondary); }
+ .piko-icon-tile { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0; }
+ .piko-tone-coral { background: var(--piko-selection); color: var(--color-primary); }
+ .piko-tone-lilac { background: var(--piko-surface-lilac); }
+ .piko-tone-mint { background: var(--piko-surface-mint); }
+ .piko-tone-peach { background: var(--piko-surface-peach); }
+ .piko-metric-value { font-size: 34px; line-height: 1.5; font-weight: 650; margin-top: 7px; }
+ .piko-metric-note { font-size: 10px; color: var(--piko-text-secondary); }
+ .piko-insights-grid { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(250px, 1fr); gap: 20px; margin-bottom: 28px; }
+ .piko-insight-panel { display: flex; flex-direction: column; padding: 24px; min-height: 325px; }
+ .piko-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+ .piko-panel-heading h2 { font-size: 15px; font-weight: 650; line-height: 1.8; }
+ .piko-panel-heading p { font-size: 10px; color: var(--piko-text-secondary); margin-top: 5px; }
+ .piko-panel-heading > .piko-icon { color: var(--piko-text-secondary); width: 18px; height: 18px; }
+ .piko-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; text-align: center; padding: 30px 16px; }
+ .piko-empty-icon { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 16px; background: var(--piko-surface-lilac); color: var(--piko-text-secondary); margin-bottom: 15px; }
+ .piko-empty-icon .piko-icon { width: 26px; height: 26px; }
+ .piko-empty-state h3 { font-size: 14px; font-weight: 600; line-height: 1.9; }
+ .piko-empty-state p { max-width: 310px; font-size: 11px; line-height: 1.9; color: var(--piko-text-secondary); margin-top: 7px; }
+ .piko-panel-action { border-top: 1px solid var(--color-base-300); padding-top: 16px; justify-content: space-between; }
+ .piko-bots-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; margin-top: 20px; }
+ .piko-bots-empty { display: flex; min-height: 235px; }
+ .piko-new-bot-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 22px; text-align: center; border: 1px dashed var(--piko-control-border); border-radius: 20px; }
+ .piko-new-bot-tile > .piko-icon { width: 30px; height: 30px; color: var(--piko-text-secondary); }
+ .piko-new-bot-tile h3 { font-size: 13px; font-weight: 600; }
+ .piko-new-bot-tile p { font-size: 10px; color: var(--piko-text-secondary); }
+ .piko-workspace-footer { display: flex; justify-content: space-between; gap: 20px; padding: 25px 0; font-size: 10px; line-height: 1.9; color: var(--piko-text-secondary); }
+ /* The next responsive slice adds the interactive drawer. This fallback retains
+    account and logout access without hiding navigation or overflowing the page. */
+ @media (max-width: 1199px) {
+  .piko-dashboard-main { padding-inline: 24px; }
+  .piko-topbar { padding-inline: 24px; }
+  .piko-welcome-grid { grid-template-columns: minmax(0, 1fr); }
+  .piko-monitoring-card { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; }
+  .piko-monitoring-card h2, .piko-monitoring-card p { margin: 0; }
+  .piko-monitoring-card > .piko-subtle-action { margin-inline-start: auto; }
+  .piko-idea-copy { width: 70%; }
+  .piko-dashboard-heading { flex-wrap: wrap; gap: 8px; }
+  .piko-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+ }
+ @media (max-width: 767px) {
+  .piko-workspace { display: flex; flex-direction: column; }
+  .piko-workspace-main { order: -1; }
+  .piko-sidebar { position: static; height: auto; border-inline-end: 0; border-top: 1px solid var(--color-base-300); gap: 18px; }
+  .piko-topbar { padding: 12px 16px; flex-wrap: wrap; gap: 10px; }
+  .piko-header-actions { flex-wrap: wrap; gap: 10px; }
+  .piko-breadcrumb > span, .piko-breadcrumb > .piko-icon { display: none; }
+  .piko-dashboard-main { padding: 22px 18px 0; }
+  .piko-dashboard-heading h1 { font-size: 24px; }
+  .piko-idea-banner { padding: 24px 20px; }
+  .piko-idea-copy { width: 100%; }
+  .piko-idea-banner h2 { max-width: 210px; font-size: 21px; }
+  .piko-companion { width: 115px; height: 115px; top: 4px; bottom: auto; }
+  .piko-idea-copy > p:first-of-type { max-width: 220px; }
+  .piko-idea-prompt { margin-top: 25px; }
+  .piko-insights-grid, .piko-bots-grid { grid-template-columns: minmax(0, 1fr); }
+  .piko-metrics { gap: 12px; }
+  .piko-metric { padding: 14px; }
+  .piko-metric h3 { font-size: 10px; gap: 6px; }
+  .piko-icon-tile { width: 28px; height: 28px; }
+  .piko-section-heading { flex-wrap: wrap; }
+  .piko-notification-panel { inset-inline-end: -50px; width: 230px; }
+  .piko-workspace-footer { font-size: 9px; }
+ }
+}

@@ -15,11 +15,7 @@ templ Layout(title, displayName, csrf string, content templ.Component) {
    <header class="piko-auth-header">
     <a class="piko-brand" href="/" aria-label={ locale.T(ctx, "auth.brand.home") }><img src="/static/brand/piko-mark-v2.webp" width="40" height="40" alt=""/><span>پیکو</span></a>
     <div class="piko-auth-controls">
-     <div class="piko-theme-choices" role="group" aria-label={ locale.T(ctx, "auth.theme.label") }>
-      <button type="button" data-theme-choice="system" aria-pressed="true">{ locale.T(ctx, "auth.theme.choice.system") }</button>
-      <button type="button" data-theme-choice="light" aria-pressed="false">{ locale.T(ctx, "auth.theme.choice.light") }</button>
-      <button type="button" data-theme-choice="dark" aria-pressed="false">{ locale.T(ctx, "auth.theme.choice.dark") }</button>
-     </div>
+     @themeChoices()
     </div>
    </header>
    <main id="main-content" tabindex="-1" class="piko-auth-main">
@@ -39,4 +35,12 @@ templ Layout(title, displayName, csrf string, content templ.Component) {
    </main>
   </body>
  </html>
+}
+
+templ themeChoices() {
+ <div class="piko-theme-choices" role="group" aria-label={ locale.T(ctx, "auth.theme.label") }>
+  <button type="button" data-theme-choice="system" aria-pressed="true">{ locale.T(ctx, "auth.theme.choice.system") }</button>
+  <button type="button" data-theme-choice="light" aria-pressed="false">{ locale.T(ctx, "auth.theme.choice.light") }</button>
+  <button type="button" data-theme-choice="dark" aria-pressed="false">{ locale.T(ctx, "auth.theme.choice.dark") }</button>
+ </div>
 }

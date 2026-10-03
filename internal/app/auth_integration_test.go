@@ -76,7 +76,7 @@ func TestAuthJourneyAgainstSQLite(t *testing.T) {
 	send(http.MethodGet, "/dashboard", nil, http.StatusSeeOther, "/login")
 	send(http.MethodGet, "/", nil, http.StatusFound, "/login")
 	send(http.MethodGet, "/register", nil, http.StatusOK, "")
-	registration := url.Values{"email": {" Journey@Example.Test "}, "display_name": {"  Mina مینا  "}, "password": {"original-password-123"}}
+	registration := url.Values{"email": {" Journey@Example.Test "}, "display_name": {"  Mina مینا <نام>  "}, "password": {"original-password-123"}}
 	send(http.MethodPost, "/register", registration, http.StatusSeeOther, "/dashboard")
 	oldSession := cookie(auth.SessionCookie)
 	if oldSession == "" {
@@ -86,6 +86,7 @@ func TestAuthJourneyAgainstSQLite(t *testing.T) {
 	if !strings.Contains(dashboard, "Mina مینا") || !strings.Contains(dashboard, `lang="fa"`) || !strings.Contains(dashboard, `dir="rtl"`) {
 		t.Fatal("saved Display name missing from Dashboard")
 	}
+	assertEmptyDashboard(t, dashboard, oldSession)
 	account := send(http.MethodGet, "/account", nil, http.StatusOK, "")
 	if !strings.Contains(account, "Mina مینا") || !strings.Contains(account, "journey@example.test") {
 		t.Fatal("saved account details missing")
@@ -99,4 +100,33 @@ func TestAuthJourneyAgainstSQLite(t *testing.T) {
 	send(http.MethodGet, "/login", nil, http.StatusOK, "")
 	send(http.MethodPost, "/login", url.Values{"email": {"journey@example.test"}, "password": {"original-password-123"}}, http.StatusSeeOther, "/dashboard")
 	send(http.MethodGet, "/dashboard", nil, http.StatusOK, "")
+}
+
+// These are product claims at the existing HTTP seam, not a snapshot of the layout.
+func assertEmptyDashboard(t *testing.T, body, session string) {
+	t.Helper()
+	for _, text := range []string{
+		"هنوز رباتی نساخته\u200cای", "رباتی برای پایش وجود ندارد",
+		"داده\u200cای برای نمایش آمار نداریم", "هنوز گفت\u200cوگویی ثبت نشده",
+		"هنوز فعالیتی ثبت نشده", "اعلانی نداری", "به\u200cزودی",
+		"اولین رباتت", "گفت\u200cوگوها", "کاربران جدید", "درخواست\u200cهای موفق", "ربات\u200cهای فعال",
+		`/static/brand/piko-companion.webp`, `href="/account"`, `action="/logout"`,
+	} {
+		if !strings.Contains(body, text) {
+			t.Errorf("Dashboard missing %q", text)
+		}
+	}
+	if strings.Count(body, "Mina مینا &lt;نام&gt;") < 2 {
+		t.Error("saved Display name must identify both greeting and account")
+	}
+	for _, forbidden := range []string{
+		"<نام>", "نازنین", "کافه لیمو", "فروشگاه ماهور", "limoo_cafe_bot", "mahoor_shop_bot",
+		"همه\u200cچیز روبه\u200cراهه", "بدون مشکل", "اشتراک حرفه\u200cای", "٪", "sparkline", "chart.js",
+		`href="/bots"`, `href="/chat"`, `href="/analytics"`, `href="/billing"`,
+		`name="token"`, `name="prompt"`, "journey@example.test", "original-password-123", session,
+	} {
+		if strings.Contains(body, forbidden) {
+			t.Errorf("Dashboard contains demo content, unavailable destination, or private credential: %q", forbidden)
+		}
+	}
 }

@@ -1,0 +1,85 @@
+package shell
+
+import (
+ "github.com/pooya79/Piko/internal/locale"
+ "github.com/pooya79/Piko/internal/web/head"
+)
+
+// Workspace keeps navigation and account access separate from feature content.
+templ Workspace(displayName, csrf string, content templ.Component) {
+ <!doctype html>
+ <html lang="fa" dir="rtl" data-theme="piko-light">
+  <head>
+   @head.Head(locale.T(ctx, "dashboard.title"))
+   <script src="/static/dashboard.js" defer></script>
+  </head>
+  <body class="piko-workspace-body antialiased">
+   @head.SkipLink()
+   <div class="piko-workspace">
+    @sidebar(displayName, csrf)
+    <div class="piko-workspace-main">
+     @topbar()
+     <main id="main-content" tabindex="-1" class="piko-dashboard-main">
+      @content
+      <footer class="piko-workspace-footer"><span>{ locale.T(ctx, "workspace.footer.brand") }</span><span>{ locale.T(ctx, "workspace.footer.purpose") }</span></footer>
+     </main>
+    </div>
+   </div>
+  </body>
+ </html>
+}
+
+templ Icon(name string) {
+ <svg class="piko-icon" aria-hidden="true"><use href={ "/static/icons.svg#" + name }></use></svg>
+}
+
+// Future actions never submit or navigate. Their availability is visible in the label.
+templ ComingSoon(label, icon, class string) {
+ <button type="button" disabled class={ "piko-coming-soon " + class }>
+  @Icon(icon)<span>{ label }</span><small>{ locale.T(ctx, "workspace.soon") }</small>
+ </button>
+}
+
+templ sidebar(displayName, csrf string) {
+ <aside class="piko-sidebar" aria-label={ locale.T(ctx, "workspace.navigation") }>
+  <a class="piko-workspace-brand" href="/dashboard"><img src="/static/brand/piko-mark-v2.webp" width="44" height="44" alt=""/><span>پیکو<small>{ locale.T(ctx, "workspace.brand.tagline") }</small></span><span class="piko-latin-brand" lang="en" dir="ltr">piko</span></a>
+  <a class="piko-workspace-identity" href="/account">@Icon("user")<div><bdi dir="auto">{ displayName }</bdi><small>{ locale.T(ctx, "workspace.personal") }</small></div>@Icon("caret-left")</a>
+  <nav aria-label={ locale.T(ctx, "workspace.navigation") }>
+   <p class="piko-sidebar-label">{ locale.T(ctx, "workspace.title") }</p>
+   <a class="piko-nav-item piko-nav-active" href="/dashboard" aria-current="page">@Icon("house")<span>{ locale.T(ctx, "dashboard.title") }</span></a>
+   @ComingSoon(locale.T(ctx, "workspace.chat"), "chat-circle-dots", "piko-nav-item")
+   @ComingSoon(locale.T(ctx, "workspace.bots"), "squares-four", "piko-nav-item")
+   @ComingSoon(locale.T(ctx, "workspace.analytics"), "chart-line-up", "piko-nav-item")
+   @ComingSoon(locale.T(ctx, "workspace.billing"), "credit-card", "piko-nav-item")
+  </nav>
+  <section class="piko-sidebar-recent" aria-labelledby="recent-bots-title">
+   <div class="piko-sidebar-label"><h2 id="recent-bots-title">{ locale.T(ctx, "workspace.recent") }</h2>@Icon("plus")</div>
+   <p class="piko-sidebar-empty">{ locale.T(ctx, "dashboard.bots.empty") }</p>
+  </section>
+  <div class="piko-sidebar-bottom">
+   <section class="piko-upgrade-card">
+    @Icon("sparkle")<h2>{ locale.T(ctx, "workspace.plans.heading") }</h2><p>{ locale.T(ctx, "workspace.plans.copy") }</p>
+    @ComingSoon(locale.T(ctx, "workspace.plans.action"), "arrow-right", "piko-secondary-action")
+   </section>
+   @ComingSoon(locale.T(ctx, "workspace.help"), "question", "piko-help-link")
+   <div class="piko-sidebar-account">
+    <a href="/account" class="piko-account-link">@Icon("user")<div><bdi dir="auto">{ displayName }</bdi><small>{ locale.T(ctx, "auth.account.heading") }</small></div></a>
+    <form action="/logout" method="post"><input type="hidden" name="csrf_token" value={ csrf }/><button type="submit" class="piko-logout" aria-label={ locale.T(ctx, "auth.logout") }>@Icon("sign-out")</button></form>
+   </div>
+  </div>
+ </aside>
+}
+
+templ topbar() {
+ <header class="piko-topbar">
+  <div class="piko-breadcrumb"><span>{ locale.T(ctx, "workspace.title") }</span>@Icon("caret-left")<strong>{ locale.T(ctx, "dashboard.title") }</strong></div>
+  <div class="piko-header-actions">
+   @themeChoices()
+   <details class="piko-notifications">
+    <summary aria-label={ locale.T(ctx, "workspace.notifications") }>@Icon("bell")</summary>
+    <div class="piko-notification-panel"><h2>{ locale.T(ctx, "workspace.notifications") }</h2><p>{ locale.T(ctx, "workspace.notifications.empty") }</p></div>
+   </details>
+   @ComingSoon(locale.T(ctx, "workspace.create"), "plus", "piko-primary-action")
+  </div>
+ </header>
+}

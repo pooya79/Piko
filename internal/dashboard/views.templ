@@ -5,12 +5,65 @@ import (
  "github.com/pooya79/Piko/internal/web/shell"
 )
 
-templ Page(displayName, csrf string) {
- @shell.Layout(locale.T(ctx, "dashboard.title"), displayName, csrf, content(displayName))
+templ Page(displayName, csrf, date string) {
+ @shell.Workspace(displayName, csrf, content(displayName, date))
 }
 
-templ content(displayName string) {
- <h1 class="piko-page-title">{ locale.T(ctx, "dashboard.title") }</h1>
- <p class="piko-page-copy break-words">{ locale.T(ctx, "dashboard.greeting") } <bdi dir="auto">{ displayName }</bdi></p>
- <a class="piko-text-link mt-6 inline-block" href="/account">{ locale.T(ctx, "auth.account.heading") }</a>
+templ content(displayName, date string) {
+ <div class="piko-dashboard-heading">
+  <div><h1>{ locale.T(ctx, "dashboard.greeting") } <bdi dir="auto">{ displayName }</bdi>، { locale.T(ctx, "dashboard.welcome") }</h1><p>{ locale.T(ctx, "dashboard.subtitle") }</p></div>
+  <div class="piko-dashboard-date">@shell.Icon("calendar-blank")<time datetime={ date } data-persian-date>{ locale.T(ctx, "dashboard.today") }</time></div>
+ </div>
+ <div class="piko-welcome-grid">
+  <section class="piko-idea-banner" aria-labelledby="first-bot-title">
+   <div class="piko-idea-copy"><span class="piko-small-label">@shell.Icon("sparkle"){ locale.T(ctx, "dashboard.idea.kicker") }</span><h2 id="first-bot-title">{ locale.T(ctx, "dashboard.idea.title") }</h2><p>{ locale.T(ctx, "dashboard.idea.copy") }</p>
+    <div class="piko-idea-prompt"><span>{ locale.T(ctx, "dashboard.idea.example") }</span>@shell.ComingSoon(locale.T(ctx, "workspace.create"), "arrow-right", "piko-primary-action")</div>
+    <p class="piko-idea-note">{ locale.T(ctx, "dashboard.idea.note") }</p>
+   </div>
+   <img class="piko-companion" src="/static/brand/piko-companion.webp" width="300" height="220" alt={ locale.T(ctx, "dashboard.idea.illustration") } fetchpriority="high"/>
+  </section>
+  <section class="piko-monitoring-card" aria-labelledby="monitoring-title">
+   <span class="piko-small-label">@shell.Icon("shield-check"){ locale.T(ctx, "dashboard.monitoring.label") }</span><h2 id="monitoring-title">{ locale.T(ctx, "dashboard.monitoring.title") }</h2><p>{ locale.T(ctx, "dashboard.monitoring.empty") }</p>
+   @shell.ComingSoon(locale.T(ctx, "dashboard.monitoring.action"), "arrow-up-left", "piko-subtle-action")
+  </section>
+ </div>
+ <section aria-labelledby="metrics-title">
+  <div class="piko-section-heading"><h2 id="metrics-title">{ locale.T(ctx, "dashboard.metrics.title") }</h2>@shell.ComingSoon(locale.T(ctx, "dashboard.metrics.period"), "calendar-blank", "piko-period")</div>
+  <p class="piko-section-copy">{ locale.T(ctx, "dashboard.metrics.empty") }</p>
+  <div class="piko-metrics">
+   @metric("dashboard.metrics.conversations", "chat-circle-dots", "coral")
+   @metric("dashboard.metrics.users", "users", "lilac")
+   @metric("dashboard.metrics.requests", "check-circle", "mint")
+   @metric("dashboard.metrics.bots", "lightning", "peach")
+  </div>
+ </section>
+ <div class="piko-insights-grid">
+  <section class="piko-card piko-insight-panel" aria-labelledby="conversations-title">
+   <div class="piko-panel-heading"><div><h2 id="conversations-title">{ locale.T(ctx, "dashboard.conversations.title") }</h2><p>{ locale.T(ctx, "dashboard.conversations.subtitle") }</p></div>@shell.Icon("chat-circle-dots")</div>
+   @emptyState("chat-circle-dots", "dashboard.conversations.empty", "dashboard.conversations.copy")
+  </section>
+  <section class="piko-card piko-insight-panel" aria-labelledby="activity-title">
+   <div class="piko-panel-heading"><h2 id="activity-title">{ locale.T(ctx, "dashboard.activity.title") }</h2>@shell.Icon("clock")</div>
+   @emptyState("clock", "dashboard.activity.empty", "dashboard.activity.copy")
+   @shell.ComingSoon(locale.T(ctx, "dashboard.activity.action"), "caret-left", "piko-subtle-action piko-panel-action")
+  </section>
+ </div>
+ <section aria-labelledby="bots-title">
+  <div class="piko-section-heading"><h2 id="bots-title">{ locale.T(ctx, "dashboard.bots.title") }</h2>@shell.ComingSoon(locale.T(ctx, "dashboard.bots.all"), "arrow-right", "piko-subtle-action")</div>
+  <div class="piko-bots-grid">
+   <div class="piko-card piko-bots-empty">@emptyState("robot", "dashboard.bots.empty", "dashboard.bots.copy")</div>
+   <div class="piko-new-bot-tile">@shell.Icon("plus")<h3>{ locale.T(ctx, "dashboard.bots.new") }</h3><p>{ locale.T(ctx, "dashboard.bots.new.copy") }</p>@shell.ComingSoon(locale.T(ctx, "workspace.create"), "plus", "piko-secondary-action")</div>
+  </div>
+ </section>
+}
+
+templ metric(label, icon, tone string) {
+ <div class="piko-card piko-metric">
+  <h3><span class={ "piko-icon-tile piko-tone-" + tone }>@shell.Icon(icon)</span>{ locale.T(ctx, label) }</h3>
+  <p class="piko-metric-value" aria-label={ locale.T(ctx, "dashboard.metrics.unavailable") }>—</p><p class="piko-metric-note">{ locale.T(ctx, "dashboard.metrics.unavailable") }</p>
+ </div>
+}
+
+templ emptyState(icon, heading, copy string) {
+ <div class="piko-empty-state"><span class="piko-empty-icon">@shell.Icon(icon)</span><h3>{ locale.T(ctx, heading) }</h3><p>{ locale.T(ctx, copy) }</p></div>
 }

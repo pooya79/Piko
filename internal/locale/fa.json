@@ -147,12 +147,174 @@
     "other": "داشبورد"
   },
   "dashboard.greeting": {
-    "other": "خوش آمدید،"
+    "other": "سلام"
   },
   "auth.register.error.exists": {
     "other": "این نشانی ایمیل قبلاً ثبت شده است. وارد حساب خود شوید."
   },
   "error.message.method": {
     "other": "روش درخواست برای این صفحه مجاز نیست."
+  },
+  "workspace.navigation": {
+    "other": "ناوبری فضای کار"
+  },
+  "workspace.title": {
+    "other": "فضای کار"
+  },
+  "workspace.soon": {
+    "other": "به‌زودی"
+  },
+  "workspace.brand.tagline": {
+    "other": "یک فکر، یک ربات"
+  },
+  "workspace.personal": {
+    "other": "فضای کار شخصی"
+  },
+  "workspace.chat": {
+    "other": "گفت‌وگو با پیکو"
+  },
+  "workspace.bots": {
+    "other": "ربات‌های من"
+  },
+  "workspace.analytics": {
+    "other": "آمار و گزارش‌ها"
+  },
+  "workspace.billing": {
+    "other": "اشتراک و مصرف"
+  },
+  "workspace.recent": {
+    "other": "ربات‌های اخیر"
+  },
+  "workspace.plans.heading": {
+    "other": "برای ایده‌های بزرگ‌تر"
+  },
+  "workspace.plans.copy": {
+    "other": "طرح‌های اشتراک در آینده در دسترس خواهند بود."
+  },
+  "workspace.plans.action": {
+    "other": "دیدن طرح‌ها"
+  },
+  "workspace.help": {
+    "other": "راهنما و پشتیبانی"
+  },
+  "workspace.notifications": {
+    "other": "اعلان‌ها"
+  },
+  "workspace.notifications.empty": {
+    "other": "اعلانی نداری؛ رویدادهای تازه اینجا نمایش داده می‌شوند."
+  },
+  "workspace.create": {
+    "other": "ساخت ربات"
+  },
+  "workspace.footer.brand": {
+    "other": "با پیکو، یک فکر و هزار امکان"
+  },
+  "workspace.footer.purpose": {
+    "other": "برای کسب‌وکارهای پر از ایده"
+  },
+  "dashboard.welcome": {
+    "other": "خوش اومدی"
+  },
+  "dashboard.subtitle": {
+    "other": "ایده‌های تو، دستیارهای آیندهٔ کسب‌وکارت."
+  },
+  "dashboard.today": {
+    "other": "امروز"
+  },
+  "dashboard.idea.kicker": {
+    "other": "از یک ایده شروع کن"
+  },
+  "dashboard.idea.title": {
+    "other": "اولین رباتت چی کار کنه؟"
+  },
+  "dashboard.idea.copy": {
+    "other": "اول مشخص کن ربات چه کمکی به کسب‌وکارت می‌کند."
+  },
+  "dashboard.idea.example": {
+    "other": "مثلاً یک ربات برای رزرو میز کافه‌ام…"
+  },
+  "dashboard.idea.note": {
+    "other": "ساخت و اتصال ربات به‌زودی در دسترس خواهد بود."
+  },
+  "dashboard.idea.illustration": {
+    "other": "دستیار پیکو با همراه پیام‌رسان"
+  },
+  "dashboard.monitoring.label": {
+    "other": "پایش ربات‌ها"
+  },
+  "dashboard.monitoring.title": {
+    "other": "رباتی برای پایش وجود ندارد"
+  },
+  "dashboard.monitoring.empty": {
+    "other": "پس از ساخت و اتصال اولین ربات، وضعیت پایش آن اینجا نمایش داده می‌شود."
+  },
+  "dashboard.monitoring.action": {
+    "other": "فعالیت‌های پایش"
+  },
+  "dashboard.metrics.title": {
+    "other": "کسب‌وکارت در یک نگاه"
+  },
+  "dashboard.metrics.empty": {
+    "other": "داده‌ای برای نمایش آمار نداریم؛ پس از اتصال ربات، آمار اینجا نمایش داده می‌شود."
+  },
+  "dashboard.metrics.period": {
+    "other": "بازهٔ زمانی"
+  },
+  "dashboard.metrics.conversations": {
+    "other": "گفت‌وگوها"
+  },
+  "dashboard.metrics.users": {
+    "other": "کاربران جدید"
+  },
+  "dashboard.metrics.requests": {
+    "other": "درخواست‌های موفق"
+  },
+  "dashboard.metrics.bots": {
+    "other": "ربات‌های فعال"
+  },
+  "dashboard.metrics.unavailable": {
+    "other": "هنوز در دسترس نیست"
+  },
+  "dashboard.conversations.title": {
+    "other": "گفت‌وگوهایی که جریان دارن"
+  },
+  "dashboard.conversations.subtitle": {
+    "other": "تعامل کاربران با ربات‌های تو"
+  },
+  "dashboard.conversations.empty": {
+    "other": "هنوز گفت‌وگویی ثبت نشده"
+  },
+  "dashboard.conversations.copy": {
+    "other": "بعد از اتصال ربات و شروع گفت‌وگوها، روند تعامل کاربران اینجا نمایش داده می‌شود."
+  },
+  "dashboard.activity.title": {
+    "other": "پیکو چه کار کرده؟"
+  },
+  "dashboard.activity.empty": {
+    "other": "هنوز فعالیتی ثبت نشده"
+  },
+  "dashboard.activity.copy": {
+    "other": "وقتی رباتی متصل شود، رویدادهای واقعی آن در این بخش نمایش داده می‌شوند."
+  },
+  "dashboard.activity.action": {
+    "other": "همهٔ فعالیت‌ها"
+  },
+  "dashboard.bots.title": {
+    "other": "ربات‌های تو"
+  },
+  "dashboard.bots.empty": {
+    "other": "هنوز رباتی نساخته‌ای"
+  },
+  "dashboard.bots.copy": {
+    "other": "با یک ایده شروع کن؛ ساخت و مدیریت ربات‌ها به‌زودی در دسترس خواهد بود."
+  },
+  "dashboard.bots.all": {
+    "other": "همهٔ ربات‌ها"
+  },
+  "dashboard.bots.new": {
+    "other": "یک ربات تازه"
+  },
+  "dashboard.bots.new.copy": {
+    "other": "یک ایدهٔ تازه برای کسب‌وکارت"
   }
 }

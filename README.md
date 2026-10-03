@@ -1,12 +1,12 @@
 # Piko
 
-A small Go application with registration, login, logout, and a minimal protected Dashboard at `/dashboard`. Registration asks for a Display name, email, and password and signs the user in immediately. The retained `/account` page shows the saved name and email. All application screens render Persian with RTL layout and system/light/dark themes. Latin identifiers remain LTR, and user-provided Display names are escaped and isolated.
+A small Go application with registration, login, logout, and a protected desktop Dashboard at `/dashboard`. Registration asks for a Display name, email, and password and signs the user in immediately. The retained `/account` page shows the saved name and email. All application screens render Persian with RTL layout and system/light/dark themes. Latin identifiers remain LTR, and user-provided Display names are escaped and isolated.
 
 ## Structure
 
 - `cmd/server`: HTTP entry point; `internal/app`: configuration, composition, and expired-record cleanup.
 - `internal/auth`: account and session handlers, services, repositories, and templ views.
-- `internal/dashboard`: minimal protected Dashboard; `internal/web`: middleware and shared layouts.
+- `internal/dashboard`: protected Dashboard and honest empty states; `internal/web`: middleware and shared layouts.
 - `internal/locale`: UI copy; `internal/platform`: SQLite, logging, and generated sqlc adapters.
 - `db/migrations`, `db/queries`, `db/seeds`: schema, SQL, and optional development account.
 - `assets`, `static`: Tailwind/daisyUI source and local browser assets.
@@ -38,7 +38,9 @@ The migration removes obsolete verification metadata, email challenges, signup r
 
 Migration `000003_persian_only` removes `users.preferred_language` without changing account or session records. Old `piko_language` cookies are ignored, the `/language` route is removed, and authentication no longer writes a language cookie. Run `make migrate-up` before starting the new binaries. `make migrate-down` rolls back only the latest migration; rolling back `000003` restores a Persian default for all accounts, because retired language choices cannot be recovered. The application remains Persian-only after rollback.
 
-The shared visual foundation uses the approved coral P/speech-bubble mark, matching favicons, and self-hosted Vazirmatn/Manrope fonts with licenses under `static/fonts`. The archived design reference remains in `docs/design/piko-studio`. Browser evidence for these screens is in `docs/qa/issue-3`.
+The shared visual foundation uses the approved coral P/speech-bubble mark, matching favicons, and self-hosted Vazirmatn/Manrope fonts with licenses under `static/fonts`. The archived design reference remains in `docs/design/piko-studio`. Browser evidence for account screens is in `docs/qa/issue-3`, and desktop Dashboard evidence is in `docs/qa/issue-4`.
+
+The Dashboard uses the saved Display name in its greeting and account identity, an Iran-local Persian calendar date, the approved companion illustration, and empty bot, monitoring, conversation, activity, and notification sections. Metrics remain unavailable until a backing source exists. Future bot creation, chat, management, analytics, billing, and help controls are disabled and marked coming soon; the illustrative first-bot prompt accepts no input or Telegram token. Account navigation, logout, and the shared theme controls work. Chart.js is selected for future populated charts and is not installed or loaded. The desktop workspace components live in `internal/web/shell`; the interactive mobile drawer and further main-page refinements belong to the next responsive slice.
 
 ## Production
 

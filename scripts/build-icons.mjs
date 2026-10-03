@@ -5,6 +5,26 @@ import { fileURLToPath } from "node:url";
 // The MIT notice for these SVGs ships beside the generated sprite in static/.
 const icons = {
  "arrow-right": ["regular", "arrow-right"],
+ "arrow-up-left": ["regular", "arrow-up-left"],
+ "bell": ["regular", "bell"],
+ "calendar-blank": ["regular", "calendar-blank"],
+ "caret-left": ["regular", "caret-left"],
+ "chart-line-up": ["regular", "chart-line-up"],
+ "chat-circle-dots": ["regular", "chat-circle-dots"],
+ "check-circle": ["regular", "check-circle"],
+ "clock": ["regular", "clock"],
+ "credit-card": ["regular", "credit-card"],
+ "house": ["fill", "house"],
+ "lightning": ["regular", "lightning"],
+ "plus": ["regular", "plus"],
+ "question": ["regular", "question"],
+ "robot": ["regular", "robot"],
+ "shield-check": ["regular", "shield-check"],
+ "sign-out": ["regular", "sign-out"],
+ "sparkle": ["regular", "sparkle"],
+ "squares-four": ["regular", "squares-four"],
+ "user": ["regular", "user"],
+ "users": ["regular", "users"],
 };
 
 async function source(weight, name) {
