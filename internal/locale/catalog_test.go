@@ -1,7 +1,6 @@
 package locale
 
 import (
-	"encoding/json"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -13,26 +12,11 @@ import (
 	"testing"
 )
 
-func TestCatalogRejectsMissingTranslation(t *testing.T) {
-	english, err := catalogs.ReadFile("en.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	persian, err := catalogs.ReadFile("fa.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var messages map[string]json.RawMessage
-	if err := json.Unmarshal(persian, &messages); err != nil {
-		t.Fatal(err)
-	}
-	delete(messages, "auth.login.title")
-	incomplete, err := json.Marshal(messages)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := newCatalog(english, incomplete); err == nil || !strings.Contains(err.Error(), "auth.login.title") {
-		t.Fatalf("missing translation was accepted: %v", err)
+func TestCatalogRejectsInvalidCopy(t *testing.T) {
+	for _, data := range []string{`{}`, `{"bad":{"other":"متن"}}`, `{"auth.login.title":{"other":" "}}`, `{`} {
+		if _, err := newCatalog([]byte(data)); err == nil {
+			t.Errorf("accepted invalid catalog %s", data)
+		}
 	}
 }
 
@@ -56,7 +40,7 @@ func TestCatalogCoversReferencedCopy(t *testing.T) {
 				return err
 			}
 			for _, match := range keyReference.FindAllSubmatch(data, -1) {
-				if _, ok := catalog.keys[string(match[1])]; !ok {
+				if _, ok := catalog.texts[string(match[1])]; !ok {
 					t.Errorf("%s references missing key %q", path, match[1])
 				}
 			}
@@ -73,8 +57,14 @@ func TestCatalogCoversReferencedCopy(t *testing.T) {
 			if !ok || len(call.Args) != 4 {
 				return true
 			}
-			selector, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok || selector.Sel.Name != "RenderError" {
+			name := ""
+			switch fn := call.Fun.(type) {
+			case *ast.SelectorExpr:
+				name = fn.Sel.Name
+			case *ast.Ident:
+				name = fn.Name
+			}
+			if name != "RenderError" {
 				return true
 			}
 			literal, ok := call.Args[3].(*ast.BasicLit)
@@ -85,7 +75,7 @@ func TestCatalogCoversReferencedCopy(t *testing.T) {
 			message, err := strconv.Unquote(literal.Value)
 			if err != nil {
 				t.Errorf("%s has invalid error copy: %v", path, err)
-			} else if _, ok := catalog.source[message]; !ok {
+			} else if _, ok := catalog.texts[message]; !ok {
 				t.Errorf("%s has untranslated shared error %q", path, message)
 			}
 			return true

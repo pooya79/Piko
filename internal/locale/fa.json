@@ -9,7 +9,7 @@
     "other": "جزئیات حساب"
   },
   "auth.account.name": {
-    "other": "نام"
+    "other": "نام نمایشی"
   },
   "auth.account.page.title": {
     "other": "حساب"
@@ -75,7 +75,7 @@
     "other": "قبلاً ثبت‌نام کرده‌اید؟"
   },
   "auth.register.name": {
-    "other": "نام"
+    "other": "نام نمایشی"
   },
   "auth.register.name.placeholder": {
     "other": "چه نامی شما را صدا کنیم"
@@ -119,12 +119,6 @@
   "error.message.csrf": {
     "other": "نشست یا کد امنیتی فرم نامعتبر است."
   },
-  "error.message.language.change": {
-    "other": "تغییر زبان اکنون ممکن نیست."
-  },
-  "error.message.language.unsupported": {
-    "other": "زبان انتخاب‌شده پشتیبانی نمی‌شود."
-  },
   "error.message.page.missing": {
     "other": "صفحه پیدا نشد."
   },
@@ -143,9 +137,6 @@
   "error.page.title": {
     "other": "صفحهٔ خطا"
   },
-  "language.switch.label": {
-    "other": "زبان"
-  },
   "web.skip.content": {
     "other": "رفتن به محتوا"
   },
@@ -160,5 +151,8 @@
   },
   "auth.register.error.exists": {
     "other": "این نشانی ایمیل قبلاً ثبت شده است. وارد حساب خود شوید."
+  },
+  "error.message.method": {
+    "other": "روش درخواست برای این صفحه مجاز نیست."
   }
 }

@@ -19,7 +19,7 @@ func TestCSRFRejectsMissingToken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r = r.WithContext(catalog.With(r.Context(), "fa", r.URL.RequestURI()))
+	r = r.WithContext(catalog.With(r.Context()))
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
@@ -70,13 +70,13 @@ func TestAuthenticatedErrorKeepsAccountNavigation(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := httptest.NewRequest(http.MethodGet, "/account", nil)
-	r = r.WithContext(auth.WithUser(catalog.With(r.Context(), "en", r.URL.RequestURI()), auth.User{ID: 7, DisplayName: "Mina"}))
+	r = r.WithContext(auth.WithUser(catalog.With(r.Context()), auth.User{ID: 7, DisplayName: "Mina"}))
 	w := httptest.NewRecorder()
-	RenderError(w, r, http.StatusBadRequest, "Invalid CSRF token.")
+	RenderError(w, r, http.StatusBadRequest, "error.message.csrf")
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status=%d", w.Code)
 	}
-	for _, want := range []string{"Invalid CSRF token.", "Mina", "/account", "/logout"} {
+	for _, want := range []string{"نشست یا کد امنیتی فرم نامعتبر است.", "Mina", "/account", "/logout"} {
 		if !strings.Contains(w.Body.String(), want) {
 			t.Errorf("error page missing %q", want)
 		}
@@ -89,9 +89,9 @@ func TestAuthenticatedErrorUsesPersianShellAndFeedback(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := httptest.NewRequest(http.MethodGet, "/account", nil)
-	r = r.WithContext(auth.WithUser(catalog.With(r.Context(), "fa", r.URL.RequestURI()), auth.User{ID: 7, DisplayName: "Mina", Language: "fa"}))
+	r = r.WithContext(auth.WithUser(catalog.With(r.Context()), auth.User{ID: 7, DisplayName: "Mina"}))
 	w := httptest.NewRecorder()
-	RenderError(w, r, http.StatusBadRequest, "Invalid CSRF token.")
+	RenderError(w, r, http.StatusBadRequest, "error.message.csrf")
 	for _, want := range []string{`lang="fa" dir="rtl"`, "نشست یا کد امنیتی فرم نامعتبر است.", "خطا", "۴۰۰", "خروج", "Mina"} {
 		if !strings.Contains(w.Body.String(), want) {
 			t.Errorf("error page missing %q", want)
@@ -108,7 +108,7 @@ func TestAuthenticatedPanicUsesLocalizedError(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := httptest.NewRequest(http.MethodGet, "/account", nil)
-	r = r.WithContext(auth.WithUser(catalog.With(r.Context(), "fa", "/account"), auth.User{ID: 7, DisplayName: "Mina", Language: "fa"}))
+	r = r.WithContext(auth.WithUser(catalog.With(r.Context()), auth.User{ID: 7, DisplayName: "Mina"}))
 	m := Middleware{Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
 	w := httptest.NewRecorder()
 	m.Recover(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { panic("failure") })).ServeHTTP(w, r)
@@ -123,31 +123,31 @@ func TestSignedInAccountSeesLocalizedPublicAccountError(t *testing.T) {
 		t.Fatal(err)
 	}
 	request := httptest.NewRequest(http.MethodPost, "/register", nil)
-	ctx := catalog.With(request.Context(), "fa", request.URL.RequestURI())
-	request = request.WithContext(auth.WithUser(ctx, auth.User{ID: 7, DisplayName: "Mina", Language: "fa"}))
+	ctx := catalog.With(request.Context())
+	request = request.WithContext(auth.WithUser(ctx, auth.User{ID: 7, DisplayName: "Mina"}))
 	response := httptest.NewRecorder()
-	RenderError(response, request, http.StatusForbidden, "Invalid CSRF token.")
+	RenderError(response, request, http.StatusForbidden, "error.message.csrf")
 	if response.Code != http.StatusForbidden || !strings.Contains(response.Body.String(), `lang="fa"`) || !strings.Contains(response.Body.String(), `dir="rtl"`) || !strings.Contains(response.Body.String(), "نشست یا کد امنیتی فرم نامعتبر است.") {
 		t.Fatalf("signed-in account public error status=%d or language missing", response.Code)
 	}
 }
 
-func TestSharedErrorFollowsRequestLanguage(t *testing.T) {
+func TestSharedErrorIgnoresLegacyLanguageCookie(t *testing.T) {
 	catalog, err := locale.NewCatalog()
 	if err != nil {
 		t.Fatal(err)
 	}
 	m := Middleware{Secret: []byte("test-secret")}
 	handler := catalog.Middleware(m.CSRF(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		RenderError(w, r, http.StatusBadRequest, "Invalid CSRF token.")
+		RenderError(w, r, http.StatusBadRequest, "error.message.csrf")
 	})))
 	for _, tc := range []struct {
 		name   string
 		cookie *http.Cookie
 		wants  []string
 	}{
-		{name: "first visit", wants: []string{`lang="fa"`, `dir="rtl"`, "نشست یا کد امنیتی فرم نامعتبر است.", `name="language"`}},
-		{name: "English choice", cookie: &http.Cookie{Name: locale.CookieName, Value: "en"}, wants: []string{`lang="en"`, `dir="ltr"`, "Invalid CSRF token."}},
+		{name: "first visit", wants: []string{`lang="fa"`, `dir="rtl"`, "نشست یا کد امنیتی فرم نامعتبر است."}},
+		{name: "English choice", cookie: &http.Cookie{Name: "piko_language", Value: "en"}, wants: []string{`lang="fa"`, `dir="rtl"`, "نشست یا کد امنیتی فرم نامعتبر است."}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, "/bad", nil)
@@ -165,5 +165,20 @@ func TestSharedErrorFollowsRequestLanguage(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestAnonymousPanicRendersPersianErrorPage(t *testing.T) {
+	catalog, err := locale.NewCatalog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mw := Middleware{LocaleCatalog: catalog, Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	w := httptest.NewRecorder()
+	mw.Recover(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { panic("failure") })).ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/login", nil))
+	for _, want := range []string{`lang="fa"`, `dir="rtl"`, "خطایی در سرور رخ داد."} {
+		if w.Code != 500 || !strings.Contains(w.Body.String(), want) {
+			t.Errorf("panic page missing %q", want)
+		}
 	}
 }

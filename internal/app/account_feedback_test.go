@@ -47,7 +47,7 @@ func feedbackSubmission(t *testing.T, router http.Handler, language, path string
 		}
 	}
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	r.AddCookie(&http.Cookie{Name: locale.CookieName, Value: language})
+	r.AddCookie(&http.Cookie{Name: "piko_language", Value: language})
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, r)
 	return w
@@ -103,7 +103,7 @@ func TestRegistrationFeedbackRetainsInputAndIdentifiesField(t *testing.T) {
 			if feedbackAttr(nodes["password"], "aria-invalid") != "true" || feedbackAttr(nodes["password"], "aria-describedby") != "password-hint password-error" || nodes["password-error"] == nil {
 				t.Error("password error does not describe the invalid field alongside its hint")
 			}
-			ctx := testLocaleCatalog(t).With(t.Context(), language, "/register")
+			ctx := testLocaleCatalog(t).With(t.Context())
 			if !strings.Contains(w.Body.String(), locale.T(ctx, "auth.register.error.password")) {
 				t.Error("localized error missing")
 			}
@@ -143,7 +143,7 @@ func TestRegistrationDetailsIdentifyOnlyKnownInvalidField(t *testing.T) {
 				if w.Code != 422 || feedbackAttr(nodes[tc.id], "aria-invalid") != "true" || feedbackAttr(nodes[tc.id], "aria-describedby") != tc.id+"-error" {
 					t.Error("known validation did not identify its field")
 				}
-				ctx := testLocaleCatalog(t).With(t.Context(), language, "/register")
+				ctx := testLocaleCatalog(t).With(t.Context())
 				if !strings.Contains(w.Body.String(), locale.T(ctx, tc.key)) || strings.Contains(w.Body.String(), "private-password-123") {
 					t.Error("localized feedback missing or password echoed")
 				}

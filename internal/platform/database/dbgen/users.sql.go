@@ -10,38 +10,31 @@ import (
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (email, display_name, password_hash, preferred_language)
-VALUES (?1, ?2, ?3, COALESCE(?4, 'fa')) RETURNING id, email, display_name, password_hash, preferred_language, created_at
+INSERT INTO users (email, display_name, password_hash)
+VALUES (?1, ?2, ?3) RETURNING id, email, display_name, password_hash, created_at
 `
 
 type CreateUserParams struct {
-	Email             string
-	DisplayName       string
-	PasswordHash      string
-	PreferredLanguage interface{}
+	Email        string
+	DisplayName  string
+	PasswordHash string
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRowContext(ctx, createUser,
-		arg.Email,
-		arg.DisplayName,
-		arg.PasswordHash,
-		arg.PreferredLanguage,
-	)
+	row := q.db.QueryRowContext(ctx, createUser, arg.Email, arg.DisplayName, arg.PasswordHash)
 	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
 		&i.DisplayName,
 		&i.PasswordHash,
-		&i.PreferredLanguage,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, display_name, password_hash, preferred_language, created_at FROM users WHERE email = ?1
+SELECT id, email, display_name, password_hash, created_at FROM users WHERE email = ?1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -52,25 +45,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Email,
 		&i.DisplayName,
 		&i.PasswordHash,
-		&i.PreferredLanguage,
 		&i.CreatedAt,
 	)
 	return i, err
-}
-
-const updateUserLanguage = `-- name: UpdateUserLanguage :execrows
-UPDATE users SET preferred_language = ?2 WHERE id = ?1
-`
-
-type UpdateUserLanguageParams struct {
-	ID                int64
-	PreferredLanguage string
-}
-
-func (q *Queries) UpdateUserLanguage(ctx context.Context, arg UpdateUserLanguageParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, updateUserLanguage, arg.ID, arg.PreferredLanguage)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
 }

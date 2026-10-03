@@ -106,7 +106,16 @@ func buildRouter(db *sql.DB, mw webx.Middleware, limiter *webx.RateLimiter, ah *
 	// Only unmatched routes use this presentation; registered health and static
 	// handlers retain their machine-facing responses and failure semantics.
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
-		webx.RenderError(w, r, http.StatusNotFound, "Page not found.")
+		webx.RenderError(w, r, http.StatusNotFound, "error.message.page.missing")
+	})
+	r.MethodNotAllowed(func(w http.ResponseWriter, req *http.Request) {
+		// A custom chi responder replaces its default Allow-header handling.
+		for _, method := range []string{http.MethodConnect, http.MethodDelete, http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodPatch, http.MethodPost, http.MethodPut, http.MethodTrace} {
+			if r.Match(chi.NewRouteContext(), method, req.URL.Path) {
+				w.Header().Add("Allow", method)
+			}
+		}
+		webx.RenderError(w, req, http.StatusMethodNotAllowed, "error.message.method")
 	})
 	r.Get("/health/live", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -133,7 +142,6 @@ func buildRouter(db *sql.DB, mw webx.Middleware, limiter *webx.RateLimiter, ah *
 	r.Group(func(r chi.Router) {
 		r.With(limiter.Middleware("login", loginRateLimit, loginRateWindow)).Post("/login", ah.Login)
 		r.Get("/login", ah.LoginForm)
-		r.Post("/language", (locale.Handler{SecureCookie: mw.SecureCookie, SaveAccountLanguage: ah.SaveLanguage, ShowError: webx.RenderError}).Switch)
 		r.With(limiter.MiddlewareStrict("register", registrationRateLimit, registrationRateWindow)).Post("/register", ah.Register)
 		r.Get("/register", ah.RegisterForm)
 		r.Post("/logout", ah.Logout)

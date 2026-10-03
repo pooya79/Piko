@@ -12,19 +12,16 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/pooya79/Piko/internal/locale"
 	"github.com/pooya79/Piko/internal/platform/database/dbgen"
 )
 
 var ErrSessionNotFound = errors.New("session not found")
 var ErrInvalidEmail = errors.New("invalid email")
 var ErrInvalidName = errors.New("invalid display name")
-var ErrUnsupportedLanguage = errors.New("unsupported language")
 
 type User struct {
 	ID                 int64
 	Email, DisplayName string
-	Language           string
 }
 type Session struct {
 	User      User
@@ -68,7 +65,7 @@ func (s *Service) Authenticate(ctx context.Context, email, password string) (Use
 	if !VerifyPassword(v.PasswordHash, password) {
 		return User{}, ErrInvalidCredentials
 	}
-	return User{ID: v.ID, Email: v.Email, DisplayName: v.DisplayName, Language: v.PreferredLanguage}, nil
+	return User{ID: v.ID, Email: v.Email, DisplayName: v.DisplayName}, nil
 }
 
 // token returns a bearer value for the client and a SHA-256 digest for storage.
@@ -110,7 +107,7 @@ func (s *Service) LoadSession(ctx context.Context, cookie string) (Session, erro
 	if e != nil {
 		return Session{}, e
 	}
-	return Session{User: User{ID: v.UserID, Email: v.Email, DisplayName: v.DisplayName, Language: v.PreferredLanguage}, ExpiresAt: time.UnixMilli(v.ExpiresAt)}, nil
+	return Session{User: User{ID: v.UserID, Email: v.Email, DisplayName: v.DisplayName}, ExpiresAt: time.UnixMilli(v.ExpiresAt)}, nil
 }
 func (s *Service) VerifyCSRF(ctx context.Context, cookie, csrf string) bool {
 	if cookie == "" || csrf == "" {
@@ -157,19 +154,4 @@ func (s *Service) Logout(ctx context.Context, cookie string) error {
 	}
 	h := sha256.Sum256([]byte(cookie))
 	return s.q.DeleteSession(ctx, h[:])
-}
-
-// SetLanguage accepts only catalog languages before persisting a preference.
-func (s *Service) SetLanguage(ctx context.Context, userID int64, language string) error {
-	if !locale.Supported(language) {
-		return ErrUnsupportedLanguage
-	}
-	n, err := s.q.UpdateUserLanguage(ctx, dbgen.UpdateUserLanguageParams{ID: userID, PreferredLanguage: language})
-	if err != nil {
-		return err
-	}
-	if n == 0 {
-		return ErrSessionNotFound
-	}
-	return nil
 }

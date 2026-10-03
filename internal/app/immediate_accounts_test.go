@@ -150,7 +150,7 @@ func TestRemovedAccountRoutesAreNotFoundWithValidCSRF(t *testing.T) {
 	router, _ := accountTestRouter(t, db)
 	visitor := newAccountBrowser(t, router)
 	visitor.send(http.MethodGet, "/login", nil)
-	for _, path := range []string{"/verify", "/verify/pending", "/verify/resend", "/verify/cancel", "/password/forgot", "/password/reset"} {
+	for _, path := range []string{"/language", "/verify", "/verify/pending", "/verify/resend", "/verify/cancel", "/password/forgot", "/password/reset"} {
 		for _, method := range []string{http.MethodGet, http.MethodPost} {
 			var got *httptest.ResponseRecorder
 			if method == http.MethodPost {
@@ -249,10 +249,14 @@ func TestForwardMigrationPreservesLegacyAccountsAndSessions(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	var languageColumns int
+	if err := db.QueryRow("SELECT count(*) FROM pragma_table_info('users') WHERE name='preferred_language'").Scan(&languageColumns); err != nil || languageColumns != 0 {
+		t.Fatalf("retired language preference remains: %d %v", languageColumns, err)
+	}
 	q := dbgen.New(db)
 	for i, email := range []string{"pending@example.test", "verified@example.test"} {
 		saved, err := q.GetUserByEmail(ctx, email)
-		if err != nil || saved.ID != int64(i+1) || saved.DisplayName != "Legacy مینا" || saved.PasswordHash != hash || saved.PreferredLanguage != "en" {
+		if err != nil || saved.ID != int64(i+1) || saved.DisplayName != "Legacy مینا" || saved.PasswordHash != hash {
 			t.Fatalf("migration changed legacy account: %+v %v", saved, err)
 		}
 	}
@@ -262,7 +266,7 @@ func TestForwardMigrationPreservesLegacyAccountsAndSessions(t *testing.T) {
 	}
 	visitor := newAccountBrowser(t, router)
 	visitor.jar.SetCookies(visitor.base, []*http.Cookie{{Name: auth.SessionCookie, Value: oldSession}, {Name: auth.CSRFCookie, Value: oldCSRF}})
-	if got := visitor.send(http.MethodGet, "/dashboard", nil); got.Code != http.StatusOK || !strings.Contains(got.Body.String(), "Legacy مینا") || !strings.Contains(got.Body.String(), `lang="en"`) {
+	if got := visitor.send(http.MethodGet, "/dashboard", nil); got.Code != http.StatusOK || !strings.Contains(got.Body.String(), "Legacy مینا") || !strings.Contains(got.Body.String(), `lang="fa"`) || !strings.Contains(got.Body.String(), `dir="rtl"`) {
 		t.Fatalf("legacy session cannot access Dashboard: %d", got.Code)
 	}
 	visitor.post("/logout", url.Values{})
@@ -317,7 +321,7 @@ func TestRegistrationPreservesUnicodeNameAndCookieProtections(t *testing.T) {
 	visitor := newAccountBrowser(t, router)
 	visitor.base.Scheme = "https"
 	visitor.send(http.MethodGet, "/register", nil)
-	name := strings.Repeat("م", 80)
+	name := "مینا <script>alert(1)</script> Mina " + strings.Repeat("م", 44)
 	got := visitor.post("/register", registerValues("unicode@example.test", "  "+name+"  ", "abcde1"))
 	if got.Code != http.StatusSeeOther {
 		t.Fatalf("valid Unicode name or six-character password rejected: %d", got.Code)
@@ -338,7 +342,18 @@ func TestRegistrationPreservesUnicodeNameAndCookieProtections(t *testing.T) {
 		t.Fatalf("CSRF cookie protections=%+v", csrf)
 	}
 	dashboard := visitor.send(http.MethodGet, "/dashboard", nil)
-	if dashboard.Code != http.StatusOK || !strings.Contains(dashboard.Body.String(), name) {
-		t.Fatal("complete saved Unicode Display name missing")
+	for _, path := range []string{"/dashboard", "/account"} {
+		page := dashboard
+		if path == "/account" {
+			page = visitor.send(http.MethodGet, path, nil)
+		}
+		if page.Code != http.StatusOK || strings.Contains(page.Body.String(), "<script>alert(1)</script>") || !strings.Contains(page.Body.String(), "&lt;script&gt;alert(1)&lt;/script&gt;") || !strings.Contains(page.Body.String(), `<bdi dir="auto">`) {
+			t.Errorf("%s did not safely isolate the complete saved Display name", path)
+		}
+	}
+	for _, cookie := range got.Result().Cookies() {
+		if cookie.Name == "piko_language" {
+			t.Error("registration issued a retired language cookie")
+		}
 	}
 }

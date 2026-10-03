@@ -3,20 +3,18 @@ package shell
 import (
  "github.com/pooya79/Piko/internal/locale"
  "github.com/pooya79/Piko/internal/web/head"
- "github.com/pooya79/Piko/internal/web/language"
 )
 
 // Layout is shared by public forms and the minimal signed-in account page.
 templ Layout(title, displayName, csrf string, content templ.Component) {
  <!doctype html>
- <html lang={ locale.Language(ctx) } dir={ locale.Direction(ctx) } data-theme="piko-light">
+ <html lang="fa" dir="rtl" data-theme="piko-light">
   <head>@head.Head(title)</head>
-  <body class="antialiased">
+  <body class="piko-auth-body antialiased">
    @head.SkipLink()
    <header class="piko-auth-header">
-    <a class="piko-brand" dir="ltr" href="/" aria-label={ locale.T(ctx, "auth.brand.home") }>Piko<span class="text-primary">.</span></a>
+    <a class="piko-brand" href="/" aria-label={ locale.T(ctx, "auth.brand.home") }><img src="/static/brand/piko-mark-v2.webp" width="40" height="40" alt=""/><span>پیکو</span></a>
     <div class="piko-auth-controls">
-     @language.Switcher(csrf)
      <div class="piko-theme-choices" role="group" aria-label={ locale.T(ctx, "auth.theme.label") }>
       <button type="button" data-theme-choice="system" aria-pressed="true">{ locale.T(ctx, "auth.theme.choice.system") }</button>
       <button type="button" data-theme-choice="light" aria-pressed="false">{ locale.T(ctx, "auth.theme.choice.light") }</button>
@@ -25,7 +23,8 @@ templ Layout(title, displayName, csrf string, content templ.Component) {
     </div>
    </header>
    <main id="main-content" tabindex="-1" class="piko-auth-main">
-    <section class="piko-card w-full max-w-md p-6 sm:p-8">
+    <section class="piko-card piko-auth-card">
+     <div class="piko-card-brand"><img src="/static/brand/piko-mark-v2.webp" width="48" height="48" alt=""/><span>پیکو</span></div>
      if displayName != "" {
       <div class="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-base-300 pb-4">
        <a class="piko-text-link min-w-0 max-w-full wrap-anywhere" href="/account"><bdi dir="auto">{ displayName }</bdi></a>

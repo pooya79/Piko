@@ -38,7 +38,7 @@ func (l *RateLimiter) middleware(bucket string, limit int, window time.Duration,
 			if e != nil {
 				l.log.WarnContext(r.Context(), "rate limiter unavailable", "error", e, "bucket", bucket)
 				if failClosed {
-					RenderError(w, r, http.StatusServiceUnavailable, "Please try again later.")
+					RenderError(w, r, http.StatusServiceUnavailable, "error.message.rate.retry")
 					return
 				}
 				next.ServeHTTP(w, r)
@@ -51,7 +51,7 @@ func (l *RateLimiter) middleware(bucket string, limit int, window time.Duration,
 			w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(remaining))
 			if rate.Count > int64(limit) {
 				w.Header().Set("Retry-After", strconv.Itoa(max(1, int((time.Until(time.UnixMilli(rate.ExpiresAt))+time.Second-1)/time.Second))))
-				RenderError(w, r, http.StatusTooManyRequests, "Too many attempts. Try again later.")
+				RenderError(w, r, http.StatusTooManyRequests, "error.message.rate.limit")
 				return
 			}
 			next.ServeHTTP(w, r)

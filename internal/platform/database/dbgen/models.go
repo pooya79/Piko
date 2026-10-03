@@ -19,10 +19,9 @@ type Session struct {
 }
 
 type User struct {
-	ID                int64
-	Email             string
-	DisplayName       string
-	PasswordHash      string
-	PreferredLanguage string
-	CreatedAt         int64
+	ID           int64
+	Email        string
+	DisplayName  string
+	PasswordHash string
+	CreatedAt    int64
 }

@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"time"
-
-	"github.com/pooya79/Piko/internal/locale"
 )
 
 var ErrAccountExists = errors.New("account already exists")
@@ -27,10 +25,7 @@ func NewAccountService(repo *AccountRepository, credentials *Service) *AccountSe
 
 // Register commits the account and its initial session in one immediate transaction.
 // Cookie credentials are returned only after the transaction commits.
-func (s *AccountService) Register(ctx context.Context, email, name, password, language string) (Registration, error) {
-	if !locale.Supported(language) {
-		return Registration{}, ErrUnsupportedLanguage
-	}
+func (s *AccountService) Register(ctx context.Context, email, name, password string) (Registration, error) {
 	email, err := normalizeEmail(email)
 	if err != nil {
 		return Registration{}, err
@@ -45,7 +40,7 @@ func (s *AccountService) Register(ctx context.Context, email, name, password, la
 	}
 	var registration Registration
 	err = s.repo.withinTransaction(ctx, func(tx *accountTx) error {
-		registration.Account, err = tx.createAccount(ctx, email, name, hash, language)
+		registration.Account, err = tx.createAccount(ctx, email, name, hash)
 		if err != nil {
 			return err
 		}

@@ -77,7 +77,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		renderLocalized(w, r, http.StatusUnprocessableEntity, RegisterPage(request.CookieValue(r, CSRFCookie), accountForm(r, locale.T(r.Context(), "auth.login.error.form"))))
 		return
 	}
-	registration, e := h.accounts.Register(r.Context(), r.FormValue("email"), r.FormValue("display_name"), r.FormValue("password"), locale.Language(r.Context()))
+	registration, e := h.accounts.Register(r.Context(), r.FormValue("email"), r.FormValue("display_name"), r.FormValue("password"))
 	if e != nil {
 		form := accountForm(r, "")
 		var field, key string
@@ -103,7 +103,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	if old, err := r.Cookie(SessionCookie); err == nil {
 		_ = h.service.Logout(r.Context(), old.Value)
 	}
-	h.setSessionCookies(w, registration.Account, registration.Cookie, registration.CSRF, registration.ExpiresAt)
+	h.setSessionCookies(w, registration.Cookie, registration.CSRF, registration.ExpiresAt)
 	http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
 }
 func (h *Handler) issueSession(w http.ResponseWriter, r *http.Request, u User) bool {
@@ -116,11 +116,10 @@ func (h *Handler) issueSession(w http.ResponseWriter, r *http.Request, u User) b
 		renderLocalized(w, r, http.StatusInternalServerError, LoginPage(request.CookieValue(r, CSRFCookie), accountForm(r, locale.T(r.Context(), "auth.login.error.session"))))
 		return false
 	}
-	h.setSessionCookies(w, u, cookie, token, expires)
+	h.setSessionCookies(w, cookie, token, expires)
 	return true
 }
-func (h *Handler) setSessionCookies(w http.ResponseWriter, u User, cookie, csrf string, expires time.Time) {
-	locale.SetCookie(w, u.Language, h.secure)
+func (h *Handler) setSessionCookies(w http.ResponseWriter, cookie, csrf string, expires time.Time) {
 	http.SetCookie(w, h.cookie(SessionCookie, cookie, expires, true))
 	http.SetCookie(w, h.cookie(CSRFCookie, csrf, expires, false))
 }
@@ -141,13 +140,4 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Profile(w http.ResponseWriter, r *http.Request) {
 	u, _ := UserFromContext(r.Context())
 	renderLocalized(w, r, 200, ProfilePage(u, request.CookieValue(r, CSRFCookie)))
-}
-
-// SaveLanguage persists a signed-in choice before the locale handler updates its cookie.
-func (h *Handler) SaveLanguage(ctx context.Context, language string) error {
-	u, ok := UserFromContext(ctx)
-	if !ok {
-		return nil
-	}
-	return h.service.SetLanguage(ctx, u.ID, language)
 }

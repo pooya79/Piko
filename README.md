@@ -1,6 +1,6 @@
 # Piko
 
-A small Go application with registration, login, logout, and a minimal protected Dashboard at `/dashboard`. Registration asks for a Display name, email, and password and signs the user in immediately. The retained `/account` page shows the saved name and email. Public and signed-in screens support Persian and English and system/light/dark themes.
+A small Go application with registration, login, logout, and a minimal protected Dashboard at `/dashboard`. Registration asks for a Display name, email, and password and signs the user in immediately. The retained `/account` page shows the saved name and email. All application screens render Persian with RTL layout and system/light/dark themes. Latin identifiers remain LTR, and user-provided Display names are escaped and isolated.
 
 ## Structure
 
@@ -32,9 +32,13 @@ Server and migration commands must use the same local `DATABASE_PATH`. For new i
 
 ## Upgrading existing SQLite installations
 
-Migration `000002_immediate_accounts` preserves the database file, user IDs, Display names, normalized emails, password hashes, language preferences, and session credentials/expiration. Previously unverified users can sign in with their unchanged passwords, and unexpired sessions continue to work. The applied baseline is unchanged. No database or volume deletion is required.
+Migration `000002_immediate_accounts` preserves the database file, user IDs, Display names, normalized emails, password hashes, and session credentials/expiration. Previously unverified users can sign in with their unchanged passwords, and unexpired sessions continue to work. The applied baseline is unchanged. No database or volume deletion is required.
 
-The migration removes obsolete verification metadata, email challenges, signup receipts, mail cooldown records, queued emails, and mail/link rate budgets. Retired email links and transient mail data are intentionally discarded. `make migrate-down` rolls back only the latest migration: it restores the retired schema with empty mail tables and unknown verification status; it cannot restore discarded data. Run `make migrate-up` before restarting this version after a rollback. Rolling back the original baseline removes application tables. PostgreSQL data is not imported by these SQLite migrations; preserve any existing PostgreSQL database and use a separate SQLite file.
+The migration removes obsolete verification metadata, email challenges, signup receipts, mail cooldown records, queued emails, and mail/link rate budgets. Retired email links and transient mail data are intentionally discarded. Rolling back migration `000002` restores the retired schema with empty mail tables and unknown verification status; it cannot restore discarded data. Run `make migrate-up` before restarting this version after a rollback. Rolling back the original baseline removes application tables. PostgreSQL data is not imported by these SQLite migrations; preserve any existing PostgreSQL database and use a separate SQLite file.
+
+Migration `000003_persian_only` removes `users.preferred_language` without changing account or session records. Old `piko_language` cookies are ignored, the `/language` route is removed, and authentication no longer writes a language cookie. Run `make migrate-up` before starting the new binaries. `make migrate-down` rolls back only the latest migration; rolling back `000003` restores a Persian default for all accounts, because retired language choices cannot be recovered. The application remains Persian-only after rollback.
+
+The shared visual foundation uses the approved coral P/speech-bubble mark, matching favicons, and self-hosted Vazirmatn/Manrope fonts with licenses under `static/fonts`. The archived design reference remains in `docs/design/piko-studio`. Browser evidence for these screens is in `docs/qa/issue-3`.
 
 ## Production
 

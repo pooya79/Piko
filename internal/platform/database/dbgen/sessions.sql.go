@@ -56,18 +56,17 @@ func (q *Queries) DeleteSession(ctx context.Context, tokenHash []byte) error {
 }
 
 const getSession = `-- name: GetSession :one
-SELECT s.user_id, s.csrf_hash, s.expires_at, u.email, u.display_name, u.preferred_language
+SELECT s.user_id, s.csrf_hash, s.expires_at, u.email, u.display_name
 FROM sessions s JOIN users u ON u.id = s.user_id
 WHERE s.token_hash = ?1 AND s.expires_at > CAST(unixepoch('subsec') * 1000 AS INTEGER)
 `
 
 type GetSessionRow struct {
-	UserID            int64
-	CsrfHash          []byte
-	ExpiresAt         int64
-	Email             string
-	DisplayName       string
-	PreferredLanguage string
+	UserID      int64
+	CsrfHash    []byte
+	ExpiresAt   int64
+	Email       string
+	DisplayName string
 }
 
 func (q *Queries) GetSession(ctx context.Context, tokenHash []byte) (GetSessionRow, error) {
@@ -79,7 +78,6 @@ func (q *Queries) GetSession(ctx context.Context, tokenHash []byte) (GetSessionR
 		&i.ExpiresAt,
 		&i.Email,
 		&i.DisplayName,
-		&i.PreferredLanguage,
 	)
 	return i, err
 }

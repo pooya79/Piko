@@ -83,7 +83,7 @@ func TestAuthJourneyAgainstSQLite(t *testing.T) {
 		t.Fatal("registration did not establish a session")
 	}
 	dashboard := send(http.MethodGet, "/dashboard", nil, http.StatusOK, "")
-	if !strings.Contains(dashboard, "Mina مینا") {
+	if !strings.Contains(dashboard, "Mina مینا") || !strings.Contains(dashboard, `lang="fa"`) || !strings.Contains(dashboard, `dir="rtl"`) {
 		t.Fatal("saved Display name missing from Dashboard")
 	}
 	account := send(http.MethodGet, "/account", nil, http.StatusOK, "")

@@ -43,7 +43,7 @@ func Head(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " · Piko</title><link rel=\"icon\" href=\"data:,\"><script src=\"/static/theme.js\"></script><script src=\"/static/alpine-csp-3.17.4.min.js\" defer></script><link rel=\"stylesheet\" href=\"/static/app.css\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " · پیکو</title><link rel=\"icon\" href=\"/static/brand/piko-favicon-v2.ico\" sizes=\"any\"><link rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"/static/brand/piko-favicon-v2-32.png\"><link rel=\"icon\" type=\"image/png\" sizes=\"16x16\" href=\"/static/brand/piko-favicon-v2-16.png\"><link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"/static/brand/piko-favicon-v2-180.png\"><script src=\"/static/theme.js\"></script><script src=\"/static/alpine-csp-3.17.4.min.js\" defer></script><link rel=\"stylesheet\" href=\"/static/app.css\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -33,7 +33,7 @@ type SessionService interface {
 	RenewCSRF(context.Context, string) (string, error)
 }
 
-// RequestLocale makes the selected browser language available to all renderers.
+// RequestLocale makes Persian copy available to all renderers.
 func (m Middleware) RequestLocale(next http.Handler) http.Handler {
 	if m.LocaleCatalog == nil {
 		panic("locale catalog was not injected")
@@ -80,10 +80,14 @@ func (m Middleware) Recover(next http.Handler) http.Handler {
 		defer func() {
 			if v := recover(); v != nil {
 				m.Log.ErrorContext(r.Context(), "panic recovered", "panic", v, "stack", string(debug.Stack()), "request_id", RequestID(r.Context()))
-				if _, ok := auth.UserFromContext(r.Context()); ok {
-					RenderError(w, r, http.StatusInternalServerError, "Internal server error.")
+				if m.LocaleCatalog != nil {
+					r = r.WithContext(m.LocaleCatalog.With(r.Context()))
+				}
+				_, signedIn := auth.UserFromContext(r.Context())
+				if m.LocaleCatalog != nil || signedIn {
+					RenderError(w, r, http.StatusInternalServerError, "error.message.server")
 				} else {
-					http.Error(w, "Internal server error.", http.StatusInternalServerError)
+					http.Error(w, "خطایی در سرور رخ داد.", http.StatusInternalServerError)
 				}
 			}
 		}()
@@ -136,13 +140,6 @@ func (m Middleware) Session(next http.Handler) http.Handler {
 		if e == nil {
 			if s, e := m.Auth.LoadSession(r.Context(), c.Value); e == nil {
 				r = r.WithContext(auth.WithUser(r.Context(), s.User))
-				if m.LocaleCatalog != nil && locale.Supported(s.User.Language) {
-					r = r.WithContext(m.LocaleCatalog.With(r.Context(), s.User.Language, r.URL.RequestURI()))
-					if cookie, err := r.Cookie(locale.CookieName); err != nil || cookie.Value != s.User.Language {
-						locale.SetCookie(w, s.User.Language, m.SecureCookie)
-					}
-				}
-
 			} else if errors.Is(e, auth.ErrSessionNotFound) {
 				http.SetCookie(w, &http.Cookie{Name: auth.SessionCookie, Path: "/", MaxAge: -1, HttpOnly: true, Secure: m.SecureCookie, SameSite: http.SameSiteLaxMode})
 			} else {
@@ -173,13 +170,13 @@ func (m Middleware) CSRF(next http.Handler) http.Handler {
 			if _, authenticated := auth.UserFromContext(r.Context()); authenticated {
 				session, sessionErr := r.Cookie(auth.SessionCookie)
 				if sessionErr != nil {
-					RenderError(w, r, http.StatusServiceUnavailable, "Session unavailable.")
+					RenderError(w, r, http.StatusServiceUnavailable, "error.message.session.unavailable")
 					return
 				}
 				if err != nil || !m.Auth.VerifyCSRF(r.Context(), session.Value, cookie.Value) {
 					token, renewErr := m.Auth.RenewCSRF(r.Context(), session.Value)
 					if renewErr != nil {
-						RenderError(w, r, http.StatusServiceUnavailable, "Session unavailable.")
+						RenderError(w, r, http.StatusServiceUnavailable, "error.message.session.unavailable")
 						return
 					}
 					m.setCSRFCookie(w, r, token)
@@ -195,17 +192,17 @@ func (m Middleware) CSRF(next http.Handler) http.Handler {
 		}
 		cookie, e := r.Cookie(auth.CSRFCookie)
 		if e != nil || r.FormValue("csrf_token") == "" || cookie.Value != r.FormValue("csrf_token") {
-			RenderError(w, r, http.StatusForbidden, "Invalid CSRF token.")
+			RenderError(w, r, http.StatusForbidden, "error.message.csrf")
 			return
 		}
 		if _, authenticated := auth.UserFromContext(r.Context()); authenticated {
 			sc, e := r.Cookie(auth.SessionCookie)
 			if e != nil || !m.Auth.VerifyCSRF(r.Context(), sc.Value, cookie.Value) {
-				RenderError(w, r, http.StatusForbidden, "Invalid CSRF token.")
+				RenderError(w, r, http.StatusForbidden, "error.message.csrf")
 				return
 			}
 		} else if !m.validSignedCSRF(cookie.Value) {
-			RenderError(w, r, http.StatusForbidden, "Invalid CSRF token.")
+			RenderError(w, r, http.StatusForbidden, "error.message.csrf")
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -239,14 +236,14 @@ func (m Middleware) ClientIP(r *http.Request) string {
 	}
 	return r.RemoteAddr
 }
-func RenderError(w http.ResponseWriter, r *http.Request, status int, message string) {
+func RenderError(w http.ResponseWriter, r *http.Request, status int, messageKey string) {
 	displayName := ""
 	// Public account forms use their own layout even for a signed-in browser.
 	accountPath := r.URL.Path == "/login" || r.URL.Path == "/register"
 	if user, ok := auth.UserFromContext(r.Context()); ok && !accountPath {
 		displayName = user.DisplayName
 	}
-	message = locale.TranslateSource(r.Context(), message)
+	message := locale.T(r.Context(), messageKey)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	if e := ErrorPage(status, message, displayName, request.CookieValue(r, auth.CSRFCookie)).Render(r.Context(), w); e != nil {

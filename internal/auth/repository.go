@@ -39,8 +39,8 @@ func (r *AccountRepository) withinTransaction(ctx context.Context, fn func(*acco
 	return nil
 }
 
-func (t *accountTx) createAccount(ctx context.Context, email, name, passwordHash, language string) (User, error) {
-	v, err := t.q.CreateUser(ctx, dbgen.CreateUserParams{Email: email, DisplayName: name, PasswordHash: passwordHash, PreferredLanguage: sql.NullString{String: language, Valid: true}})
+func (t *accountTx) createAccount(ctx context.Context, email, name, passwordHash string) (User, error) {
+	v, err := t.q.CreateUser(ctx, dbgen.CreateUserParams{Email: email, DisplayName: name, PasswordHash: passwordHash})
 	if err != nil {
 		var sqliteErr *sqlite.Error
 		if errors.As(err, &sqliteErr) && sqliteErr.Code() == 2067 {
@@ -48,5 +48,5 @@ func (t *accountTx) createAccount(ctx context.Context, email, name, passwordHash
 		}
 		return User{}, fmt.Errorf("insert account: %w", err)
 	}
-	return User{ID: v.ID, Email: v.Email, DisplayName: v.DisplayName, Language: v.PreferredLanguage}, nil
+	return User{ID: v.ID, Email: v.Email, DisplayName: v.DisplayName}, nil
 }

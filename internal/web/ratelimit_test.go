@@ -84,5 +84,5 @@ func rateRequest(t *testing.T) *http.Request {
 		t.Fatal(err)
 	}
 	r := httptest.NewRequest(http.MethodPost, "/", nil)
-	return r.WithContext(catalog.With(r.Context(), "en", "/"))
+	return r.WithContext(catalog.With(r.Context()))
 }
