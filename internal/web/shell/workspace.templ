@@ -16,7 +16,9 @@ templ Workspace(displayName, csrf string, content templ.Component) {
   <body class="piko-workspace-body antialiased">
    @head.SkipLink()
    <div class="piko-workspace">
-    @sidebar(displayName, csrf)
+    <dialog open id="workspace-navigation" class="piko-navigation" aria-labelledby="navigation-title">
+     @sidebar(displayName, csrf)
+    </dialog>
     <div class="piko-workspace-main">
      @topbar()
      <main id="main-content" tabindex="-1" class="piko-dashboard-main">
@@ -42,6 +44,7 @@ templ ComingSoon(label, icon, class string) {
 
 templ sidebar(displayName, csrf string) {
  <aside class="piko-sidebar" aria-label={ locale.T(ctx, "workspace.navigation") }>
+  <div class="piko-drawer-heading"><h2 id="navigation-title">{ locale.T(ctx, "workspace.navigation") }</h2><button type="button" class="piko-drawer-close" data-navigation-close autofocus>{ locale.T(ctx, "workspace.navigation.close") }</button></div>
   <a class="piko-workspace-brand" href="/dashboard"><img src="/static/brand/piko-mark-v2.webp" width="44" height="44" alt=""/><span>پیکو<small>{ locale.T(ctx, "workspace.brand.tagline") }</small></span><span class="piko-latin-brand" lang="en" dir="ltr">piko</span></a>
   <a class="piko-workspace-identity" href="/account">@Icon("user")<div><bdi dir="auto">{ displayName }</bdi><small>{ locale.T(ctx, "workspace.personal") }</small></div>@Icon("caret-left")</a>
   <nav aria-label={ locale.T(ctx, "workspace.navigation") }>
@@ -72,13 +75,19 @@ templ sidebar(displayName, csrf string) {
 
 templ topbar() {
  <header class="piko-topbar">
-  <div class="piko-breadcrumb"><span>{ locale.T(ctx, "workspace.title") }</span>@Icon("caret-left")<strong>{ locale.T(ctx, "dashboard.title") }</strong></div>
+  <div class="piko-topbar-navigation">
+   <button type="button" class="piko-menu-trigger" data-navigation-open aria-controls="workspace-navigation" aria-haspopup="dialog" aria-expanded="false" aria-label={ locale.T(ctx, "workspace.navigation.open") }>{ locale.T(ctx, "workspace.navigation.menu") }</button>
+   <div class="piko-breadcrumb"><span>{ locale.T(ctx, "workspace.title") }</span>@Icon("caret-left")<strong>{ locale.T(ctx, "dashboard.title") }</strong></div>
+  </div>
   <div class="piko-header-actions">
    @themeChoices()
-   <details class="piko-notifications">
-    <summary aria-label={ locale.T(ctx, "workspace.notifications") }>@Icon("bell")</summary>
-    <div class="piko-notification-panel"><h2>{ locale.T(ctx, "workspace.notifications") }</h2><p>{ locale.T(ctx, "workspace.notifications.empty") }</p></div>
-   </details>
+   <div class="piko-notifications">
+    <button type="button" popovertarget="workspace-notifications" aria-controls="workspace-notifications" aria-expanded="false" aria-label={ locale.T(ctx, "workspace.notifications") }>@Icon("bell")</button>
+    <section id="workspace-notifications" popover="auto" class="piko-notification-panel" aria-labelledby="notifications-title">
+     <div class="piko-notification-heading"><h2 id="notifications-title">{ locale.T(ctx, "workspace.notifications") }</h2><button type="button" popovertarget="workspace-notifications" popovertargetaction="hide" autofocus aria-label={ locale.T(ctx, "workspace.notifications.close") }>{ locale.T(ctx, "workspace.close") }</button></div>
+     <p>{ locale.T(ctx, "workspace.notifications.empty") }</p>
+    </section>
+   </div>
    @ComingSoon(locale.T(ctx, "workspace.create"), "plus", "piko-primary-action")
   </div>
  </header>

@@ -16,14 +16,20 @@ templ content(displayName, date string) {
  </div>
  <div class="piko-welcome-grid">
   <section class="piko-idea-banner" aria-labelledby="first-bot-title">
-   <div class="piko-idea-copy"><span class="piko-small-label">@shell.Icon("sparkle"){ locale.T(ctx, "dashboard.idea.kicker") }</span><h2 id="first-bot-title">{ locale.T(ctx, "dashboard.idea.title") }</h2><p>{ locale.T(ctx, "dashboard.idea.copy") }</p>
+   <div class="piko-idea-copy"><span class="piko-small-label">
+    @shell.Icon("sparkle")
+    <span>{ locale.T(ctx, "dashboard.idea.kicker") }</span>
+   </span><h2 id="first-bot-title">{ locale.T(ctx, "dashboard.idea.title") }</h2><p>{ locale.T(ctx, "dashboard.idea.copy") }</p>
     <div class="piko-idea-prompt"><span>{ locale.T(ctx, "dashboard.idea.example") }</span>@shell.ComingSoon(locale.T(ctx, "workspace.create"), "arrow-right", "piko-primary-action")</div>
     <p class="piko-idea-note">{ locale.T(ctx, "dashboard.idea.note") }</p>
    </div>
    <img class="piko-companion" src="/static/brand/piko-companion.webp" width="300" height="220" alt={ locale.T(ctx, "dashboard.idea.illustration") } fetchpriority="high"/>
   </section>
   <section class="piko-monitoring-card" aria-labelledby="monitoring-title">
-   <span class="piko-small-label">@shell.Icon("shield-check"){ locale.T(ctx, "dashboard.monitoring.label") }</span><h2 id="monitoring-title">{ locale.T(ctx, "dashboard.monitoring.title") }</h2><p>{ locale.T(ctx, "dashboard.monitoring.empty") }</p>
+   <span class="piko-small-label">
+    @shell.Icon("shield-check")
+    <span>{ locale.T(ctx, "dashboard.monitoring.label") }</span>
+   </span><h2 id="monitoring-title">{ locale.T(ctx, "dashboard.monitoring.title") }</h2><p>{ locale.T(ctx, "dashboard.monitoring.empty") }</p>
    @shell.ComingSoon(locale.T(ctx, "dashboard.monitoring.action"), "arrow-up-left", "piko-subtle-action")
   </section>
  </div>

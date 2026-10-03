@@ -111,6 +111,8 @@ func assertEmptyDashboard(t *testing.T, body, session string) {
 		"هنوز فعالیتی ثبت نشده", "اعلانی نداری", "به\u200cزودی",
 		"اولین رباتت", "گفت\u200cوگوها", "کاربران جدید", "درخواست\u200cهای موفق", "ربات\u200cهای فعال",
 		`/static/brand/piko-companion.webp`, `href="/account"`, `action="/logout"`,
+		"باز کردن ناوبری", "بستن ناوبری", "بستن اعلان\u200cها",
+		"از یک ایده شروع کن", "پایش ربات\u200cها",
 	} {
 		if !strings.Contains(body, text) {
 			t.Errorf("Dashboard missing %q", text)

@@ -158,6 +158,21 @@
   "workspace.navigation": {
     "other": "ناوبری فضای کار"
   },
+  "workspace.navigation.open": {
+    "other": "باز کردن ناوبری"
+  },
+  "workspace.navigation.close": {
+    "other": "بستن ناوبری"
+  },
+  "workspace.navigation.menu": {
+    "other": "منو"
+  },
+  "workspace.close": {
+    "other": "بستن"
+  },
+  "workspace.notifications.close": {
+    "other": "بستن اعلان‌ها"
+  },
   "workspace.title": {
     "other": "فضای کار"
   },
