@@ -22,7 +22,8 @@ import (
 )
 
 // A test-only feature page supplies shell data through the app's authenticated
-// HTTP boundary. Production Bot routes and persistence belong to later tickets.
+// HTTP boundary. Register browser middleware because buildRouter keeps machine
+// ingress separate from the browser subrouter.
 func workspacePageResponse(t *testing.T, page shell.Page) string {
 	t.Helper()
 	db, _ := testsupport.MigratedSQLite(t, t.Context())
@@ -32,7 +33,7 @@ func workspacePageResponse(t *testing.T, page shell.Page) string {
 	mw := web.Middleware{Auth: credentials, LocaleCatalog: testLocaleCatalog(t), Log: log, Secret: []byte("workspace-test-secret")}
 	limiter := web.NewRateLimiter(db, log, func(*http.Request) string { return "workspace-test" })
 	router := buildRouter(db, mw, limiter, auth.NewHandler(credentials, accounts, log, false), testBotService(t, db)).(*chi.Mux)
-	router.With(mw.RequireAuth).Get("/test/workspace", func(w http.ResponseWriter, r *http.Request) {
+	router.With(mw.RequestLocale, mw.Session, mw.CSRF, mw.RequireAuth).Get("/test/workspace", func(w http.ResponseWriter, r *http.Request) {
 		user, _ := auth.UserFromContext(r.Context())
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if err := shell.Workspace(user.DisplayName, request.CookieValue(r, auth.CSRFCookie), page, templ.NopComponent).Render(r.Context(), w); err != nil {

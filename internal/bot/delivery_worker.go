@@ -1,0 +1,278 @@
+package bot
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/pooya79/Piko/internal/bot/flow"
+	engine "github.com/pooya79/Piko/internal/bot/runtime"
+	"github.com/pooya79/Piko/internal/bot/telegram"
+	"github.com/pooya79/Piko/internal/platform/database/dbgen"
+)
+
+// RunDelivery owns two bounded workers. A persisted per-Bot lease serializes
+// Participant transitions and sends across workers and server processes.
+func (s *Service) RunDelivery(ctx context.Context) {
+	var wg sync.WaitGroup
+	for range 2 {
+		wg.Go(func() { s.deliveryLoop(ctx) })
+	}
+	wg.Wait()
+}
+
+func (s *Service) deliveryLoop(ctx context.Context) {
+	timer := time.NewTicker(100 * time.Millisecond)
+	defer timer.Stop()
+	for ctx.Err() == nil {
+		claim, err := nonce()
+		if err != nil {
+			return
+		}
+		work, err := s.repo.q.ClaimDeliveryWork(ctx, claim)
+		if err != nil {
+			select {
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+			}
+			continue
+		}
+		// Every operation is bounded below the lease duration, including SQLite waits.
+		workCtx, cancel := context.WithTimeout(ctx, 40*time.Second)
+		retry, failed := s.processDelivery(workCtx, work)
+		cancel()
+		if ctx.Err() != nil {
+			// Cancellation leaves the durable cursor untouched. Release immediately
+			// so a clean restart need not wait for a synthetic transport backoff.
+			retry, failed = 0, work.WorkerError
+		}
+		releaseCtx, releaseCancel := context.WithTimeout(context.WithoutCancel(ctx), deliverySaveTimeout)
+		_, _ = s.repo.q.ReleaseDeliveryWork(releaseCtx, dbgen.ReleaseDeliveryWorkParams{BotID: work.BotID, WorkerNonce: claim, RetryAt: retry, WorkerError: failed})
+		releaseCancel()
+	}
+}
+
+func (s *Service) processDelivery(ctx context.Context, work dbgen.BotDelivery) (int64, int64) {
+	row, err := s.repo.q.GetWorkerBotCredentials(ctx, dbgen.GetWorkerBotCredentialsParams{ID: work.BotID, WorkerNonce: work.WorkerNonce})
+	if err != nil {
+		return time.Now().Unix() + 5, 1
+	}
+	token, err := s.credentials.open(row.EncryptedToken, row.OwnerID, row.TelegramID)
+	if err != nil {
+		return time.Now().Unix() + 60, 1
+	}
+	update, err := s.repo.q.GetNextUpdate(ctx, work.BotID)
+	if errors.Is(err, sql.ErrNoRows) && work.Mode == "polling" {
+		err = s.pollDelivery(ctx, work, token)
+		if err != nil {
+			return time.Now().Unix() + 5, 1
+		}
+		return time.Now().Unix() + 1, 0
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, 0
+	}
+	if err != nil {
+		return time.Now().Unix() + 5, 1
+	}
+	if !update.Output.Valid {
+		update, err = s.stageDelivery(ctx, work, update)
+		if err != nil {
+			return time.Now().Unix() + 5, 1
+		}
+	}
+	var actions []telegram.Action
+	if json.Unmarshal([]byte(update.Output.String), &actions) != nil {
+		return time.Now().Unix() + 60, 1
+	}
+	if len(actions) == 0 {
+		err = s.repo.q.CompleteIgnoredUpdate(ctx, dbgen.CompleteIgnoredUpdateParams{ID: update.ID, BotID: work.BotID})
+		if err != nil {
+			return time.Now().Unix() + 5, 1
+		}
+		return 0, 0
+	}
+	for i := int(update.Cursor); i < len(actions); i++ {
+		n, err := s.repo.q.RenewDeliveryWork(ctx, dbgen.RenewDeliveryWorkParams{BotID: work.BotID, WorkerNonce: work.WorkerNonce})
+		if err != nil || n != 1 {
+			return time.Now().Unix() + 5, 1
+		}
+		if err = s.telegram.Deliver(ctx, token, actions[i]); err != nil {
+			if errors.Is(err, telegram.ErrForbidden) && actions[i].Message != nil {
+				if err := s.repo.q.FailUndeliverableUpdate(ctx, dbgen.FailUndeliverableUpdateParams{ID: update.ID, BotID: work.BotID}); err != nil {
+					return time.Now().Unix() + 5, 1
+				}
+				return 0, 1
+			}
+			delay := min(int64(60), int64(1)<<min(update.Attempts, 6))
+			if err := s.repo.q.RecordUpdateFailure(ctx, dbgen.RecordUpdateFailureParams{ID: update.ID, BotID: work.BotID, RetryAt: time.Now().Unix() + delay}); err != nil {
+				return time.Now().Unix() + 5, 1
+			}
+			return 0, 1
+		}
+		complete := int64(0)
+		if i == len(actions)-1 {
+			complete = 1
+		}
+		n, err = s.repo.q.AdvanceUpdateOutput(ctx, dbgen.AdvanceUpdateOutputParams{ID: update.ID, BotID: work.BotID, Cursor: int64(i), Complete: complete})
+		// A crash after Telegram accepts but before this commit may repeat a send.
+		if err != nil || n != 1 {
+			return time.Now().Unix() + 5, 1
+		}
+	}
+	return 0, 0
+}
+
+func (s *Service) pollDelivery(ctx context.Context, work dbgen.BotDelivery, token string) error {
+	updates, err := s.telegram.Poll(ctx, token, work.PollingOffset)
+	if err != nil {
+		return err
+	}
+	offset := work.PollingOffset
+	for _, u := range updates {
+		if u.ID == nil || *u.ID < 0 {
+			return errors.New("invalid update")
+		}
+		data, err := json.Marshal(u)
+		if err != nil {
+			return err
+		}
+		if err = s.accept(ctx, work.BotID, data, u); err != nil {
+			return err
+		}
+		offset = max(offset, *u.ID+1)
+	}
+	// The next polling request confirms this offset only after durable acceptance.
+	_, err = s.repo.q.AdvancePollingOffset(ctx, dbgen.AdvancePollingOffsetParams{BotID: work.BotID, WorkerNonce: work.WorkerNonce, PollingOffset: offset})
+	return err
+}
+
+func (s *Service) stageDelivery(ctx context.Context, work dbgen.BotDelivery, u dbgen.BotUpdate) (dbgen.BotUpdate, error) {
+	update, err := telegram.DecodeUpdate([]byte(u.Payload))
+	if err != nil {
+		return u, err
+	}
+	tx, err := s.repo.db.BeginTx(ctx, nil)
+	if err != nil {
+		return u, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := dbgen.New(tx)
+	// Fence stale workers before making any state transition.
+	if _, err = q.GetWorkerBotCredentials(ctx, dbgen.GetWorkerBotCredentialsParams{ID: work.BotID, WorkerNonce: work.WorkerNonce}); err != nil {
+		return u, err
+	}
+	actions, err := s.transition(ctx, q, work.BotID, update)
+	if err != nil {
+		return u, err
+	}
+	data, err := json.Marshal(actions)
+	if err != nil {
+		return u, err
+	}
+	n, err := q.StageUpdateOutput(ctx, dbgen.StageUpdateOutputParams{ID: u.ID, BotID: work.BotID, Output: sql.NullString{String: string(data), Valid: true}})
+	if err != nil {
+		return u, err
+	}
+	if n != 1 {
+		return u, errors.New("update already staged")
+	}
+	if err = tx.Commit(); err != nil {
+		return u, err
+	}
+	u.Output = sql.NullString{String: string(data), Valid: true}
+	return u, nil
+}
+
+func (s *Service) transition(ctx context.Context, q *dbgen.Queries, botID int64, u telegram.Update) ([]telegram.Action, error) {
+	actions := []telegram.Action{}
+	var participant, chatID int64
+	var d flow.Definition
+	var publication int64
+	var output engine.Output
+	var err error
+	if c := u.Callback; c != nil {
+		if c.ID != "" && len(c.ID) <= 256 {
+			actions = append(actions, telegram.Action{CallbackID: c.ID, CallbackText: "این دکمه دیگر قابل استفاده نیست؛ از منوی تازه یا /start استفاده کنید."})
+		}
+		if c.Message == nil || c.Message.Chat.Type != "private" || c.From.IsBot || c.From.ID <= 0 || c.From.ID != c.Message.Chat.ID {
+			return actions, nil
+		}
+		participant, chatID = c.From.ID, c.Message.Chat.ID
+		p, e := q.GetParticipant(ctx, dbgen.GetParticipantParams{BotID: botID, ParticipantID: participant})
+		if errors.Is(e, sql.ErrNoRows) {
+			return actions, nil
+		}
+		if e != nil {
+			return nil, e
+		}
+		step, index, ok := strings.Cut(c.Data, ".")
+		choice, e := strconv.Atoi(index)
+		if !ok || e != nil || step != p.StepToken || p.ChatID != chatID {
+			return actions, nil
+		}
+		d, err = flow.Decode(p.Definition)
+		if err != nil {
+			return nil, err
+		}
+		if choice < 0 || choice >= len(d.Menu.Choices) {
+			return actions, nil
+		}
+		publication = p.PublicationID
+		output, err = engine.Choose(d, d.Menu.Choices[choice].ID)
+		if len(actions) > 0 {
+			actions[0].CallbackText = ""
+		}
+	} else if m := u.Message; m != nil {
+		if m.Chat.Type != "private" || m.From.IsBot || m.From.ID <= 0 || m.From.ID != m.Chat.ID {
+			return actions, nil
+		}
+		fields := strings.Fields(m.Text)
+		if len(fields) == 0 || (fields[0] != "/start" && !strings.HasPrefix(fields[0], "/start@")) {
+			return actions, nil
+		}
+		participant, chatID = m.From.ID, m.Chat.ID
+		p, e := q.GetLatestPublication(ctx, botID)
+		if errors.Is(e, sql.ErrNoRows) {
+			return actions, nil
+		}
+		if e != nil {
+			return nil, e
+		}
+		d, err = flow.Decode(p.Definition)
+		if err != nil {
+			return nil, err
+		}
+		publication = p.ID
+		output, err = engine.Start(d)
+	} else {
+		return actions, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	step, err := nonce()
+	if err != nil {
+		return nil, err
+	}
+	if err = q.SaveParticipant(ctx, dbgen.SaveParticipantParams{BotID: botID, ParticipantID: participant, ChatID: chatID, PublicationID: publication, StepToken: step}); err != nil {
+		return nil, err
+	}
+	for i, text := range output.Messages {
+		message := telegram.SendMessage{ChatID: chatID, Text: text}
+		if i == len(output.Messages)-1 {
+			message.Markup = &telegram.Markup{}
+			for index, c := range output.Choices {
+				message.Markup.Buttons = append(message.Markup.Buttons, []telegram.Button{{Text: c.Label, Data: step + "." + strconv.Itoa(index)}})
+			}
+		}
+		actions = append(actions, telegram.Action{Message: &message})
+	}
+	return actions, nil
+}

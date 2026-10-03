@@ -41,3 +41,15 @@ func (c credentials) seal(token string, ownerID, telegramID int64) ([]byte, erro
 	aad := []byte(fmt.Sprintf("piko:bot:v1:%d:%d", ownerID, telegramID))
 	return c.aead.Seal(nonce, nonce, []byte(token), aad), nil
 }
+
+func (c credentials) open(data []byte, ownerID, telegramID int64) (string, error) {
+	if len(data) < c.aead.NonceSize() {
+		return "", errors.New("credential unavailable")
+	}
+	aad := []byte(fmt.Sprintf("piko:bot:v1:%d:%d", ownerID, telegramID))
+	plain, err := c.aead.Open(nil, data[:c.aead.NonceSize()], data[c.aead.NonceSize():], aad)
+	if err != nil {
+		return "", errors.New("credential unavailable")
+	}
+	return string(plain), nil
+}

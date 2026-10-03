@@ -16,6 +16,7 @@ type Config struct {
 	DatabasePath     string
 	SessionSecret    string
 	BotEncryptionKey string
+	BotPublicURL     string
 	LogLevel         string
 	TrustedProxy     bool
 	CookieSecure     bool
@@ -29,6 +30,7 @@ func LoadConfig() (Config, error) {
 		DatabasePath:     os.Getenv("DATABASE_PATH"),
 		SessionSecret:    os.Getenv("SESSION_SECRET"),
 		BotEncryptionKey: os.Getenv("BOT_ENCRYPTION_KEY"),
+		BotPublicURL:     os.Getenv("BOT_PUBLIC_URL"),
 		LogLevel:         env("LOG_LEVEL", "info"),
 		ShutdownPeriod:   10 * time.Second,
 	}
@@ -49,6 +51,9 @@ func LoadConfig() (Config, error) {
 		return Config{}, errors.New("COOKIE_SECURE must be true in production")
 	}
 	if _, err := bot.EncryptionKey(cfg.BotEncryptionKey, cfg.SessionSecret); err != nil {
+		return Config{}, err
+	}
+	if err := bot.ValidateDeliveryConfig(cfg.Environment, cfg.BotPublicURL); err != nil {
 		return Config{}, err
 	}
 	return cfg, nil

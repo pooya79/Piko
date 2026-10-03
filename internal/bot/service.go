@@ -21,11 +21,15 @@ var (
 
 // Bot exposes verified identity and the saved delivery observation, never credentials.
 type Bot struct {
-	ID, TelegramID int64
-	Name, Username string
-	HasWebhook     bool
-	PendingUpdates int64
-	VerifiedAt     time.Time
+	ID, TelegramID   int64
+	Name, Username   string
+	HasWebhook       bool
+	PendingUpdates   int64
+	VerifiedAt       time.Time
+	PublishedVersion int64
+	DeliveryState    string
+	DeliveryError    bool
+	WebhookIsPiko    bool
 }
 
 func (b Bot) URL() string { return "/bots/" + strconv.FormatInt(b.ID, 10) }
@@ -34,6 +38,7 @@ type Service struct {
 	repo        *Repository
 	telegram    *telegram.Client
 	credentials credentials
+	publicURL   string
 }
 
 func NewService(repo *Repository, api *telegram.Client, key []byte) (*Service, error) {

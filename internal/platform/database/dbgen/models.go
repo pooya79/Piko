@@ -4,6 +4,10 @@
 
 package dbgen
 
+import (
+	"database/sql"
+)
+
 type Bot struct {
 	ID             int64
 	OwnerID        int64
@@ -14,12 +18,36 @@ type Bot struct {
 	HasWebhook     int64
 	PendingUpdates int64
 	VerifiedAt     int64
+	WebhookIsPiko  int64
+}
+
+type BotDelivery struct {
+	BotID           int64
+	State           string
+	Mode            string
+	EncryptedSecret []byte
+	ActivationNonce string
+	ActivationUntil int64
+	WorkerNonce     string
+	WorkerUntil     int64
+	RetryAt         int64
+	PollingOffset   int64
+	WorkerError     int64
 }
 
 type BotDraft struct {
 	BotID      int64
 	Definition string
 	UpdatedAt  int64
+}
+
+type BotParticipant struct {
+	BotID         int64
+	ParticipantID int64
+	ChatID        int64
+	PublicationID int64
+	StepToken     string
+	ExpiresAt     int64
 }
 
 type BotPreview struct {
@@ -29,6 +57,34 @@ type BotPreview struct {
 	Conversation string
 	Revision     int64
 	ExpiresAt    int64
+}
+
+type BotPublication struct {
+	ID         int64
+	BotID      int64
+	Version    int64
+	Definition string
+	CreatedAt  int64
+}
+
+type BotReadyUpdate struct {
+	ID    int64
+	BotID int64
+}
+
+type BotUpdate struct {
+	ID              int64
+	BotID           int64
+	UpdateID        int64
+	ParticipantID   int64
+	Payload         string
+	Output          sql.NullString
+	Cursor          int64
+	Complete        int64
+	Attempts        int64
+	RetryAt         int64
+	TerminalFailure int64
+	ReceivedAt      int64
 }
 
 type RateLimit struct {

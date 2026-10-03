@@ -2,6 +2,7 @@
 package telegram
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,6 +14,8 @@ import (
 )
 
 var (
+	ErrForbidden = errors.New("telegram recipient unavailable")
+ErrRejected    = errors.New("telegram rejected operation")
 	ErrCredentials = errors.New("invalid Telegram credentials")
 	ErrUnavailable = errors.New("telegram verification unavailable")
 	tokenFormat    = regexp.MustCompile(`^[0-9]{1,20}:[A-Za-z0-9_-]{20,128}$`)
@@ -32,6 +35,7 @@ type Identity struct {
 type Delivery struct {
 	HasWebhook     bool
 	PendingUpdates int64
+	URL            string
 }
 
 // NewClient accepts a test server at composition; production always uses Telegram.
@@ -56,25 +60,39 @@ func (c *Client) Verify(ctx context.Context, token string) (Identity, Delivery, 
 	if !identity.IsBot || identity.ID <= 0 || strings.TrimSpace(identity.Name) == "" || len(identity.Name) > 256 || !usernameFormat.MatchString(identity.Username) {
 		return Identity{}, Delivery{}, ErrUnavailable
 	}
+	delivery, err := c.Inspect(ctx, token)
+	return identity, delivery, err
+}
+
+func (c *Client) Inspect(ctx context.Context, token string) (Delivery, error) {
 	var webhook struct {
 		URL            *string `json:"url"`
 		PendingUpdates *int64  `json:"pending_update_count"`
 	}
 	if err := c.call(ctx, token, "getWebhookInfo", &webhook); err != nil {
-		return Identity{}, Delivery{}, err
+		return Delivery{}, err
 	}
 	if webhook.URL == nil || webhook.PendingUpdates == nil || *webhook.PendingUpdates < 0 {
-		return Identity{}, Delivery{}, ErrUnavailable
+		return Delivery{}, ErrUnavailable
 	}
 	// Webhook URLs can contain another service's secret. Persist only the conflict.
-	return identity, Delivery{HasWebhook: *webhook.URL != "", PendingUpdates: *webhook.PendingUpdates}, nil
+	return Delivery{HasWebhook: *webhook.URL != "", PendingUpdates: *webhook.PendingUpdates, URL: *webhook.URL}, nil
 }
 
 func (c *Client) call(ctx context.Context, token, method string, result any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/bot"+token+"/"+method, nil)
+	return c.request(ctx, token, method, nil, result)
+}
+func (c *Client) request(ctx context.Context, token, method string, params, result any) error {
+	if params==nil{params=struct{}{}}
+	data, err := json.Marshal(params)
 	if err != nil {
 		return ErrUnavailable
 	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/bot"+token+"/"+method, bytes.NewReader(data))
+	if err != nil {
+		return ErrUnavailable
+	}
+	req.Header.Set("Content-Type", "application/json")
 	response, err := c.http.Do(req)
 	// net/http errors include the token in the URL. Never propagate them.
 	if err != nil {
@@ -84,6 +102,10 @@ func (c *Client) call(ctx context.Context, token, method string, result any) err
 	if response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusNotFound {
 		return ErrCredentials
 	}
+	if response.StatusCode == http.StatusForbidden{return ErrForbidden}
+if response.StatusCode == http.StatusBadRequest {
+		return ErrRejected
+	}
 	if response.StatusCode != http.StatusOK {
 		return ErrUnavailable
 	}
@@ -92,11 +114,17 @@ func (c *Client) call(ctx context.Context, token, method string, result any) err
 		Code   int             `json:"error_code"`
 		Result json.RawMessage `json:"result"`
 	}
-	data, err := io.ReadAll(io.LimitReader(response.Body, (64<<10)+1))
-	if err != nil || len(data) > 64<<10 || json.Unmarshal(data, &envelope) != nil {
+	limit:=64<<10
+if method=="getUpdates" {limit=16<<20}
+data, err = io.ReadAll(io.LimitReader(response.Body, int64(limit)+1))
+	if err != nil || len(data) > limit || json.Unmarshal(data, &envelope) != nil {
 		return ErrUnavailable
 	}
 	if !envelope.OK {
+		if envelope.Code==403{return ErrForbidden}
+if envelope.Code == 400 {
+			return ErrRejected
+		}
 		if envelope.Code == 401 || envelope.Code == 404 {
 			return ErrCredentials
 		}

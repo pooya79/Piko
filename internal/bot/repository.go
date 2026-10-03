@@ -2,16 +2,21 @@ package bot
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"time"
+
 	"github.com/pooya79/Piko/internal/bot/telegram"
 	"github.com/pooya79/Piko/internal/platform/database/dbgen"
 	"modernc.org/sqlite"
-	"time"
 )
 
-type Repository struct{ q *dbgen.Queries }
+type Repository struct {
+	q  *dbgen.Queries
+	db *sql.DB
+}
 
-func NewRepository(q *dbgen.Queries) *Repository { return &Repository{q: q} }
+func NewRepository(db *sql.DB) *Repository { return &Repository{q: dbgen.New(db), db: db} }
 func (r *Repository) create(ctx context.Context, ownerID int64, identity telegram.Identity, delivery telegram.Delivery, encrypted []byte) (Bot, error) {
 	var webhook int64
 	if delivery.HasWebhook {
@@ -25,7 +30,7 @@ func (r *Repository) create(ctx context.Context, ownerID int64, identity telegra
 		}
 		return Bot{}, err
 	}
-	return botFromRow(dbgen.GetOwnerBotRow(row)), nil
+	return r.get(ctx, ownerID, row.ID)
 }
 func (r *Repository) list(ctx context.Context, ownerID int64) ([]Bot, error) {
 	rows, err := r.q.ListOwnerBots(ctx, ownerID)
@@ -50,5 +55,5 @@ func (r *Repository) get(ctx context.Context, ownerID, id int64) (Bot, error) {
 // Normalize it here so credential-free Bot mapping has one definition.
 func botFromRow(row dbgen.GetOwnerBotRow) Bot {
 	return Bot{ID: row.ID, TelegramID: row.TelegramID, Name: row.Name, Username: row.Username,
-		HasWebhook: row.HasWebhook != 0, PendingUpdates: row.PendingUpdates, VerifiedAt: time.Unix(row.VerifiedAt, 0)}
+		HasWebhook: row.HasWebhook != 0, PendingUpdates: row.PendingUpdates, VerifiedAt: time.Unix(row.VerifiedAt, 0), PublishedVersion: row.PublishedVersion, DeliveryState: row.DeliveryState, DeliveryError: row.DeliveryError != 0, WebhookIsPiko: row.WebhookIsPiko != 0}
 }

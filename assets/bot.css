@@ -23,6 +23,10 @@
  .piko-bot-details dt { @apply mb-2 text-sm text-muted; }
  .piko-bot-warning { @apply my-5 flex items-start gap-2 rounded-xl border border-warning p-4 text-sm leading-7; }
  .piko-bot-warning .piko-icon { @apply mt-1 shrink-0; }
+ .piko-publication { @apply mt-6; }
+ .piko-activation { @apply mt-6; max-width: 48rem; }
+ .piko-activation-confirm { @apply flex items-start gap-3 text-sm leading-7; }
+ .piko-activation-confirm input { @apply mt-2 shrink-0; accent-color: var(--color-primary); }
  .piko-bot-next { @apply mt-8 space-y-4; }
  .piko-draft-eyebrow { @apply mb-2 text-sm font-semibold text-primary; }
  .piko-draft-form { @apply mt-7 space-y-6; }

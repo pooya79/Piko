@@ -412,11 +412,17 @@ func TestDraftAndPreviewStorageFailuresPreserveSavedState(t *testing.T) {
 
 func TestDraftMigrationPreservesExistingBotAndOwnerSession(t *testing.T) {
 	a, b := draftFixture(t)
-	if err := database.Migrate(t.Context(), a.db, true); err != nil {
-		t.Fatal(err)
+	for range 3 {
+		if err := database.Migrate(t.Context(), a.db, true); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if got := b.send(http.MethodGet, "/bots/1", nil); got.Code != 200 {
-		t.Fatal("rollback lost existing Bot or session")
+	var bots, sessions int
+	if err := a.db.QueryRow("SELECT count(*) FROM bots").Scan(&bots); err != nil || bots != 1 {
+		t.Fatal("rollback lost existing Bot")
+	}
+	if err := a.db.QueryRow("SELECT count(*) FROM sessions").Scan(&sessions); err != nil || sessions != 1 {
+		t.Fatal("rollback lost owner session")
 	}
 	if err := database.Migrate(t.Context(), a.db, false); err != nil {
 		t.Fatal(err)

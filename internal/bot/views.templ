@@ -23,7 +23,7 @@ templ listContent(bots []Bot) {
 templ Cards(bots []Bot) {
  <div class="piko-bot-grid">
   for _, bot := range bots {
-   <article class="piko-card piko-bot-card"><span class="piko-empty-icon">@shell.Icon("robot")</span><h2><a href={ templ.URL(bot.URL()) }><bdi dir="auto">{ bot.Name }</bdi></a></h2><p><bdi dir="ltr">{ "@" + bot.Username }</bdi></p><p class="piko-bot-status">@shell.Icon("check-circle")<span>{ locale.T(ctx, "bot.status.verified") }</span></p><p class="piko-helper">{ locale.T(ctx, "bot.status.inactive") }</p><a class="piko-text-link" href={ templ.URL(bot.URL()) }>{ locale.T(ctx, "bot.detail.link") }</a></article>
+   <article class="piko-card piko-bot-card"><span class="piko-empty-icon">@shell.Icon("robot")</span><h2><a href={ templ.URL(bot.URL()) }><bdi dir="auto">{ bot.Name }</bdi></a></h2><p><bdi dir="ltr">{ "@" + bot.Username }</bdi></p><p class="piko-bot-status">@shell.Icon("check-circle")<span>{ locale.T(ctx, "bot.status.verified") }</span></p><p class="piko-helper">{ locale.T(ctx, "delivery.state."+bot.DeliveryState) }</p><a class="piko-text-link" href={ templ.URL(bot.URL()) }>{ locale.T(ctx, "bot.detail.link") }</a></article>
   }
  </div>
 }
@@ -55,16 +55,18 @@ templ connectContent(csrf, message string, invalid bool) {
 }
 
 templ DetailPage(displayName, csrf string, bot Bot) {
- @shell.Workspace(displayName, csrf, shell.Page{Title: bot.Name, ActiveNav: shell.BotsNav, Breadcrumbs: []shell.Breadcrumb{{Label: locale.T(ctx, "workspace.bots"), URL: "/bots"}, {Label: bot.Name}}}, detailContent(bot))
+ @shell.Workspace(displayName, csrf, shell.Page{Title: bot.Name, ActiveNav: shell.BotsNav, Breadcrumbs: []shell.Breadcrumb{{Label: locale.T(ctx, "workspace.bots"), URL: "/bots"}, {Label: bot.Name}}}, detailContent(bot, csrf))
 }
 
-templ detailContent(bot Bot) {
+templ detailContent(bot Bot, csrf string) {
  <div class="piko-bot-detail-heading"><span class="piko-empty-icon">@shell.Icon("robot")</span><div><h1 class="piko-page-title"><bdi dir="auto">{ bot.Name }</bdi></h1><p class="piko-page-copy"><bdi dir="ltr">{ "@" + bot.Username }</bdi></p></div></div>
  <div class="piko-connect-grid">
-  <section class="piko-card piko-token-card"><h2>{ locale.T(ctx, "bot.identity.title") }</h2><dl class="piko-bot-details"><div><dt>{ locale.T(ctx, "bot.identity.id") }</dt><dd><bdi dir="ltr">{ strconv.FormatInt(bot.TelegramID, 10) }</bdi></dd></div><div><dt>{ locale.T(ctx, "bot.identity.credentials") }</dt><dd class="piko-bot-status">{ locale.T(ctx, "bot.status.verified") }</dd></div><div><dt>{ locale.T(ctx, "bot.identity.operation") }</dt><dd>{ locale.T(ctx, "bot.status.inactive") }</dd></div></dl><p class="piko-helper">{ locale.T(ctx, "bot.identity.access") }</p></section>
+  <section class="piko-card piko-token-card"><h2>{ locale.T(ctx, "bot.identity.title") }</h2><dl class="piko-bot-details"><div><dt>{ locale.T(ctx, "bot.identity.id") }</dt><dd><bdi dir="ltr">{ strconv.FormatInt(bot.TelegramID, 10) }</bdi></dd></div><div><dt>{ locale.T(ctx, "bot.identity.credentials") }</dt><dd class="piko-bot-status">{ locale.T(ctx, "bot.status.verified") }</dd></div><div><dt>{ locale.T(ctx, "bot.identity.operation") }</dt><dd>{ locale.T(ctx, "delivery.state."+bot.DeliveryState) }</dd></div></dl><p class="piko-helper">{ locale.T(ctx, "bot.identity.access") }</p></section>
   <section class="piko-card piko-token-card"><h2>{ locale.T(ctx, "bot.delivery.title") }</h2><p class="piko-helper">{ locale.T(ctx, "bot.delivery.observed") }</p>
-   if bot.HasWebhook {
+   if bot.HasWebhook && !bot.WebhookIsPiko {
  <p class="piko-bot-warning">@shell.Icon("warning-circle")<span>{ locale.T(ctx, "bot.delivery.conflict") }</span></p>
+ } else if bot.WebhookIsPiko {
+ <p class="piko-page-copy">{ locale.T(ctx,"delivery.webhook.piko") }</p>
  } else {
  <p class="piko-page-copy">{ locale.T(ctx, "bot.delivery.empty") }</p>
  }
@@ -72,5 +74,9 @@ templ detailContent(bot Bot) {
    <p class="piko-helper">{ locale.T(ctx, "bot.delivery.checked") }: <time datetime={ bot.VerifiedAt.UTC().Format("2006-01-02T15:04:05Z") } data-persian-date>{ locale.T(ctx, "bot.delivery.checked") }</time></p>
   </section>
  </div>
- <section class="piko-bot-next"><h2>{ locale.T(ctx, "bot.next.title") }</h2><p class="piko-page-copy">{ locale.T(ctx, "bot.next.copy") }</p><a class="piko-primary-action" href={ templ.URL(bot.URL()+"/draft") }>{ locale.T(ctx,"draft.title") }</a>@shell.ComingSoon(locale.T(ctx, "bot.next.activate"), "lightning", "piko-secondary-action")</section>
+ if bot.DeliveryError {
+ <p class="piko-bot-warning" role="alert">{ locale.T(ctx,"delivery.error") }</p>
+ }
+ <section class="piko-card piko-token-card piko-publication"><h2>{ locale.T(ctx,"publish.title") }</h2><p>{ locale.T(ctx,"publish.version") + locale.Digits(strconv.FormatInt(bot.PublishedVersion,10)) }</p><p class="piko-helper">{ locale.T(ctx,"publish.copy") }</p><form method="post" action={ templ.URL(bot.URL()+"/publish") }><input type="hidden" name="csrf_token" value={ csrf }/><button class="piko-primary-action" type="submit">{ locale.T(ctx,"publish.submit") }</button></form></section>
+ <section class="piko-bot-next"><h2>{ locale.T(ctx, "bot.next.title") }</h2><p class="piko-page-copy">{ locale.T(ctx, "bot.next.copy") }</p><a class="piko-primary-action" href={ templ.URL(bot.URL()+"/draft") }>{ locale.T(ctx,"draft.title") }</a><a class="piko-secondary-action" href={ templ.URL(bot.URL()+"/activate") }>{ locale.T(ctx,"activate.title") }</a></section>
 }

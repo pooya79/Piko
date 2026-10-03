@@ -24,6 +24,12 @@ func (a *App) cleanup(ctx context.Context) error {
 	if _, err := q.DeleteExpiredPreviews(ctx); err != nil {
 		return err
 	}
+	if _, err := q.DeleteExpiredParticipants(ctx); err != nil {
+		return err
+	}
+	if _, err := q.CompactCompletedUpdateOutput(ctx); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 

@@ -16,7 +16,6 @@ import (
 	"github.com/pooya79/Piko/internal/bot"
 	"github.com/pooya79/Piko/internal/bot/telegram"
 	"github.com/pooya79/Piko/internal/platform/database"
-	"github.com/pooya79/Piko/internal/platform/database/dbgen"
 	"github.com/pooya79/Piko/internal/testsupport"
 )
 
@@ -24,7 +23,7 @@ const testBotToken = "123456:abcdefghijklmnopqrstuvwxyz0123456789"
 
 func testBotService(t *testing.T, db *sql.DB) *bot.Service {
 	t.Helper()
-	s, err := bot.NewService(bot.NewRepository(dbgen.New(db)), telegram.NewClient("https://api.telegram.org", http.DefaultClient), []byte("0123456789abcdef0123456789abcdef"))
+	s, err := bot.NewService(bot.NewRepository(db), telegram.NewClient("https://api.telegram.org", http.DefaultClient), []byte("0123456789abcdef0123456789abcdef"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,9 +32,9 @@ func testBotService(t *testing.T, db *sql.DB) *bot.Service {
 
 func TestBotMigrationPreservesExistingAccountAndSession(t *testing.T) {
 	db, path := testsupport.MigratedSQLite(t, t.Context())
-	// Roll back Draft storage and then Bot storage in this disposable file to represent
+	// Roll back delivery, publication, Draft and Bot storage in this disposable file to represent
 	// an installed pre-Bot schema; registration still uses its existing HTTP seam.
-	for range 2 {
+	for range 4 {
 		if err := database.Migrate(t.Context(), db, true); err != nil {
 			t.Fatal(err)
 		}

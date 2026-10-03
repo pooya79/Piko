@@ -1,0 +1,36 @@
+package bot
+
+import (
+ "strconv"
+ "github.com/pooya79/Piko/internal/locale"
+ "github.com/pooya79/Piko/internal/web/shell"
+)
+
+templ ActivationPage(displayName, csrf string, a Activation, message string) {
+ @shell.Workspace(displayName,csrf,flowPage(ctx,a.Bot,"activate.title"),activationContent(csrf,a,message))
+}
+templ activationContent(csrf string,a Activation,message string) {
+ <h1 class="piko-page-title">{ locale.T(ctx,"activate.title") }</h1>
+ <section class="piko-card piko-token-card piko-activation">
+ <h2><bdi dir="auto">{ a.Bot.Name }</bdi></h2>
+ <p class="piko-page-copy">{ locale.T(ctx,"activate.copy") }</p>
+ if message!="" {
+ <p class="piko-field-error" role="alert">{ message }</p>
+ }
+ if a.Conflict!="" {
+ <p class="piko-bot-warning">{ locale.T(ctx,"activate.conflict") }</p>
+ }
+ if a.Polling {
+ <p class="piko-helper">{ locale.T(ctx,"activate.polling") }</p>
+ }
+ <p class="piko-helper">{ locale.T(ctx,"bot.delivery.pending") + " " + locale.Digits(strconv.FormatInt(a.Pending,10)) }</p>
+ <p class="piko-helper">{ locale.T(ctx,"activate.pending") }</p>
+ <form method="post" action={ templ.URL(a.Bot.URL()+"/activate") }>
+ <input type="hidden" name="csrf_token" value={ csrf }/>
+ <input type="hidden" name="conflict" value={ a.Conflict }/>
+ <label class="piko-activation-confirm"><input type="checkbox" name="operate" value="yes" required/> { locale.T(ctx,"activate.confirm") }</label>
+ <button class="piko-primary-action" type="submit">{ locale.T(ctx,"activate.submit") }</button>
+ </form>
+ <a class="piko-text-link" href={ templ.URL(a.Bot.URL()) }>{ locale.T(ctx,"activate.back") }</a>
+ </section>
+}
