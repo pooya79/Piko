@@ -48,6 +48,8 @@ type BotParticipant struct {
 	PublicationID int64
 	StepToken     string
 	ExpiresAt     int64
+	Interaction   string
+	AttemptID     string
 }
 
 type BotPreview struct {
@@ -70,6 +72,16 @@ type BotPublication struct {
 type BotReadyUpdate struct {
 	ID    int64
 	BotID int64
+}
+
+type BotSubmission struct {
+	ID            int64
+	BotID         int64
+	ParticipantID int64
+	PublicationID int64
+	AttemptID     string
+	Answers       string
+	CreatedAt     int64
 }
 
 type BotUpdate struct {

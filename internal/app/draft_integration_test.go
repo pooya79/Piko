@@ -117,7 +117,7 @@ func TestInvalidDraftDefinitionsPreserveSavedConfiguration(t *testing.T) {
 		t.Fatal("initial save failed")
 	}
 	for _, tc := range []struct{ name, definition string }{
-		{"unsupported version", strings.Replace(structuredDraft, `"version":1`, `"version":2`, 1)},
+		{"unsupported version", strings.Replace(structuredDraft, `"version":1`, `"version":3`, 1)},
 		{"script Block", strings.Replace(structuredDraft, `"type":"message"`, `"type":"script"`, 1)},
 		{"unknown executable field", strings.Replace(structuredDraft, `"text":"Hello"`, `"text":"Hello","script":"alert(1)"`, 1)},
 		{"missing destination", strings.Replace(structuredDraft, `"target":"reply"`, `"target":"missing"`, 1)},
@@ -412,7 +412,7 @@ func TestDraftAndPreviewStorageFailuresPreserveSavedState(t *testing.T) {
 
 func TestDraftMigrationPreservesExistingBotAndOwnerSession(t *testing.T) {
 	a, b := draftFixture(t)
-	for range 3 {
+	for range 4 {
 		if err := database.Migrate(t.Context(), a.db, true); err != nil {
 			t.Fatal(err)
 		}

@@ -1126,40 +1126,40 @@ func detailContent(bot Bot, csrf string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "</button></form></section><section class=\"piko-bot-next\"><h2>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "</button></form></section><section class=\"piko-card piko-draft-section\"><h2>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var67 string
-		templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "bot.next.title"))
+		templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "submission.title"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 81, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 81, Col: 85}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var67))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "</h2><p class=\"piko-page-copy\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "</h2><p class=\"piko-helper\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var68 string
-		templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "bot.next.copy"))
+		templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "submission.copy"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 81, Col: 134}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 81, Col: 148}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var68))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "</p><a class=\"piko-primary-action\" href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "</p><a class=\"piko-secondary-action\" href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var69 templ.SafeURL
-		templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(bot.URL() + "/draft"))
+		templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(bot.URL() + "/submissions"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 81, Col: 207}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 81, Col: 229}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var69))
 		if templ_7745c5c3_Err != nil {
@@ -1170,41 +1170,93 @@ func detailContent(bot Bot, csrf string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var70 string
-		templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "draft.title"))
+		templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "submission.title"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 81, Col: 239}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 81, Col: 266}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var70))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "</a><a class=\"piko-secondary-action\" href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "</a></section><section class=\"piko-bot-next\"><h2>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var71 templ.SafeURL
-		templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(bot.URL() + "/activate"))
+		var templ_7745c5c3_Var71 string
+		templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "bot.next.title"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 81, Col: 317}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 82, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var71))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "</h2><p class=\"piko-page-copy\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var72 string
-		templ_7745c5c3_Var72, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "activate.title"))
+		templ_7745c5c3_Var72, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "bot.next.copy"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 81, Col: 352}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 82, Col: 134}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var72))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "</a></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "</p><a class=\"piko-primary-action\" href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var73 templ.SafeURL
+		templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(bot.URL() + "/draft"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 82, Col: 207}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var73))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var74 string
+		templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "draft.title"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 82, Col: 239}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var74))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "</a><a class=\"piko-secondary-action\" href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var75 templ.SafeURL
+		templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(bot.URL() + "/activate"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 82, Col: 317}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var75))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var76 string
+		templ_7745c5c3_Var76, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "activate.title"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 82, Col: 352}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var76))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "</a></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

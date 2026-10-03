@@ -1,0 +1,55 @@
+package bot
+
+import (
+ "strconv"
+ "github.com/pooya79/Piko/internal/locale"
+ "github.com/pooya79/Piko/internal/web/shell"
+)
+
+templ SubmissionsPage(displayName,csrf string,b Bot,items []Submission,next int64) {
+ @shell.Workspace(displayName,csrf,flowPage(ctx,b,"submission.title"),submissionsContent(b,items,next))
+}
+
+templ submissionMeta(s Submission) {
+ <dl class="piko-bot-details"><div><dt>{ locale.T(ctx,"submission.participant") }</dt><dd><bdi dir="ltr">{ strconv.FormatInt(s.ParticipantID,10) }</bdi></dd></div><div><dt>{ locale.T(ctx,"submission.version") }</dt><dd>{ locale.Digits(strconv.FormatInt(s.Version,10)) }</dd></div><div><dt>{ locale.T(ctx,"submission.received") }</dt><dd><time datetime={ s.CreatedAt.UTC().Format("2006-01-02T15:04:05Z") } data-persian-date>{ locale.Digits(s.CreatedAt.UTC().Format("2006-01-02 15:04")) }</time></dd></div></dl>
+}
+
+templ submissionsContent(b Bot,items []Submission,next int64) {
+ <div class="piko-section-heading"><h1 class="piko-page-title">{ locale.T(ctx,"submission.title") }</h1><a class="piko-text-link" href={ templ.URL(b.URL()) }><bdi dir="auto">{ b.Name }</bdi></a></div><p class="piko-page-copy">{ locale.T(ctx,"submission.copy") }</p>
+ if len(items)==0 {
+ <section class="piko-card piko-draft-section"><p>{ locale.T(ctx,"submission.empty") }</p></section>
+ } else {
+ <div class="piko-submission-list">
+ for _,s:=range items {
+ <article class="piko-card piko-draft-section" data-submission-id={ strconv.FormatInt(s.ID,10) }><h2>{ locale.T(ctx,"submission.detail")+" "+locale.Digits(strconv.FormatInt(s.ID,10)) }</h2><p class="piko-submission-summary"><bdi dir="auto">{ s.Summary() }</bdi></p>@submissionMeta(s)<a class="piko-text-link" href={ templ.URL(b.URL()+"/submissions/"+strconv.FormatInt(s.ID,10)) }>{ locale.T(ctx,"submission.open") }</a></article>
+ }
+ </div>
+ }
+ if next>0 {
+ <a class="piko-secondary-action" href={ templ.URL(b.URL()+"/submissions?before="+strconv.FormatInt(next,10)) }>{ locale.T(ctx,"submission.next") }</a>
+ }
+}
+
+templ SubmissionPage(displayName,csrf string,b Bot,s Submission) {
+ @shell.Workspace(displayName,csrf,flowPage(ctx,b,"submission.detail"),submissionContent(b,s))
+}
+
+templ submissionContent(b Bot,s Submission) {
+ <div class="piko-section-heading"><h1 class="piko-page-title">{ locale.T(ctx,"submission.detail")+" "+locale.Digits(strconv.FormatInt(s.ID,10)) }</h1><a class="piko-text-link" href={ templ.URL(b.URL()+"/submissions") }>{ locale.T(ctx,"submission.back") }</a></div>
+ <section class="piko-card piko-draft-section">@submissionMeta(s)</section>
+ <section class="piko-card piko-draft-section"><dl class="piko-submission-answers">
+ for _,answer:=range s.Answers {
+ <div><dt><bdi dir="auto">{ answer.Label }</bdi></dt><dd>
+ if answer.Value=="" {
+ { locale.T(ctx,"submission.skipped") }
+ } else {
+ <bdi dir="auto">{ answer.Value }</bdi>
+ }
+ </dd>
+ if answer.Type=="phone" {
+ <p class="piko-helper">{ locale.T(ctx,"submission.phone.hint") }</p>
+ }
+ </div>
+ }
+ </dl></section>
+}

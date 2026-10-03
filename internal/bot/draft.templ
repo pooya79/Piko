@@ -2,6 +2,7 @@ package bot
 
 import (
  "strconv"
+ "strings"
  "github.com/pooya79/Piko/internal/locale"
  "github.com/pooya79/Piko/internal/web/shell"
 )
@@ -12,7 +13,12 @@ templ DraftPage(displayName, csrf string, b Bot, s DraftSettings, saved, notice 
 
 templ draftContent(csrf string, b Bot, s DraftSettings, saved, notice bool, message string) {
  <div class="piko-section-heading"><div><p class="piko-draft-eyebrow">{ locale.T(ctx,"draft.badge") }</p><h1 class="piko-page-title">{ locale.T(ctx,"draft.title") }</h1></div><a class="piko-text-link" href={ templ.URL(b.URL()) }><bdi dir="auto">{ b.Name }</bdi></a></div>
+ if s.Template=="inquiry" {
+ <p class="piko-page-copy">{ locale.T(ctx,"inquiry.copy") }</p>
+ } else {
  <p class="piko-page-copy">{ locale.T(ctx,"draft.copy") }</p>
+ }
+ <nav class="piko-preview-buttons" aria-label={ locale.T(ctx,"inquiry.template") }><a class="piko-secondary-action" href={ templ.URL(b.URL()+"/draft?template=welcome") }>{ locale.T(ctx,"inquiry.welcome") }</a><a class="piko-secondary-action" href={ templ.URL(b.URL()+"/draft?template=inquiry") }>{ locale.T(ctx,"inquiry.template") }</a></nav>
  if notice && saved {
  <p class="piko-draft-notice" role="status">{ locale.T(ctx,"draft.saved") }</p>
  }
@@ -22,6 +28,10 @@ templ draftContent(csrf string, b Bot, s DraftSettings, saved, notice bool, mess
  <form class="piko-draft-form" method="post" action={ templ.URL(b.URL()+"/draft") }>
   <input type="hidden" name="csrf_token" value={ csrf }/>
   <section class="piko-card piko-draft-section" aria-labelledby="welcome-heading"><h2 id="welcome-heading">{ locale.T(ctx,"draft.welcome.title") }</h2><label class="piko-label" for="welcome">{ locale.T(ctx,"draft.welcome.label") }</label><textarea class="piko-input piko-draft-textarea" id="welcome" name="welcome" dir="auto" required maxlength="2000">{ s.Welcome }</textarea><label class="piko-label" for="menu-prompt">{ locale.T(ctx,"draft.menu.label") }</label><textarea class="piko-input piko-draft-textarea" id="menu-prompt" name="menu_prompt" dir="auto" required maxlength="2000">{ s.MenuPrompt }</textarea></section>
+  if s.Template=="inquiry" {
+   <input type="hidden" name="template" value="inquiry"/>
+   @inquiryFields(s)
+  } else {
   <section class="piko-card piko-draft-section" aria-labelledby="choices-heading"><h2 id="choices-heading">{ locale.T(ctx,"draft.choices.title") }</h2><p class="piko-helper" id="choices-hint">{ locale.T(ctx,"draft.choices.hint") }</p>
    <div class="piko-draft-choices">
     for i, choice := range s.Fields() {
@@ -29,6 +39,7 @@ templ draftContent(csrf string, b Bot, s DraftSettings, saved, notice bool, mess
     }
    </div>
   </section>
+  }
   <div class="piko-draft-actions"><button class="piko-primary-action" type="submit">@shell.Icon("check-circle")<span>{ locale.T(ctx,"draft.save") }</span></button><p class="piko-helper">{ locale.T(ctx,"draft.inactive") }</p></div>
  </form>
  <section class="piko-card piko-draft-section piko-preview-launch"><div><h2>{ locale.T(ctx,"preview.title") }</h2><p class="piko-helper">{ locale.T(ctx,"preview.launch.copy") }</p></div>
@@ -38,4 +49,17 @@ templ draftContent(csrf string, b Bot, s DraftSettings, saved, notice bool, mess
  <p class="piko-helper">{ locale.T(ctx,"preview.save.first") }</p>
  }
  </section>
+}
+
+templ inquiryFields(s DraftSettings) {
+ <section class="piko-card piko-draft-section"><h2>{ locale.T(ctx,"inquiry.template") }</h2><p class="piko-helper">{ locale.T(ctx,"inquiry.phone.hint") }</p>
+ <label class="piko-label" for="form-label">{ locale.T(ctx,"inquiry.menu.label") }</label><input class="piko-input" id="form-label" name="form_label" value={ s.Inquiry.Label } dir="auto" required maxlength="80"/>
+ <label class="piko-label" for="review-message">{ locale.T(ctx,"inquiry.review") }</label><textarea class="piko-input piko-draft-textarea" id="review-message" name="review_message" dir="auto" required maxlength="2000">{ s.Inquiry.Review }</textarea>
+ <label class="piko-label" for="acknowledgement">{ locale.T(ctx,"inquiry.acknowledgement") }</label><textarea class="piko-input piko-draft-textarea" id="acknowledgement" name="acknowledgement" dir="auto" required maxlength="2000">{ s.Inquiry.Acknowledgement }</textarea>
+ </section>
+ <section class="piko-card piko-draft-section"><h2>{ locale.T(ctx,"inquiry.questions") }</h2><div class="piko-draft-choices">
+ for i,q := range s.Inquiry.Questions {
+ <fieldset class="piko-draft-choice"><legend>{ locale.T(ctx,"inquiry.type."+strings.ReplaceAll(q.Type,"_",".")) }</legend><label class="piko-label" for={ "question-label-"+strconv.Itoa(i) }>{ locale.T(ctx,"inquiry.question.label") }</label><input class="piko-input" id={ "question-label-"+strconv.Itoa(i) } name="question_label" value={ q.Label } dir="auto" required maxlength="80"/><label class="piko-label" for={ "question-prompt-"+strconv.Itoa(i) }>{ locale.T(ctx,"inquiry.question.prompt") }</label><textarea class="piko-input piko-draft-textarea" id={ "question-prompt-"+strconv.Itoa(i) } name="question_prompt" dir="auto" required maxlength="2000">{ q.Prompt }</textarea><label class="piko-label" for={ "question-required-"+strconv.Itoa(i) }>{ locale.T(ctx,"inquiry.required") }</label><select class="piko-input" id={ "question-required-"+strconv.Itoa(i) } name="question_required"><option value="yes" selected?={ q.Required }>{ locale.T(ctx,"inquiry.required.yes") }</option><option value="no" selected?={ !q.Required }>{ locale.T(ctx,"inquiry.required.no") }</option></select></fieldset>
+ }
+ </div></section>
 }

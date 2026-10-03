@@ -65,10 +65,11 @@ SELECT p.*, v.definition FROM bot_participants p JOIN bot_publications v ON v.id
 WHERE p.bot_id = ?1 AND p.participant_id = ?2 AND p.expires_at > unixepoch();
 
 -- name: SaveParticipant :exec
-INSERT INTO bot_participants (bot_id, participant_id, chat_id, publication_id, step_token, expires_at)
-VALUES (?1, ?2, ?3, ?4, ?5, unixepoch()+86400)
+INSERT INTO bot_participants (bot_id, participant_id, chat_id, publication_id, step_token, interaction, attempt_id, expires_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, unixepoch()+86400)
 ON CONFLICT (bot_id, participant_id) DO UPDATE SET chat_id = excluded.chat_id,
-publication_id = excluded.publication_id, step_token = excluded.step_token, expires_at = excluded.expires_at;
+publication_id = excluded.publication_id, step_token = excluded.step_token, interaction = excluded.interaction,
+attempt_id = excluded.attempt_id, expires_at = excluded.expires_at;
 
 -- name: StageUpdateOutput :execrows
 UPDATE bot_updates SET output = ?3, payload = '{}' WHERE id = ?1 AND bot_id = ?2 AND output IS NULL;

@@ -51,4 +51,12 @@
  .piko-preview-footer { @apply mx-auto mt-5 flex max-w-2xl flex-wrap items-center gap-4; }
  @media (max-width: 767px) { .piko-draft-choices { grid-template-columns: 1fr; } .piko-draft-section { @apply p-5; } }
  @media (max-width: 767px) { .piko-connect-grid { grid-template-columns: 1fr; } .piko-bot-guide, .piko-token-card { @apply p-5; } .piko-header-actions > .piko-primary-action { display: none; } }
+
+.piko-preview-answer { @apply border-t border-base-300 p-5; }
+.piko-submission-list { @apply grid gap-4 md:grid-cols-2; }
+.piko-submission-answers { @apply space-y-6; }
+.piko-submission-answers dt { @apply mb-2 font-bold; }
+.piko-submission-answers dd { @apply whitespace-pre-wrap break-words leading-7; overflow-wrap: anywhere; }
+.piko-submission-summary { overflow-wrap: anywhere; }
+.piko-draft-section:has(.piko-submission-answers) { @apply mt-6; }
 }

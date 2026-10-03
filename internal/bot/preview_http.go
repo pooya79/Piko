@@ -67,7 +67,15 @@ func (h *Handler) advancePreview(w http.ResponseWriter, r *http.Request, restart
 		h.previewPage(w, r, 409, locale.T(r.Context(), "preview.error.stale"))
 		return
 	}
-	err = h.service.AdvancePreview(r.Context(), b.ID, chi.URLParam(r, "previewID"), revision, r.PostForm.Get("choice"), restart)
+	var answer *string
+	if values, ok := r.PostForm["answer"]; ok {
+		if len(values) != 1 || r.PostForm.Get("choice") != "" {
+			h.previewPage(w, r, 422, locale.T(r.Context(), "preview.error.choice"))
+			return
+		}
+		answer = &values[0]
+	}
+	err = h.service.AdvancePreview(r.Context(), b.ID, chi.URLParam(r, "previewID"), revision, r.PostForm.Get("choice"), restart, answer)
 	switch {
 	case errors.Is(err, ErrStalePreview):
 		h.previewPage(w, r, 409, locale.T(r.Context(), "preview.error.stale"))

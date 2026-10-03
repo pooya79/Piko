@@ -10,6 +10,9 @@ import (
 var ErrChoice = errors.New("choice is not available")
 
 type Output struct {
+	State         State
+	AcceptsAnswer bool
+	Confirmed     []Answer
 	Messages      []string
 	Choices       []flow.Choice
 	SelectedLabel string

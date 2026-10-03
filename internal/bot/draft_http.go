@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/pooya79/Piko/internal/auth"
 	"github.com/pooya79/Piko/internal/bot/flow"
+	"github.com/pooya79/Piko/internal/bot/templates/inquiry"
 	"github.com/pooya79/Piko/internal/locale"
 	"github.com/pooya79/Piko/internal/web"
 	"github.com/pooya79/Piko/internal/web/request"
@@ -43,7 +44,16 @@ func (h *Handler) Draft(w http.ResponseWriter, r *http.Request) {
 		h.draftError(w, r, err)
 		return
 	}
-	h.draftPage(w, r, 200, b, settings(d), saved, "")
+	s := settings(d)
+	if r.URL.Query().Get("template") == "inquiry" {
+		s = DraftSettings{Template: "inquiry", Inquiry: inquiry.Default()}
+		s.Welcome = s.Inquiry.Welcome
+		s.MenuPrompt = s.Inquiry.MenuPrompt
+	}
+	if r.URL.Query().Get("template") == "welcome" {
+		s = DraftSettings{Welcome: d.Welcome.Text, MenuPrompt: d.Menu.Text}
+	}
+	h.draftPage(w, r, 200, b, s, saved, "")
 }
 
 func (h *Handler) SaveDraft(w http.ResponseWriter, r *http.Request) {
@@ -66,6 +76,29 @@ func (h *Handler) SaveDraft(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	d := s.Definition()
+	if r.PostForm.Get("template") == "inquiry" {
+		s.Template = "inquiry"
+		s.Inquiry = inquiry.Default()
+		s.Inquiry.Welcome = s.Welcome
+		s.Inquiry.MenuPrompt = s.MenuPrompt
+		s.Inquiry.Label = r.PostForm.Get("form_label")
+		s.Inquiry.Review = r.PostForm.Get("review_message")
+		s.Inquiry.Acknowledgement = r.PostForm.Get("acknowledgement")
+		ql, qp, qr := r.PostForm["question_label"], r.PostForm["question_prompt"], r.PostForm["question_required"]
+		if len(ql) != 3 || len(qp) != 3 || len(qr) != 3 {
+			err = &flow.Invalid{Key: "draft.error.definition"}
+		} else {
+			for i := range s.Inquiry.Questions {
+				s.Inquiry.Questions[i].Label = ql[i]
+				s.Inquiry.Questions[i].Prompt = qp[i]
+				s.Inquiry.Questions[i].Required = qr[i] == "yes"
+				if qr[i] != "yes" && qr[i] != "no" {
+					err = &flow.Invalid{Key: "draft.error.definition"}
+				}
+			}
+		}
+		d = s.Definition()
+	}
 	// The structured form contract shares validation with ordinary settings and
 	// future adapters; there is no route that executes owner-supplied code.
 	if values, supplied := r.PostForm["definition"]; supplied {

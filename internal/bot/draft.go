@@ -6,15 +6,21 @@ import (
 	"strings"
 
 	"github.com/pooya79/Piko/internal/bot/flow"
+	"github.com/pooya79/Piko/internal/bot/templates/inquiry"
 )
 
 type MenuMessage struct{ Label, Message string }
 type DraftSettings struct {
+	Template            string
+	Inquiry             inquiry.Settings
 	Welcome, MenuPrompt string
 	Choices             []MenuMessage
 }
 
 func (s DraftSettings) Definition() flow.Definition {
+	if s.Template == "inquiry" {
+		return s.Inquiry.Definition()
+	}
 	d := flow.Definition{Version: 1, Welcome: flow.Block{ID: "welcome", Type: "message", Text: s.Welcome}, Menu: flow.Block{ID: "menu", Type: "menu", Text: s.MenuPrompt}}
 	for i, c := range s.Choices {
 		if strings.TrimSpace(c.Label) == "" && strings.TrimSpace(c.Message) == "" {
@@ -29,6 +35,11 @@ func (s DraftSettings) Definition() flow.Definition {
 
 func settings(d flow.Definition) DraftSettings {
 	s := DraftSettings{Welcome: d.Welcome.Text, MenuPrompt: d.Menu.Text}
+	if len(d.Forms) > 0 {
+		f := d.Forms[0]
+		s.Template = "inquiry"
+		s.Inquiry = inquiry.Settings{Welcome: d.Welcome.Text, MenuPrompt: d.Menu.Text, Label: d.Menu.Choices[0].Label, Review: f.Review, Acknowledgement: f.Acknowledgement, Questions: f.Questions}
+	}
 	for _, c := range d.Menu.Choices {
 		if message, ok := d.Message(c.Target); ok {
 			s.Choices = append(s.Choices, MenuMessage{Label: c.Label, Message: message})

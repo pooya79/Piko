@@ -190,83 +190,141 @@ func (s *Service) stageDelivery(ctx context.Context, work dbgen.BotDelivery, u d
 	return u, nil
 }
 
+// transition runs inside the inbox staging transaction: progress, confirmation,
+// and acknowledgement outputs either all commit or all roll back.
 func (s *Service) transition(ctx context.Context, q *dbgen.Queries, botID int64, u telegram.Update) ([]telegram.Action, error) {
 	actions := []telegram.Action{}
 	var participant, chatID int64
-	var d flow.Definition
-	var publication int64
-	var output engine.Output
-	var err error
+	var input engine.Input
 	if c := u.Callback; c != nil {
 		if c.ID != "" && len(c.ID) <= 256 {
 			actions = append(actions, telegram.Action{CallbackID: c.ID, CallbackText: "این دکمه دیگر قابل استفاده نیست؛ از منوی تازه یا /start استفاده کنید."})
+		} else {
+			return actions, nil
 		}
 		if c.Message == nil || c.Message.Chat.Type != "private" || c.From.IsBot || c.From.ID <= 0 || c.From.ID != c.Message.Chat.ID {
 			return actions, nil
 		}
 		participant, chatID = c.From.ID, c.Message.Chat.ID
-		p, e := q.GetParticipant(ctx, dbgen.GetParticipantParams{BotID: botID, ParticipantID: participant})
-		if errors.Is(e, sql.ErrNoRows) {
-			return actions, nil
-		}
-		if e != nil {
-			return nil, e
-		}
-		step, index, ok := strings.Cut(c.Data, ".")
-		choice, e := strconv.Atoi(index)
-		if !ok || e != nil || step != p.StepToken || p.ChatID != chatID {
-			return actions, nil
-		}
-		d, err = flow.Decode(p.Definition)
-		if err != nil {
-			return nil, err
-		}
-		if choice < 0 || choice >= len(d.Menu.Choices) {
-			return actions, nil
-		}
-		publication = p.PublicationID
-		output, err = engine.Choose(d, d.Menu.Choices[choice].ID)
-		if len(actions) > 0 {
-			actions[0].CallbackText = ""
-		}
 	} else if m := u.Message; m != nil {
 		if m.Chat.Type != "private" || m.From.IsBot || m.From.ID <= 0 || m.From.ID != m.Chat.ID {
 			return actions, nil
 		}
-		fields := strings.Fields(m.Text)
-		if len(fields) == 0 || (fields[0] != "/start" && !strings.HasPrefix(fields[0], "/start@")) {
+		participant, chatID = m.From.ID, m.Chat.ID
+	} else {
+		return actions, nil
+	}
+	p, err := q.GetParticipant(ctx, dbgen.GetParticipantParams{BotID: botID, ParticipantID: participant})
+	exists := err == nil
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+	var d flow.Definition
+	var state engine.State
+	var publication int64
+	attempt := ""
+	if exists {
+		d, err = flow.Decode(p.Definition)
+		if err != nil {
+			return nil, err
+		}
+		if err = json.Unmarshal([]byte(p.Interaction), &state); err != nil {
+			return nil, err
+		}
+		publication, attempt = p.PublicationID, p.AttemptID
+	}
+	var output engine.Output
+	fresh := false
+	if c := u.Callback; c != nil {
+		if !exists || p.ChatID != chatID {
 			return actions, nil
 		}
-		participant, chatID = m.From.ID, m.Chat.ID
-		p, e := q.GetLatestPublication(ctx, botID)
+		step, index, ok := strings.Cut(c.Data, ".")
+		choice, e := strconv.Atoi(index)
+		choices := engine.Current(d, state).Choices
+		if !ok || e != nil || step != p.StepToken || choice < 0 || choice >= len(choices) {
+			return actions, nil
+		}
+		input.Action = choices[choice].ID
+		if input.Action == "again" {
+			fresh = true
+		} else {
+			output, err = engine.Advance(d, state, input)
+		}
+		actions[0].CallbackText = ""
+	} else {
+		m := u.Message
+		fields := strings.Fields(m.Text)
+		start := len(fields) > 0 && (fields[0] == "/start" || strings.HasPrefix(fields[0], "/start@"))
+		active := exists && (state.Phase == "question" || state.Phase == "review" || state.Phase == "edit")
+		if start {
+			if active {
+				output = engine.Current(d, state)
+			} else {
+				fresh = true
+			}
+		} else if active {
+			input = engine.Input{Answer: true, Text: m.Text, Unsupported: m.Text == ""}
+			if state.Phase != "question" {
+				output = engine.Current(d, state)
+			} else {
+				output, err = engine.Advance(d, state, input)
+			}
+		} else {
+			return actions, nil
+		}
+	}
+	if fresh {
+		latest, e := q.GetLatestPublication(ctx, botID)
 		if errors.Is(e, sql.ErrNoRows) {
 			return actions, nil
 		}
 		if e != nil {
 			return nil, e
 		}
-		d, err = flow.Decode(p.Definition)
+		d, err = flow.Decode(latest.Definition)
 		if err != nil {
 			return nil, err
 		}
-		publication = p.ID
+		publication, attempt = latest.ID, ""
 		output, err = engine.Start(d)
-	} else {
-		return actions, nil
 	}
 	if err != nil {
 		return nil, err
+	}
+	if state.FormID == "" && output.State.FormID != "" {
+		attempt, err = nonce()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(output.Confirmed) > 0 {
+		if attempt == "" {
+			return nil, errors.New("missing interaction attempt")
+		}
+		answers, e := json.Marshal(output.Confirmed)
+		if e != nil {
+			return nil, e
+		}
+		if err = q.CreateSubmission(ctx, dbgen.CreateSubmissionParams{BotID: botID, ParticipantID: participant, PublicationID: publication, AttemptID: attempt, Answers: string(answers)}); err != nil {
+			return nil, err
+		}
 	}
 	step, err := nonce()
 	if err != nil {
 		return nil, err
 	}
-	if err = q.SaveParticipant(ctx, dbgen.SaveParticipantParams{BotID: botID, ParticipantID: participant, ChatID: chatID, PublicationID: publication, StepToken: step}); err != nil {
+	data, err := json.Marshal(output.State)
+	if err != nil {
 		return nil, err
 	}
-	for i, text := range output.Messages {
+	if err = q.SaveParticipant(ctx, dbgen.SaveParticipantParams{BotID: botID, ParticipantID: participant, ChatID: chatID, PublicationID: publication, StepToken: step, Interaction: string(data), AttemptID: attempt}); err != nil {
+		return nil, err
+	}
+	messages := telegram.SplitMessages(output.Messages)
+	for i, text := range messages {
 		message := telegram.SendMessage{ChatID: chatID, Text: text}
-		if i == len(output.Messages)-1 {
+		if i == len(messages)-1 && len(output.Choices) > 0 {
 			message.Markup = &telegram.Markup{}
 			for index, c := range output.Choices {
 				message.Markup.Buttons = append(message.Markup.Buttons, []telegram.Button{{Text: c.Label, Data: step + "." + strconv.Itoa(index)}})

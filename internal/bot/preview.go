@@ -57,7 +57,7 @@ func (s *Service) GetPreview(ctx context.Context, botID int64, id string) (Previ
 	return s.repo.getPreview(ctx, ownerID, botID, id)
 }
 
-func (s *Service) AdvancePreview(ctx context.Context, botID int64, id string, revision int64, choice string, restart bool) error {
+func (s *Service) AdvancePreview(ctx context.Context, botID int64, id string, revision int64, choice string, restart bool, answer *string) error {
 	p, err := s.GetPreview(ctx, botID, id)
 	if err != nil {
 		return err
@@ -67,6 +67,8 @@ func (s *Service) AdvancePreview(ctx context.Context, botID int64, id string, re
 	}
 	if restart {
 		p.Conversation, err = preview.Start(p.definition)
+	} else if answer != nil {
+		p.Conversation, err = preview.Answer(p.definition, p.Conversation, *answer)
 	} else {
 		p.Conversation, err = preview.Choose(p.definition, p.Conversation, choice)
 	}

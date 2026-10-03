@@ -327,7 +327,7 @@ func (q *Queries) GetOwnerBotCredentials(ctx context.Context, arg GetOwnerBotCre
 }
 
 const getParticipant = `-- name: GetParticipant :one
-SELECT p.bot_id, p.participant_id, p.chat_id, p.publication_id, p.step_token, p.expires_at, v.definition FROM bot_participants p JOIN bot_publications v ON v.id = p.publication_id
+SELECT p.bot_id, p.participant_id, p.chat_id, p.publication_id, p.step_token, p.expires_at, p.interaction, p.attempt_id, v.definition FROM bot_participants p JOIN bot_publications v ON v.id = p.publication_id
 WHERE p.bot_id = ?1 AND p.participant_id = ?2 AND p.expires_at > unixepoch()
 `
 
@@ -343,6 +343,8 @@ type GetParticipantRow struct {
 	PublicationID int64
 	StepToken     string
 	ExpiresAt     int64
+	Interaction   string
+	AttemptID     string
 	Definition    string
 }
 
@@ -356,6 +358,8 @@ func (q *Queries) GetParticipant(ctx context.Context, arg GetParticipantParams) 
 		&i.PublicationID,
 		&i.StepToken,
 		&i.ExpiresAt,
+		&i.Interaction,
+		&i.AttemptID,
 		&i.Definition,
 	)
 	return i, err
@@ -482,10 +486,11 @@ func (q *Queries) RenewDeliveryWork(ctx context.Context, arg RenewDeliveryWorkPa
 }
 
 const saveParticipant = `-- name: SaveParticipant :exec
-INSERT INTO bot_participants (bot_id, participant_id, chat_id, publication_id, step_token, expires_at)
-VALUES (?1, ?2, ?3, ?4, ?5, unixepoch()+86400)
+INSERT INTO bot_participants (bot_id, participant_id, chat_id, publication_id, step_token, interaction, attempt_id, expires_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, unixepoch()+86400)
 ON CONFLICT (bot_id, participant_id) DO UPDATE SET chat_id = excluded.chat_id,
-publication_id = excluded.publication_id, step_token = excluded.step_token, expires_at = excluded.expires_at
+publication_id = excluded.publication_id, step_token = excluded.step_token, interaction = excluded.interaction,
+attempt_id = excluded.attempt_id, expires_at = excluded.expires_at
 `
 
 type SaveParticipantParams struct {
@@ -494,6 +499,8 @@ type SaveParticipantParams struct {
 	ChatID        int64
 	PublicationID int64
 	StepToken     string
+	Interaction   string
+	AttemptID     string
 }
 
 func (q *Queries) SaveParticipant(ctx context.Context, arg SaveParticipantParams) error {
@@ -503,6 +510,8 @@ func (q *Queries) SaveParticipant(ctx context.Context, arg SaveParticipantParams
 		arg.ChatID,
 		arg.PublicationID,
 		arg.StepToken,
+		arg.Interaction,
+		arg.AttemptID,
 	)
 	return err
 }

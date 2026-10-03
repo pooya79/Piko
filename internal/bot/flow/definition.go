@@ -16,6 +16,31 @@ type Definition struct {
 	Welcome  Block   `json:"welcome"`
 	Menu     Block   `json:"menu"`
 	Messages []Block `json:"messages"`
+	Forms    []Form  `json:"forms,omitempty"`
+}
+
+type Form struct {
+	ID              string     `json:"id"`
+	Questions       []Question `json:"questions"`
+	Review          string     `json:"review"`
+	Acknowledgement string     `json:"acknowledgement"`
+}
+
+type Question struct {
+	ID       string `json:"id"`
+	Label    string `json:"label"`
+	Prompt   string `json:"prompt"`
+	Type     string `json:"type"`
+	Required bool   `json:"required"`
+}
+
+func (d Definition) Form(id string) (Form, bool) {
+	for _, f := range d.Forms {
+		if f.ID == id {
+			return f, true
+		}
+	}
+	return Form{}, false
 }
 
 type Block struct {
@@ -67,13 +92,13 @@ func text(value string, limit int) bool {
 }
 
 func (d Definition) Validate() error {
-	if d.Version != 1 || d.Welcome.Type != "message" || d.Menu.Type != "menu" {
+	if (d.Version != 1 && d.Version != 2) || d.Welcome.Type != "message" || d.Menu.Type != "menu" || (d.Version == 1 && len(d.Forms) != 0) {
 		return invalid("definition")
 	}
 	if !text(d.Welcome.Text, 2000) || !text(d.Menu.Text, 2000) {
 		return invalid("text")
 	}
-	if len(d.Menu.Choices) < 1 || len(d.Menu.Choices) > MaxChoices || len(d.Messages) != len(d.Menu.Choices) {
+	if len(d.Menu.Choices) < 1 || len(d.Menu.Choices) > MaxChoices || len(d.Messages)+len(d.Forms) != len(d.Menu.Choices) {
 		return invalid("choices")
 	}
 	ids := map[string]bool{}
@@ -97,6 +122,24 @@ func (d Definition) Validate() error {
 		messages[b.ID] = true
 	}
 	choices, targets, labels := map[string]bool{}, map[string]bool{}, map[string]bool{}
+	for _, f := range d.Forms {
+		if !text(f.ID, 64) || ids[f.ID] || !text(f.Review, 2000) || !text(f.Acknowledgement, 2000) || len(f.Questions) < 1 || len(f.Questions) > 12 {
+			return invalid("definition")
+		}
+		ids[f.ID], messages[f.ID] = true, true
+		questionIDs := map[string]bool{}
+		for _, q := range f.Questions {
+			if !text(q.ID, 64) || questionIDs[q.ID] || !text(q.Label, 80) || !text(q.Prompt, 2000) {
+				return invalid("definition")
+			}
+			questionIDs[q.ID] = true
+			switch q.Type {
+			case "short_text", "long_text", "phone":
+			default:
+				return invalid("definition")
+			}
+		}
+	}
 	for _, c := range d.Menu.Choices {
 		if !text(c.Label, 80) {
 			return invalid("label")
@@ -106,7 +149,10 @@ func (d Definition) Validate() error {
 		}
 		choices[c.ID], targets[c.Target], labels[strings.TrimSpace(c.Label)] = true, true, true
 	}
-	// Version 1 only permits welcome → menu → message → menu. No automatic
-	// branches exist: each participant action emits at most two messages.
+	// Version 2 adds bounded, sequential Forms; neither version executes code.
+	data, err := json.Marshal(d)
+	if err != nil || len(data) > 128<<10 {
+		return invalid("definition")
+	}
 	return nil
 }

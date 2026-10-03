@@ -628,5 +628,95 @@
   },
   "delivery.webhook.piko": {
     "other": "وب‌هوک پیکو در آخرین بررسی تنظیم شده بود."
+  },
+  "inquiry.template": {
+    "other": "قالب درخواست"
+  },
+  "inquiry.welcome": {
+    "other": "ربات خوش‌آمدگویی"
+  },
+  "inquiry.menu.label": {
+    "other": "عنوان گزینه در منو"
+  },
+  "inquiry.review": {
+    "other": "پیام بررسی پاسخ‌ها"
+  },
+  "inquiry.acknowledgement": {
+    "other": "پیام دریافت درخواست"
+  },
+  "inquiry.questions": {
+    "other": "پرسش‌های درخواست"
+  },
+  "inquiry.question.label": {
+    "other": "عنوان پاسخ در خلاصه"
+  },
+  "inquiry.question.prompt": {
+    "other": "متن پرسش"
+  },
+  "inquiry.required": {
+    "other": "وضعیت پاسخ"
+  },
+  "inquiry.required.yes": {
+    "other": "الزامی"
+  },
+  "inquiry.required.no": {
+    "other": "اختیاری"
+  },
+  "inquiry.type.short.text": {
+    "other": "متن کوتاه · نام"
+  },
+  "inquiry.type.phone": {
+    "other": "شماره تلفن · تماس"
+  },
+  "inquiry.type.long.text": {
+    "other": "متن بلند · درخواست"
+  },
+  "inquiry.phone.hint": {
+    "other": "شماره واردشده فقط از نظر قالب بررسی می‌شود و هویت تأییدشده نیست. متن کوتاه تا ۲۰۰ و متن بلند تا ۲۰۰۰ نویسه است."
+  },
+  "inquiry.answer": {
+    "other": "پاسخ آزمایشی شما"
+  },
+  "inquiry.answer.send": {
+    "other": "ثبت پاسخ آزمایشی"
+  },
+  "submission.title": {
+    "other": "درخواست‌های دریافت‌شده"
+  },
+  "submission.copy": {
+    "other": "فقط پاسخ‌هایی که شرکت‌کننده صریحاً ارسال کرده است در این فهرست قرار می‌گیرند."
+  },
+  "submission.empty": {
+    "other": "هنوز درخواستی دریافت نشده است."
+  },
+  "submission.detail": {
+    "other": "جزئیات درخواست"
+  },
+  "submission.participant": {
+    "other": "شناسه شرکت‌کننده در تلگرام"
+  },
+  "submission.version": {
+    "other": "نسخه رفتار"
+  },
+  "submission.received": {
+    "other": "زمان دریافت"
+  },
+  "submission.open": {
+    "other": "مشاهده پاسخ‌ها"
+  },
+  "submission.skipped": {
+    "other": "بدون پاسخ"
+  },
+  "submission.phone.hint": {
+    "other": "شماره تلفن واردشده، هویت تأییدشده نیست."
+  },
+  "submission.next": {
+    "other": "درخواست‌های قدیمی‌تر"
+  },
+  "submission.back": {
+    "other": "بازگشت به فهرست"
+  },
+  "inquiry.copy": {
+    "other": "پرسش‌های نام، تماس و درخواست را تنظیم کنید. شرکت‌کننده پاسخ‌ها را بررسی می‌کند و فقط با ارسال صریح، درخواست ثبت می‌شود."
   }
 }

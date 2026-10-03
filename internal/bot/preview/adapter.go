@@ -12,8 +12,10 @@ type Message struct {
 }
 
 type Conversation struct {
-	Messages []Message     `json:"messages"`
-	Choices  []flow.Choice `json:"choices"`
+	State         runtime.State `json:"state"`
+	AcceptsAnswer bool          `json:"accepts_answer"`
+	Messages      []Message     `json:"messages"`
+	Choices       []flow.Choice `json:"choices"`
 }
 
 func Start(d flow.Definition) (Conversation, error) {
@@ -25,7 +27,15 @@ func Start(d flow.Definition) (Conversation, error) {
 }
 
 func Choose(d flow.Definition, state Conversation, choice string) (Conversation, error) {
-	output, err := runtime.Choose(d, choice)
+	output, err := runtime.Advance(d, state.State, runtime.Input{Action: choice})
+	if err != nil {
+		return Conversation{}, err
+	}
+	return deliver(state, output), nil
+}
+
+func Answer(d flow.Definition, state Conversation, text string) (Conversation, error) {
+	output, err := runtime.Advance(d, state.State, runtime.Input{Text: text, Answer: true})
 	if err != nil {
 		return Conversation{}, err
 	}
@@ -44,5 +54,7 @@ func deliver(state Conversation, output runtime.Output) Conversation {
 		state.Messages = append([]Message(nil), state.Messages[len(state.Messages)-32:]...)
 	}
 	state.Choices = output.Choices
+	state.State = output.State
+	state.AcceptsAnswer = output.AcceptsAnswer
 	return state
 }

@@ -9,6 +9,6 @@
  document.fonts.ready.then(showLatest);
  new ResizeObserver(showLatest).observe(transcript);
  if (Number(menu.dataset.previewRevision) > 1) {
-  menu.querySelector('button')?.focus();
+  (document.querySelector('#preview-answer') || menu.querySelector('button'))?.focus();
  }
 })();

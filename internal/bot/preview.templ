@@ -48,6 +48,10 @@ templ previewContent(csrf string,b Bot,p Preview,message string) {
  for _, choice := range p.Conversation.Choices {
   <button class="piko-secondary-action" type="submit" name="choice" value={ choice.ID }><bdi dir="auto">{ choice.Label }</bdi></button>
  }
- </form></section>
+ </form>
+ if p.Conversation.AcceptsAnswer {
+ <form class="piko-draft-form piko-preview-answer" method="post" action={ templ.URL(b.URL()+"/preview/"+p.ID+"/choose") }><input type="hidden" name="csrf_token" value={ csrf }/><input type="hidden" name="revision" value={ strconv.FormatInt(p.Revision,10) }/><label class="piko-label" for="preview-answer">{ locale.T(ctx,"inquiry.answer") }</label><textarea class="piko-input piko-draft-textarea" id="preview-answer" name="answer" dir="auto" maxlength="2000"></textarea><button class="piko-primary-action" type="submit">{ locale.T(ctx,"inquiry.answer.send") }</button></form>
+ }
+ </section>
  <div class="piko-preview-footer"><form method="post" action={ templ.URL(b.URL()+"/preview/"+p.ID+"/restart") }><input type="hidden" name="csrf_token" value={ csrf }/><input type="hidden" name="revision" value={ strconv.FormatInt(p.Revision,10) }/><button class="piko-subtle-action" type="submit">@shell.Icon("arrow-clockwise")<span>{ locale.T(ctx,"preview.restart") }</span></button></form><p class="piko-helper">{ locale.T(ctx,"preview.restart.hint") }</p><a class="piko-text-link" href={ templ.URL(b.URL()+"/preview") }>{ locale.T(ctx,"preview.new") }</a></div>
 }

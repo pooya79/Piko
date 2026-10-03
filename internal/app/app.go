@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
-"sync"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/pooya79/Piko/internal/auth"
@@ -31,16 +31,16 @@ const (
 )
 
 type App struct {
-	cfg    Config
-	log    *slog.Logger
-	db     *sql.DB
-	server *http.Server
-	bots   *bot.Service
-requestMu sync.Mutex
-requests sync.WaitGroup
-stopping bool
-requestContext context.Context
-cancelRequests context.CancelFunc
+	cfg            Config
+	log            *slog.Logger
+	db             *sql.DB
+	server         *http.Server
+	bots           *bot.Service
+	requestMu      sync.Mutex
+	requests       sync.WaitGroup
+	stopping       bool
+	requestContext context.Context
+	cancelRequests context.CancelFunc
 }
 
 func New(ctx context.Context, cfg Config) (*App, error) {
@@ -82,14 +82,14 @@ func newWithTelegram(ctx context.Context, cfg Config, api *telegram.Client) (*Ap
 	limiter := webx.NewRateLimiter(db, log, mw.ClientIP)
 	router := buildRouter(db, mw, limiter, authHandler, botService)
 	server := &http.Server{Addr: cfg.HTTPAddr, Handler: router, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}
-	requestCtx,cancelRequests:=context.WithCancel(context.Background())
-a:=&App{cfg: cfg, log: log, db: db, server: server, bots: botService, requestContext:requestCtx,cancelRequests:cancelRequests}
-server.Handler=a.trackRequests(router)
-return a,nil
+	requestCtx, cancelRequests := context.WithCancel(context.Background())
+	a := &App{cfg: cfg, log: log, db: db, server: server, bots: botService, requestContext: requestCtx, cancelRequests: cancelRequests}
+	server.Handler = a.trackRequests(router)
+	return a, nil
 }
 func (a *App) Run(ctx context.Context) error {
 	defer func() { _ = a.db.Close() }()
-	defer func(){a.stopRequests();a.requests.Wait()}()
+	defer func() { a.stopRequests(); a.requests.Wait() }()
 	if err := a.cleanup(ctx); err != nil {
 		return fmt.Errorf("startup cleanup: %w", err)
 	}
@@ -130,7 +130,9 @@ func (a *App) Run(ctx context.Context) error {
 	if e := a.server.Shutdown(shutdownCtx); e != nil && runErr == nil {
 		runErr = fmt.Errorf("http shutdown: %w", e)
 	}
-	if shutdownCtx.Err()!=nil {_ = a.server.Close()}
+	if shutdownCtx.Err() != nil {
+		_ = a.server.Close()
+	}
 	a.requests.Wait()
 	return runErr
 }
@@ -203,6 +205,8 @@ func buildRouter(db *sql.DB, mw webx.Middleware, limiter *webx.RateLimiter, ah *
 		r.Get("/bots/connect", bh.ConnectForm)
 		r.With(limiter.MiddlewareStrict("bot-connect", 10, time.Minute)).Post("/bots/connect", bh.Connect)
 		r.Get("/bots/{botID}", bh.Detail)
+		r.Get("/bots/{botID}/submissions", bh.Submissions)
+		r.Get("/bots/{botID}/submissions/{submissionID}", bh.Submission)
 		r.Get("/bots/{botID}/activate", bh.Activation)
 		r.With(limiter.MiddlewareStrict("bot-activate", 10, time.Minute)).Post("/bots/{botID}/activate", bh.Activate)
 		r.Post("/bots/{botID}/publish", bh.Publish)
