@@ -34,7 +34,7 @@ func (s *Service) deliveryLoop(ctx context.Context) {
 		if err != nil {
 			return
 		}
-		work, err := s.repo.q.ClaimDeliveryWork(ctx, claim)
+		work, err := s.repo.q.ClaimDeliveryWork(ctx, dbgen.ClaimDeliveryWorkParams{WorkerNonce: claim, Mode: string(s.deliveryMode())})
 		if err != nil {
 			select {
 			case <-ctx.Done():
@@ -68,7 +68,7 @@ func (s *Service) processDelivery(ctx context.Context, work dbgen.BotDelivery) (
 		return time.Now().Unix() + 60, 1
 	}
 	update, err := s.repo.q.GetNextUpdate(ctx, work.BotID)
-	if errors.Is(err, sql.ErrNoRows) && work.Mode == "polling" {
+	if errors.Is(err, sql.ErrNoRows) && work.Mode == string(PollingDelivery) {
 		err = s.pollDelivery(ctx, work, token)
 		if err != nil {
 			return time.Now().Unix() + 5, 1

@@ -34,6 +34,12 @@ type telegramFake struct {
 	blockedStatus     int
 	holdActivation    bool
 	activationStarted chan struct{}
+	requireLongPoll   bool
+	pollFailures      int
+	pollStatus        int
+	holdPoll          bool
+	pollStarted       chan struct{}
+	pollCancelled     chan struct{}
 }
 
 func (f *telegramFake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -127,17 +133,49 @@ func (f *telegramFake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(400)
 			return
 		}
+		if f.activationFails {
+			w.WriteHeader(503)
+			return
+		}
 		f.webhook = ""
 		fmt.Fprint(w, `{"ok":true,"result":true}`)
 	case "getUpdates":
 		var p struct {
-			Offset int64 `json:"offset"`
+			Offset  int64    `json:"offset"`
+			Timeout int      `json:"timeout"`
+			Limit   int      `json:"limit"`
+			Updates []string `json:"allowed_updates"`
 		}
 		if json.NewDecoder(r.Body).Decode(&p) != nil {
 			w.WriteHeader(400)
 			return
 		}
 		f.offsets = append(f.offsets, p.Offset)
+		if f.requireLongPoll && (p.Timeout <= 0 || p.Timeout >= 10 || p.Limit <= 0 || p.Limit > 100 || strings.Join(p.Updates, ",") != "message,callback_query") {
+			w.WriteHeader(400)
+			return
+		}
+		if f.pollStarted != nil {
+			select {
+			case f.pollStarted <- struct{}{}:
+			default:
+			}
+		}
+		if f.holdPoll {
+			cancelled := f.pollCancelled
+			f.mu.Unlock()
+			<-r.Context().Done()
+			if cancelled != nil {
+				cancelled <- struct{}{}
+			}
+			f.mu.Lock()
+			return
+		}
+		if f.pollFailures > 0 {
+			f.pollFailures--
+			w.WriteHeader(f.pollStatus)
+			return
+		}
 		updates := []json.RawMessage{}
 		for _, data := range f.pollingUpdates {
 			var u struct {
@@ -162,8 +200,12 @@ func webhook(a *App, secret, payload string) *httptest.ResponseRecorder {
 	return w
 }
 func waitSent(t *testing.T, f *telegramFake, count int) []telegram.SendMessage {
+	return waitSentWithin(t, f, count, 4*time.Second)
+}
+
+func waitSentWithin(t *testing.T, f *telegramFake, count int, timeout time.Duration) []telegram.SendMessage {
 	t.Helper()
-	deadline := time.Now().Add(4 * time.Second)
+	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		f.mu.Lock()
 		sent := append([]telegram.SendMessage(nil), f.sent...)

@@ -83,7 +83,8 @@ func (c *Client) Poll(ctx context.Context, token string, offset int64) ([]Update
 		Limit   int      `json:"limit"`
 		Timeout int      `json:"timeout"`
 		Updates []string `json:"allowed_updates"`
-	}{offset, 50, 0, []string{"message", "callback_query"}}
+		// Keep Telegram's wait below the 10-second HTTP timeout and worker lease.
+	}{offset, 50, 5, []string{"message", "callback_query"}}
 	err := c.request(ctx, token, "getUpdates", params, &updates)
 	return updates, err
 }

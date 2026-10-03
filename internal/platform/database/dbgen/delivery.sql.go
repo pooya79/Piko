@@ -108,15 +108,20 @@ const claimDeliveryWork = `-- name: ClaimDeliveryWork :one
 UPDATE bot_delivery SET worker_nonce = ?1, worker_until = unixepoch()+60
 WHERE bot_id = (
  SELECT d.bot_id FROM bot_delivery d
- WHERE d.state = 'active' AND d.worker_until < unixepoch() AND d.retry_at <= unixepoch()
+ WHERE d.state = 'active' AND d.mode = ?2 AND d.worker_until < unixepoch() AND d.retry_at <= unixepoch()
  AND (EXISTS (SELECT 1 FROM bot_ready_updates u WHERE u.bot_id = d.bot_id) OR d.mode = 'polling')
  ORDER BY d.retry_at, d.bot_id LIMIT 1
 )
 RETURNING bot_id, state, mode, encrypted_secret, activation_nonce, activation_until, worker_nonce, worker_until, retry_at, polling_offset, worker_error
 `
 
-func (q *Queries) ClaimDeliveryWork(ctx context.Context, workerNonce string) (BotDelivery, error) {
-	row := q.db.QueryRowContext(ctx, claimDeliveryWork, workerNonce)
+type ClaimDeliveryWorkParams struct {
+	WorkerNonce string
+	Mode        string
+}
+
+func (q *Queries) ClaimDeliveryWork(ctx context.Context, arg ClaimDeliveryWorkParams) (BotDelivery, error) {
+	row := q.db.QueryRowContext(ctx, claimDeliveryWork, arg.WorkerNonce, arg.Mode)
 	var i BotDelivery
 	err := row.Scan(
 		&i.BotID,

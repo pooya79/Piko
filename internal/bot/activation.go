@@ -21,11 +21,11 @@ const deliverySaveTimeout = 3 * time.Second
 var ErrActivationBusy = errors.New("activation in progress")
 
 type Activation struct {
-	Bot      Bot
-	Conflict string
-	Pending  int64
-	Polling  bool
- hasWebhook,webhookIsPiko bool
+	Bot                       Bot
+	Conflict                  string
+	Pending                   int64
+	Polling                   bool
+	hasWebhook, webhookIsPiko bool
 }
 
 func ValidateDeliveryConfig(environment, endpoint string) error {
@@ -64,6 +64,13 @@ func (s *Service) endpoint(botID int64) string {
 	return s.publicURL + "/telegram/bots/" + strconv.FormatInt(botID, 10)
 }
 
+func (s *Service) deliveryMode() DeliveryMode {
+	if s.publicURL == "" {
+		return PollingDelivery
+	}
+	return WebhookDelivery
+}
+
 func (s *Service) ownerToken(ctx context.Context, botID int64) (dbgen.GetOwnerBotCredentialsRow, string, error) {
 	ownerID, err := owner(ctx)
 	if err != nil {
@@ -92,7 +99,7 @@ func (s *Service) InspectActivation(ctx context.Context, botID int64) (Activatio
 	if err != nil {
 		return Activation{}, err
 	}
-	a := Activation{Bot: b, Pending: observed.PendingUpdates, Polling: s.publicURL == "",hasWebhook:observed.HasWebhook,webhookIsPiko:observed.URL==s.endpoint(botID) && s.publicURL!=""}
+	a := Activation{Bot: b, Pending: observed.PendingUpdates, Polling: s.publicURL == "", hasWebhook: observed.HasWebhook, webhookIsPiko: observed.URL == s.endpoint(botID) && s.publicURL != ""}
 	if observed.URL != "" && observed.URL != s.endpoint(botID) {
 		hash := sha256.Sum256([]byte(observed.URL))
 		a.Conflict = base64.RawURLEncoding.EncodeToString(hash[:])
@@ -108,10 +115,19 @@ func (s *Service) Activate(ctx context.Context, botID int64, confirmation string
 	if err != nil {
 		return a, err
 	}
- has,isPiko:=int64(0),int64(0)
- if a.hasWebhook {has=1};if a.webhookIsPiko {isPiko=1}
- if err=s.repo.q.ObserveOwnerDelivery(ctx,dbgen.ObserveOwnerDeliveryParams{OwnerID:row.OwnerID,ID:botID,HasWebhook:has,PendingUpdates:a.Pending,WebhookIsPiko:isPiko});err!=nil{return a,err}
- if a.Conflict!="" && a.Conflict!=confirmation{return a,ErrWebhookConflict}
+	has, isPiko := int64(0), int64(0)
+	if a.hasWebhook {
+		has = 1
+	}
+	if a.webhookIsPiko {
+		isPiko = 1
+	}
+	if err = s.repo.q.ObserveOwnerDelivery(ctx, dbgen.ObserveOwnerDeliveryParams{OwnerID: row.OwnerID, ID: botID, HasWebhook: has, PendingUpdates: a.Pending, WebhookIsPiko: isPiko}); err != nil {
+		return a, err
+	}
+	if a.Conflict != "" && a.Conflict != confirmation {
+		return a, ErrWebhookConflict
+	}
 	secret, err := nonce()
 	if err != nil {
 		return a, err
@@ -136,11 +152,7 @@ func (s *Service) Activate(ctx context.Context, botID int64, confirmation string
 	if err != nil {
 		return a, err
 	}
-	mode := "webhook"
-	if a.Polling {
-		mode = "polling"
-	}
-	n, err := s.repo.q.BeginOwnerActivation(ctx, dbgen.BeginOwnerActivationParams{OwnerID: row.OwnerID, BotID: botID, Mode: mode, ActivationNonce: claim})
+	n, err := s.repo.q.BeginOwnerActivation(ctx, dbgen.BeginOwnerActivationParams{OwnerID: row.OwnerID, BotID: botID, Mode: string(s.deliveryMode()), ActivationNonce: claim})
 	if err != nil {
 		return a, err
 	}

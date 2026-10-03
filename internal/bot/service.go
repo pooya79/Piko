@@ -19,6 +19,13 @@ var (
 	ErrUnauthorized = errors.New("Bot owner required")
 )
 
+type DeliveryMode string
+
+const (
+	PollingDelivery DeliveryMode = "polling"
+	WebhookDelivery DeliveryMode = "webhook"
+)
+
 // Bot exposes verified identity and the saved delivery observation, never credentials.
 type Bot struct {
 	ID, TelegramID   int64
@@ -28,6 +35,7 @@ type Bot struct {
 	VerifiedAt       time.Time
 	PublishedVersion int64
 	DeliveryState    string
+	DeliveryMode     DeliveryMode
 	DeliveryError    bool
 	WebhookIsPiko    bool
 }
@@ -77,7 +85,11 @@ func (s *Service) List(ctx context.Context) ([]Bot, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.repo.list(ctx, id)
+	bots, err := s.repo.list(ctx, id)
+	for i := range bots {
+		bots[i] = s.deliveryStatus(bots[i])
+	}
+	return bots, err
 }
 func (s *Service) Get(ctx context.Context, id int64) (Bot, error) {
 	ownerID, err := owner(ctx)
@@ -88,7 +100,17 @@ func (s *Service) Get(ctx context.Context, id int64) (Bot, error) {
 	if errors.Is(err, sql.ErrNoRows) {
 		return Bot{}, ErrNotFound
 	}
-	return b, err
+	return s.deliveryStatus(b), err
+}
+
+// Activation survives restarts, but changing the receiver mode requires the
+// owner to activate again. Keep the stored mode visible without claiming work
+// that this server's workers cannot receive.
+func (s *Service) deliveryStatus(b Bot) Bot {
+	if b.DeliveryState == "active" && b.DeliveryMode != s.deliveryMode() {
+		b.DeliveryState = "mode.changed"
+	}
+	return b
 }
 func Navigation(bots []Bot) shell.Page {
 	p := shell.Page{BotsURL: "/bots", ConnectBotURL: "/bots/connect"}
