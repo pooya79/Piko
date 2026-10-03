@@ -1,0 +1,24 @@
+@layer components {
+ .buildx-icon-sm { @apply size-4 shrink-0 fill-current; }
+ .buildx-card { @apply min-w-0 rounded-xl border border-base-300 bg-base-100; }
+ .buildx-label { @apply block p-0 text-sm font-semibold text-muted; }
+ .buildx-helper { @apply text-sm leading-6 text-muted; }
+ .buildx-field-error { @apply text-sm leading-6 text-error; overflow-wrap: anywhere; }
+ .buildx-input { @apply input w-full bg-base-100 shadow-none focus:border-primary; border-color: var(--buildx-control-border); }
+ .buildx-input[aria-invalid="true"] { border-color: var(--color-error); }
+ .buildx-input::placeholder { color: var(--buildx-text-placeholder); opacity: 1; }
+ .buildx-kicker { @apply text-xs font-bold uppercase tracking-wide; }
+ .buildx-page-title { @apply text-2xl font-bold tracking-tight; }
+ .buildx-page-copy { @apply mt-3 text-sm leading-6 text-muted; }
+ .buildx-text-link { @apply font-semibold text-primary underline-offset-4 hover:underline; }
+ .buildx-brand { @apply inline-flex text-xl font-bold; direction: ltr; unicode-bidi: isolate; }
+ .buildx-language-switch, .buildx-theme-choices { @apply inline-flex items-center gap-1 rounded-lg bg-base-200 p-1; }
+ .buildx-language-switch button, .buildx-theme-choices button { @apply min-h-9 cursor-pointer rounded-md px-2 text-xs font-semibold text-muted; }
+ .buildx-language-switch button[aria-pressed="true"], .buildx-theme-choices button[aria-pressed="true"] { @apply bg-base-100 text-primary; outline: 1px solid var(--color-primary); outline-offset: -1px; }
+ [dir="rtl"] .buildx-directional-icon { transform: scaleX(-1); }
+ /* Visible focus and a skip link keep the plain forms usable from a keyboard. */
+ :is(a[href], button, input, [tabindex]):focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+ .buildx-skip-link { @apply fixed z-50 rounded-lg border border-primary bg-base-100 px-4 py-3 font-bold text-primary; inset-inline-start: 1rem; top: 1rem; transform: translateY(calc(-100% - 2rem)); }
+ .buildx-skip-link:focus { transform: none; }
+}
+@layer utilities { .fieldset:has(.buildx-label) { gap: 8px; } }

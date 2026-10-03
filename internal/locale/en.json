@@ -1,0 +1,323 @@
+{
+  "auth.brand.home": {
+    "other": "buildx home"
+  },
+  "auth.account.explanation": {
+    "other": "You are signed in."
+  },
+  "auth.account.heading": {
+    "other": "Account details"
+  },
+  "auth.account.name": {
+    "other": "Name"
+  },
+  "auth.account.page.title": {
+    "other": "Account"
+  },
+  "auth.cancel.error.unavailable": {
+    "other": "Unable to cancel account."
+  },
+  "auth.cancel.explanation": {
+    "other": "Cancel this pending account to free your email address. This cannot affect a verified account."
+  },
+  "auth.cancel.heading": {
+    "other": "Didn't sign up?"
+  },
+  "auth.cancel.page.title": {
+    "other": "Cancel signup"
+  },
+  "auth.cancel.submit": {
+    "other": "Cancel pending account"
+  },
+  "auth.cancelled.explanation": {
+    "other": "You can now create an account with your email address."
+  },
+  "auth.cancelled.heading": {
+    "other": "Pending account cancelled"
+  },
+  "auth.cancelled.page.title": {
+    "other": "Signup cancelled"
+  },
+  "auth.check.explanation": {
+    "other": "If this address is eligible, you will receive a link with the next step."
+  },
+  "auth.check.heading": {
+    "other": "Check your email"
+  },
+  "auth.check.page.title": {
+    "other": "Check your email"
+  },
+  "auth.check.resend": {
+    "other": "Need a new verification link?"
+  },
+  "auth.error.back": {
+    "other": "Return to sign in"
+  },
+  "auth.error.heading": {
+    "other": "We could not complete this request."
+  },
+  "auth.error.page.title": {
+    "other": "Account request unavailable"
+  },
+  "auth.forgot.explanation": {
+    "other": "Enter your email to request a password reset link."
+  },
+  "auth.forgot.heading": {
+    "other": "Recover your account"
+  },
+  "auth.forgot.page.title": {
+    "other": "Recover account"
+  },
+  "auth.forgot.sent": {
+    "other": "If this is a verified account, you will receive a password reset link."
+  },
+  "auth.forgot.submit": {
+    "other": "Send reset link"
+  },
+  "auth.link.error.unavailable": {
+    "other": "Unable to load link."
+  },
+  "auth.link.explanation": {
+    "other": "This link has expired or has already been used."
+  },
+  "auth.link.heading": {
+    "other": "Link unavailable"
+  },
+  "auth.link.page.title": {
+    "other": "Link unavailable"
+  },
+  "auth.link.reset": {
+    "other": "Request a new reset link"
+  },
+  "auth.link.verify": {
+    "other": "Request a new verification link"
+  },
+  "auth.login.email": {
+    "other": "Email address"
+  },
+  "auth.login.error.credentials": {
+    "other": "Invalid email or password."
+  },
+  "auth.login.error.form": {
+    "other": "Invalid form."
+  },
+  "auth.login.error.session": {
+    "other": "Unable to start session."
+  },
+  "auth.login.error.unavailable": {
+    "other": "Unable to log in."
+  },
+  "auth.login.forgot": {
+    "other": "Forgot password?"
+  },
+  "auth.login.kicker": {
+    "other": "Welcome"
+  },
+  "auth.login.password": {
+    "other": "Password"
+  },
+  "auth.login.password.placeholder": {
+    "other": "Enter your password"
+  },
+  "auth.login.register": {
+    "other": "Create an account"
+  },
+  "auth.login.register.prompt": {
+    "other": "Don't have an account?"
+  },
+  "auth.login.submit": {
+    "other": "Log in"
+  },
+  "auth.login.subtitle": {
+    "other": "Sign in to your account."
+  },
+  "auth.login.title": {
+    "other": "Welcome back."
+  },
+  "auth.mail.reset.explanation": {
+    "other": "Use this link to set a new password. It expires in 1 hour. If you did not request this, ignore this email."
+  },
+  "auth.mail.reset.subject": {
+    "other": "Reset your password"
+  },
+  "auth.mail.verify.cancel": {
+    "other": "Didn't sign up? Cancel the pending account:"
+  },
+  "auth.mail.verify.explanation": {
+    "other": "Verify your email to activate your account. This link expires in 24 hours."
+  },
+  "auth.mail.verify.subject": {
+    "other": "Email verification"
+  },
+  "auth.pending.heading": {
+    "other": "Verify your email"
+  },
+  "auth.pending.logout": {
+    "other": "Log out"
+  },
+  "auth.pending.page.title": {
+    "other": "Verify your email"
+  },
+  "auth.pending.resend": {
+    "other": "Resend verification email"
+  },
+  "auth.pending.sent.after": {
+    "other": ". Open it to finish setting up your account."
+  },
+  "auth.pending.sent.before": {
+    "other": "We sent a verification link to"
+  },
+  "auth.register.error.email": {
+    "other": "Enter a valid email address."
+  },
+  "auth.register.error.name": {
+    "other": "Enter a name between 1 and 80 characters."
+  },
+  "auth.register.error.password": {
+    "other": "Use at least 6 characters, including a letter and a number."
+  },
+  "auth.register.error.unavailable": {
+    "other": "Unable to register."
+  },
+  "auth.register.heading": {
+    "other": "Create your account."
+  },
+  "auth.register.kicker": {
+    "other": "Get started"
+  },
+  "auth.register.login.prompt": {
+    "other": "Already registered?"
+  },
+  "auth.register.name": {
+    "other": "Name"
+  },
+  "auth.register.name.placeholder": {
+    "other": "How we should address you"
+  },
+  "auth.register.page.title": {
+    "other": "Register"
+  },
+  "auth.register.password": {
+    "other": "Password"
+  },
+  "auth.register.password.hint": {
+    "other": "6 characters minimum, including a letter and a number"
+  },
+  "auth.register.password.placeholder": {
+    "other": "Create a password"
+  },
+  "auth.register.subtitle": {
+    "other": "Register with your name, email, and password."
+  },
+  "auth.recovery.error.request": {
+    "other": "Unable to request email."
+  },
+  "auth.resend.error.unavailable": {
+    "other": "Unable to request email."
+  },
+  "auth.resend.explanation": {
+    "other": "Enter the email address used for signup. If an account is pending, we will send a new link."
+  },
+  "auth.resend.heading": {
+    "other": "Resend verification"
+  },
+  "auth.resend.page.title": {
+    "other": "Resend verification"
+  },
+  "auth.resend.submit": {
+    "other": "Request verification email"
+  },
+  "auth.reset.error.password": {
+    "other": "Use a password of at least 12 characters."
+  },
+  "auth.reset.error.unavailable": {
+    "other": "Unable to reset password."
+  },
+  "auth.reset.heading": {
+    "other": "Set a new password"
+  },
+  "auth.reset.page.title": {
+    "other": "Reset password"
+  },
+  "auth.reset.password": {
+    "other": "New password"
+  },
+  "auth.reset.submit": {
+    "other": "Reset password"
+  },
+  "auth.theme.choice.dark": {
+    "other": "Dark"
+  },
+  "auth.theme.choice.light": {
+    "other": "Light"
+  },
+  "auth.theme.choice.system": {
+    "other": "System"
+  },
+  "auth.theme.label": {
+    "other": "Theme preference"
+  },
+  "auth.verify.confirm": {
+    "other": "Confirm the email address:"
+  },
+  "auth.verify.error.password": {
+    "other": "Invalid password."
+  },
+  "auth.verify.error.unavailable": {
+    "other": "Unable to verify email."
+  },
+  "auth.verify.heading": {
+    "other": "Confirm your email"
+  },
+  "auth.verify.page.title": {
+    "other": "Confirm email"
+  },
+  "auth.verify.password": {
+    "other": "Account password"
+  },
+  "auth.verify.submit": {
+    "other": "Verify email"
+  },
+  "error.heading": {
+    "other": "A little detour."
+  },
+  "error.home": {
+    "other": "Return home"
+  },
+  "error.label": {
+    "other": "Error"
+  },
+  "error.message.csrf": {
+    "other": "Invalid CSRF token."
+  },
+  "error.message.language.change": {
+    "other": "Unable to change language."
+  },
+  "error.message.language.unsupported": {
+    "other": "Unsupported language."
+  },
+  "error.message.page.missing": {
+    "other": "Page not found."
+  },
+  "error.message.rate.limit": {
+    "other": "Too many attempts. Try again later."
+  },
+  "error.message.rate.retry": {
+    "other": "Please try again later."
+  },
+  "error.message.server": {
+    "other": "Internal server error."
+  },
+  "error.message.session.unavailable": {
+    "other": "Session unavailable."
+  },
+  "error.page.title": {
+    "other": "Error page"
+  },
+  "language.switch.label": {
+    "other": "Language"
+  },
+  "web.skip.content": {
+    "other": "Skip to content"
+  }
+}

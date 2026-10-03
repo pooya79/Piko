@@ -1,0 +1,164 @@
+package auth
+
+import "buildx/internal/locale"
+import forms "buildx/internal/web/form"
+
+templ registerForm(csrf string, form AccountForm) {
+	<div>
+		<div class="mb-8"><p class="buildx-kicker text-primary">{ locale.T(ctx, "auth.register.kicker") }</p><h1 class="buildx-page-title">{ locale.T(ctx, "auth.register.heading") }</h1><p class="buildx-page-copy">{ locale.T(ctx, "auth.register.subtitle") }</p></div>
+		@forms.FormAlert(form.Message)
+		<form class="space-y-5" method="post" action="/register">
+			<input type="hidden" name="csrf_token" value={ csrf }/>
+			<fieldset class="fieldset p-0"><label class="buildx-label" for="display-name">{ locale.T(ctx, "auth.register.name") }</label><input id="display-name" aria-invalid={ form.Invalid("display_name") } if form.Description("display_name", "display-name", "") != "" { aria-describedby={ form.Description("display_name", "display-name", "") } } value={ form.Name } class="buildx-input" required name="display_name" dir="auto" maxlength="80" autocomplete="name" placeholder={ locale.T(ctx, "auth.register.name.placeholder") }/>@forms.FieldError("display-name", form.FieldErrors["display_name"])</fieldset>
+			<fieldset class="fieldset p-0"><label class="buildx-label" for="email">{ locale.T(ctx, "auth.login.email") }</label><input id="email" aria-invalid={ form.Invalid("email") } if form.Description("email", "email", "") != "" { aria-describedby={ form.Description("email", "email", "") } } value={ form.Email } class="buildx-input" required type="email" name="email" maxlength="254" autocomplete="email" dir="ltr" placeholder="you@example.com"/>@forms.FieldError("email", form.FieldErrors["email"])</fieldset>
+			<fieldset class="fieldset p-0"><label class="buildx-label" for="password">{ locale.T(ctx, "auth.register.password") }</label><input id="password" aria-invalid={ form.Invalid("password") } if form.Description("password", "password", "password-hint") != "" { aria-describedby={ form.Description("password", "password", "password-hint") } } class="buildx-input" required type="password" name="password" minlength="6" maxlength="1024" autocomplete="new-password" placeholder={ locale.T(ctx, "auth.register.password.placeholder") }/><p id="password-hint" class="buildx-helper">{ locale.T(ctx, "auth.register.password.hint") }</p>@forms.FieldError("password", form.FieldErrors["password"])</fieldset>
+			<button class="btn btn-primary btn-block mt-2 gap-2">{ locale.T(ctx, "auth.login.register") }<svg class="buildx-icon-sm buildx-directional-icon" aria-hidden="true"><use href="/static/icons.svg#arrow-right"></use></svg></button>
+		</form>
+		<p class="mt-8 text-center text-sm text-muted">{ locale.T(ctx, "auth.register.login.prompt") } <a class="link link-primary font-bold" href="/login">{ locale.T(ctx, "auth.login.submit") }</a></p>
+	</div>
+}
+
+templ AccountErrorPage(csrf, message string) {
+	@authLayout(locale.T(ctx, "auth.error.page.title"), csrf, accountErrorContent(message))
+}
+
+templ accountErrorContent(message string) {
+	<div role="alert">
+		<h1 class="buildx-page-title">{ locale.T(ctx, "auth.error.heading") }</h1>
+		<p class="mt-4">{ message }</p>
+		<a class="link link-primary mt-6 inline-block" href="/login">{ locale.T(ctx, "auth.error.back") }</a>
+	</div>
+}
+
+templ RegisterPage(csrf string, form AccountForm) { @authLayout(locale.T(ctx, "auth.register.page.title"), csrf, registerForm(csrf, form)) }
+
+templ CheckEmailPage(csrf string) {
+	@authLayout(locale.T(ctx, "auth.check.page.title"), csrf, checkEmailContent())
+}
+templ checkEmailContent() {
+	<div>
+		<h1 class="buildx-page-title">{ locale.T(ctx, "auth.check.heading") }</h1>
+		<p class="mt-4">{ locale.T(ctx, "auth.check.explanation") }</p>
+		<a class="link link-primary mt-6 inline-block" href="/verify/resend">{ locale.T(ctx, "auth.check.resend") }</a>
+	</div>
+}
+templ PendingPage(email, csrf string) {
+	@authLayout(locale.T(ctx, "auth.pending.page.title"), csrf, pendingContent(email, csrf))
+}
+templ pendingContent(email, csrf string) {
+	<div>
+		<h1 class="buildx-page-title">{ locale.T(ctx, "auth.pending.heading") }</h1>
+		<p class="mt-4">{ locale.T(ctx, "auth.pending.sent.before") } <bdi dir="ltr">{ email }</bdi>{ locale.T(ctx, "auth.pending.sent.after") }</p>
+		<form class="mt-6" method="post" action="/verify/resend">
+			<input type="hidden" name="csrf_token" value={ csrf }/>
+			<button class="btn btn-primary" type="submit">{ locale.T(ctx, "auth.pending.resend") }</button>
+		</form>
+		<form class="mt-4" method="post" action="/logout">
+			<input type="hidden" name="csrf_token" value={ csrf }/>
+			<button class="link" type="submit">{ locale.T(ctx, "auth.pending.logout") }</button>
+		</form>
+	</div>
+}
+templ VerifyPage(token, email, csrf string, requirePassword bool, message string) {
+	@authLayout(locale.T(ctx, "auth.verify.page.title"), csrf, verifyContent(token, email, csrf, requirePassword, message))
+}
+templ verifyContent(token, email, csrf string, requirePassword bool, message string) {
+	<div>
+		<h1 class="buildx-page-title">{ locale.T(ctx, "auth.verify.heading") }</h1>
+		<p class="mt-4">{ locale.T(ctx, "auth.verify.confirm") } <bdi dir="ltr">{ email }</bdi></p>
+		@forms.FormAlert(message)
+		<form class="mt-6 space-y-4" method="post" action="/verify">
+			<input type="hidden" name="csrf_token" value={ csrf }/>
+			<input type="hidden" name="token" value={ token }/>
+			if requirePassword {
+				<fieldset class="fieldset p-0"><label class="buildx-label" for="verify-password">{ locale.T(ctx, "auth.verify.password") }</label><input id="verify-password" class="buildx-input" type="password" name="password" required autocomplete="current-password"/></fieldset>
+			}
+			<button class="btn btn-primary" type="submit">{ locale.T(ctx, "auth.verify.submit") }</button>
+		</form>
+	</div>
+}
+templ CancelPage(token, csrf string) {
+	@authLayout(locale.T(ctx, "auth.cancel.page.title"), csrf, cancelContent(token, csrf))
+}
+templ cancelContent(token, csrf string) {
+	<div>
+		<h1 class="buildx-page-title">{ locale.T(ctx, "auth.cancel.heading") }</h1>
+		<p class="mt-4">{ locale.T(ctx, "auth.cancel.explanation") }</p>
+		<form class="mt-6" method="post" action="/verify/cancel">
+			<input type="hidden" name="csrf_token" value={ csrf }/>
+			<input type="hidden" name="token" value={ token }/>
+			<button class="btn btn-primary" type="submit">{ locale.T(ctx, "auth.cancel.submit") }</button>
+		</form>
+	</div>
+}
+templ CancelledPage() {
+	@authLayout(locale.T(ctx, "auth.cancelled.page.title"), "", cancelledContent())
+}
+templ cancelledContent() {
+	<div>
+		<h1 class="buildx-page-title">{ locale.T(ctx, "auth.cancelled.heading") }</h1>
+		<p class="mt-4">{ locale.T(ctx, "auth.cancelled.explanation") }</p>
+		<a class="link link-primary mt-6 inline-block" href="/register">{ locale.T(ctx, "auth.login.register") }</a>
+	</div>
+}
+templ ForgotPage(csrf string, sent bool, form AccountForm) {
+	@authLayout(locale.T(ctx, "auth.forgot.page.title"), csrf, forgotContent(csrf, sent, form))
+}
+templ forgotContent(csrf string, sent bool, form AccountForm) {
+	<div>
+		<h1 class="buildx-page-title">{ locale.T(ctx, "auth.forgot.heading") }</h1>
+		if sent {
+			<p class="mt-4">{ locale.T(ctx, "auth.forgot.sent") }</p>
+		} else {
+			<p class="mt-4 mb-5">{ locale.T(ctx, "auth.forgot.explanation") }</p>
+			@forms.FormAlert(form.Message)
+			<form class="mt-6 space-y-4" method="post" action="/password/forgot">
+				<input type="hidden" name="csrf_token" value={ csrf }/>
+				<fieldset class="fieldset p-0"><label class="buildx-label" for="recovery-email">{ locale.T(ctx, "auth.login.email") }</label><input id="recovery-email" value={ form.Email } class="buildx-input" type="email" name="email" required autocomplete="email" dir="ltr"/></fieldset>
+				<button class="btn btn-primary" type="submit">{ locale.T(ctx, "auth.forgot.submit") }</button>
+			</form>
+		}
+	</div>
+}
+templ ResetPage(token, csrf string, feedback forms.Feedback) {
+	@authLayout(locale.T(ctx, "auth.reset.page.title"), csrf, resetContent(token, csrf, feedback))
+}
+templ resetContent(token, csrf string, feedback forms.Feedback) {
+	<div>
+		<h1 class="buildx-page-title">{ locale.T(ctx, "auth.reset.heading") }</h1>
+		@forms.FormAlert(feedback.Message)
+		<form class="mt-6 space-y-4" method="post" action="/password/reset">
+			<input type="hidden" name="csrf_token" value={ csrf }/>
+			<input type="hidden" name="token" value={ token }/>
+			<fieldset class="fieldset p-0"><label class="buildx-label" for="new-password">{ locale.T(ctx, "auth.reset.password") }</label><input id="new-password" aria-invalid={ feedback.Invalid("password") } if feedback.Description("password", "new-password", "") != "" { aria-describedby={ feedback.Description("password", "new-password", "") } } class="buildx-input" type="password" name="password" required minlength="12" maxlength="1024" autocomplete="new-password"/>@forms.FieldError("new-password", feedback.FieldErrors["password"])</fieldset>
+			<button class="btn btn-primary" type="submit">{ locale.T(ctx, "auth.reset.submit") }</button>
+		</form>
+	</div>
+}
+templ LinkExpiredPage() {
+	@authLayout(locale.T(ctx, "auth.link.page.title"), "", linkExpiredContent())
+}
+templ linkExpiredContent() {
+	<div>
+		<h1 class="buildx-page-title">{ locale.T(ctx, "auth.link.heading") }</h1>
+		<p class="mt-4">{ locale.T(ctx, "auth.link.explanation") }</p>
+		<a class="link link-primary mt-6 inline-block" href="/verify/resend">{ locale.T(ctx, "auth.link.verify") }</a>
+		<a class="link link-primary mt-4 inline-block" href="/password/forgot">{ locale.T(ctx, "auth.link.reset") }</a>
+	</div>
+}
+
+templ ResendPage(csrf string, form AccountForm) {
+	@authLayout(locale.T(ctx, "auth.resend.page.title"), csrf, resendContent(csrf, form))
+}
+templ resendContent(csrf string, form AccountForm) {
+	<div>
+		<h1 class="buildx-page-title">{ locale.T(ctx, "auth.resend.heading") }</h1>
+		<p class="mt-4 mb-5">{ locale.T(ctx, "auth.resend.explanation") }</p>
+		@forms.FormAlert(form.Message)
+		<form class="mt-6 space-y-4" method="post" action="/verify/resend">
+			<input type="hidden" name="csrf_token" value={ csrf }/>
+			<fieldset class="fieldset p-0"><label class="buildx-label" for="resend-email">{ locale.T(ctx, "auth.login.email") }</label><input id="resend-email" value={ form.Email } class="buildx-input" type="email" name="email" required autocomplete="email" dir="ltr"/></fieldset>
+			<button class="btn btn-primary" type="submit">{ locale.T(ctx, "auth.resend.submit") }</button>
+		</form>
+	</div>
+}

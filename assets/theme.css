@@ -1,0 +1,140 @@
+/* Shared palettes for forms, status messages, and account pages. */
+/* Pin Latin glyphs and all used weights without depending on installed fonts. */
+@font-face {
+  font-family: "Inter";
+  src: url("/static/fonts/InterVariable-v4.1.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+/* The upstream non-Latin build supplies Persian glyphs while Latin text keeps its existing font stack. */
+@font-face {
+  font-family: "Vazirmatn NL";
+  src: url("/static/fonts/Vazirmatn-NL-v33.003.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+@plugin "daisyui" {
+  themes: false;
+}
+
+@plugin "daisyui/theme" {
+  name: buildx-light;
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+
+  --color-primary: #244fb8;
+  --color-primary-content: #ffffff;
+  --color-secondary: #a56826;
+  --color-secondary-content: #ffffff;
+  --color-accent: #0c777e;
+  --color-accent-content: #ffffff;
+  --color-base-100: #ffffff;
+  --color-base-200: #f5f6f8;
+  --color-base-300: #e0e4ea;
+  --color-base-content: #181d27;
+  --color-neutral: #151922;
+  --color-neutral-content: #f8fafc;
+  --color-info: #245d9f;
+  --color-info-content: #ffffff;
+  --color-success: #16745b;
+  --color-success-content: #ffffff;
+  --color-warning: #925b20;
+  --color-warning-content: #ffffff;
+  --color-error: #b23d4b;
+  --color-error-content: #ffffff;
+
+  --radius-box: 0.875rem;
+  --radius-field: 0.55rem;
+  --radius-selector: 0.55rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+@plugin "daisyui/theme" {
+  name: buildx-dark;
+  default: false;
+  prefersdark: false;
+  color-scheme: dark;
+
+  --color-primary: #9ab5ff;
+  --color-primary-content: #111a31;
+  --color-secondary: #deb077;
+  --color-secondary-content: #30200e;
+  --color-accent: #7ac9cd;
+  --color-accent-content: #0b2d31;
+  --color-base-100: #1b1e25;
+  --color-base-200: #111318;
+  --color-base-300: #343944;
+  --color-base-content: #f0f2f6;
+  --color-neutral: #0c0f14;
+  --color-neutral-content: #f8fafc;
+  --color-info: #89b8ee;
+  --color-info-content: #10243f;
+  --color-success: #77c8a8;
+  --color-success-content: #102e25;
+  --color-warning: #e4b47b;
+  --color-warning-content: #34220f;
+  --color-error: #f09aa5;
+  --color-error-content: #3a151c;
+
+  --radius-box: 0.875rem;
+  --radius-field: 0.55rem;
+  --radius-selector: 0.55rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+@theme static {
+  --font-sans: "Vazirmatn NL", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+@layer base {
+  :root,
+  [data-theme="buildx-light"] {
+    /* Opaque roles stay readable on cards, canvas, and softly tinted surfaces. */
+    --buildx-text-secondary: #536174;
+    --buildx-text-placeholder: #596579;
+    --buildx-control-border: #758195;
+    --buildx-selection: #dce6ff;
+  }
+  [data-theme="buildx-dark"] {
+    --buildx-text-secondary: #b5bdcb;
+    --buildx-text-placeholder: #a6b0c0;
+    --buildx-control-border: #778397;
+    --buildx-selection: #314f8d;
+  }
+}
+
+@utility text-muted {
+  color: var(--buildx-text-secondary);
+}
+
+@layer base {
+  html {
+    min-width: 320px;
+    scroll-behavior: smooth;
+  }
+  body {
+    min-height: 100vh;
+    background: var(--color-base-200);
+    color: var(--color-base-content);
+    font-family: var(--font-sans);
+  }
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+  ::selection {
+    background: var(--buildx-selection);
+    color: var(--color-base-content);
+  }
+}

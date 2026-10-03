@@ -1,0 +1,20 @@
+package web
+
+import (
+ "strconv"
+ "buildx/internal/locale"
+ "buildx/internal/web/shell"
+)
+
+templ ErrorPage(status int, message, displayName, csrf string) {
+ @shell.Layout(locale.T(ctx, "error.page.title"), displayName, csrf, ErrorPanel(status, message))
+}
+
+templ ErrorPanel(status int, message string) {
+ <div class="text-center">
+  <p class="buildx-kicker text-primary">{ locale.T(ctx, "error.label") } { locale.Digits(ctx, strconv.Itoa(status)) }</p>
+  <h1 class="buildx-page-title mt-3">{ locale.T(ctx, "error.heading") }</h1>
+  <p class="mt-3 text-muted">{ message }</p>
+  <a class="btn btn-primary mt-8" href="/">{ locale.T(ctx, "error.home") }</a>
+ </div>
+}

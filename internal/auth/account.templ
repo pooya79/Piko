@@ -1,0 +1,20 @@
+package auth
+
+import (
+ "buildx/internal/locale"
+ "buildx/internal/web/shell"
+)
+
+templ ProfilePage(user User, csrf string) {
+ @shell.Layout(locale.T(ctx, "auth.account.page.title"), user.DisplayName, csrf, accountView(user))
+}
+
+templ accountView(user User) {
+ <h1 class="buildx-page-title">{ locale.T(ctx, "auth.account.heading") }</h1>
+ <p class="buildx-page-copy">{ locale.T(ctx, "auth.account.explanation") }</p>
+ <dl class="mt-6 space-y-5 break-words">
+  <div><dt class="buildx-label">{ locale.T(ctx, "auth.account.name") }</dt><dd class="mt-1"><bdi dir="auto">{ user.DisplayName }</bdi></dd></div>
+  <div><dt class="buildx-label">{ locale.T(ctx, "auth.login.email") }</dt><dd class="mt-1"><bdi dir="ltr">{ user.Email }</bdi></dd></div>
+ </dl>
+ <a class="buildx-text-link mt-6 inline-block" href="/password/forgot">{ locale.T(ctx, "auth.login.forgot") }</a>
+}

@@ -1,0 +1,8 @@
+package head
+
+import "buildx/internal/locale"
+
+// SkipLink precedes repeated navigation in the document's reading order.
+templ SkipLink() {
+	<a class="buildx-skip-link" href="#main-content">{ locale.T(ctx, "web.skip.content") }</a>
+}

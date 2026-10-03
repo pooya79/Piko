@@ -1,0 +1,323 @@
+{
+  "auth.brand.home": {
+    "other": "صفحهٔ اصلی"
+  },
+  "auth.account.explanation": {
+    "other": "وارد حساب خود شده‌اید."
+  },
+  "auth.account.heading": {
+    "other": "جزئیات حساب"
+  },
+  "auth.account.name": {
+    "other": "نام"
+  },
+  "auth.account.page.title": {
+    "other": "حساب"
+  },
+  "auth.cancel.error.unavailable": {
+    "other": "لغو حساب اکنون ممکن نیست."
+  },
+  "auth.cancel.explanation": {
+    "other": "این حساب در انتظار تأیید را لغو کنید تا نشانی ایمیلتان آزاد شود. حساب تأییدشده تحت تأثیر قرار نمی‌گیرد."
+  },
+  "auth.cancel.heading": {
+    "other": "ثبت‌نام نکرده‌اید؟"
+  },
+  "auth.cancel.page.title": {
+    "other": "لغو ثبت‌نام"
+  },
+  "auth.cancel.submit": {
+    "other": "لغو حساب در انتظار تأیید"
+  },
+  "auth.cancelled.explanation": {
+    "other": "اکنون می‌توانید با نشانی ایمیل خود حساب بسازید."
+  },
+  "auth.cancelled.heading": {
+    "other": "حساب در انتظار تأیید لغو شد"
+  },
+  "auth.cancelled.page.title": {
+    "other": "ثبت‌نام لغو شد"
+  },
+  "auth.check.explanation": {
+    "other": "اگر این نشانی واجد شرایط باشد، پیوند مرحلهٔ بعد را دریافت می‌کنید."
+  },
+  "auth.check.heading": {
+    "other": "ایمیل خود را بررسی کنید"
+  },
+  "auth.check.page.title": {
+    "other": "ایمیل خود را بررسی کنید"
+  },
+  "auth.check.resend": {
+    "other": "به پیوند تأیید تازه نیاز دارید؟"
+  },
+  "auth.error.back": {
+    "other": "بازگشت به ورود"
+  },
+  "auth.error.heading": {
+    "other": "این درخواست انجام نشد."
+  },
+  "auth.error.page.title": {
+    "other": "درخواست حساب انجام نشد"
+  },
+  "auth.forgot.explanation": {
+    "other": "برای درخواست پیوند بازیابی گذرواژه، نشانی ایمیل خود را وارد کنید."
+  },
+  "auth.forgot.heading": {
+    "other": "بازیابی حساب"
+  },
+  "auth.forgot.page.title": {
+    "other": "بازیابی حساب"
+  },
+  "auth.forgot.sent": {
+    "other": "اگر این نشانی به حساب تأییدشده‌ای تعلق داشته باشد، پیوند بازیابی گذرواژه را دریافت می‌کنید."
+  },
+  "auth.forgot.submit": {
+    "other": "ارسال پیوند بازیابی"
+  },
+  "auth.link.error.unavailable": {
+    "other": "بارگذاری پیوند اکنون ممکن نیست."
+  },
+  "auth.link.explanation": {
+    "other": "این پیوند منقضی شده یا قبلاً استفاده شده است."
+  },
+  "auth.link.heading": {
+    "other": "پیوند در دسترس نیست"
+  },
+  "auth.link.page.title": {
+    "other": "پیوند در دسترس نیست"
+  },
+  "auth.link.reset": {
+    "other": "درخواست پیوند بازیابی تازه"
+  },
+  "auth.link.verify": {
+    "other": "درخواست پیوند تأیید تازه"
+  },
+  "auth.login.email": {
+    "other": "نشانی ایمیل"
+  },
+  "auth.login.error.credentials": {
+    "other": "ایمیل یا گذرواژه نادرست است."
+  },
+  "auth.login.error.form": {
+    "other": "فرم نامعتبر است."
+  },
+  "auth.login.error.session": {
+    "other": "آغاز نشست ممکن نشد."
+  },
+  "auth.login.error.unavailable": {
+    "other": "ورود در حال حاضر ممکن نیست."
+  },
+  "auth.login.forgot": {
+    "other": "گذرواژه را فراموش کرده‌اید؟"
+  },
+  "auth.login.kicker": {
+    "other": "خوش آمدید"
+  },
+  "auth.login.password": {
+    "other": "گذرواژه"
+  },
+  "auth.login.password.placeholder": {
+    "other": "گذرواژهٔ خود را وارد کنید"
+  },
+  "auth.login.register": {
+    "other": "ساخت حساب"
+  },
+  "auth.login.register.prompt": {
+    "other": "حساب ندارید؟"
+  },
+  "auth.login.submit": {
+    "other": "ورود"
+  },
+  "auth.login.subtitle": {
+    "other": "وارد حساب خود شوید."
+  },
+  "auth.login.title": {
+    "other": "خوش آمدید."
+  },
+  "auth.mail.reset.explanation": {
+    "other": "برای تعیین گذرواژهٔ تازه از این پیوند استفاده کنید. پیوند پس از ۱ ساعت منقضی می‌شود. اگر این درخواست را نداده‌اید، این ایمیل را نادیده بگیرید."
+  },
+  "auth.mail.reset.subject": {
+    "other": "بازیابی گذرواژه"
+  },
+  "auth.mail.verify.cancel": {
+    "other": "ثبت‌نام نکرده‌اید؟ حساب در انتظار تأیید را لغو کنید:"
+  },
+  "auth.mail.verify.explanation": {
+    "other": "برای فعال‌سازی حساب، ایمیل خود را تأیید کنید. این پیوند پس از ۲۴ ساعت منقضی می‌شود."
+  },
+  "auth.mail.verify.subject": {
+    "other": "تأیید ایمیل"
+  },
+  "auth.pending.heading": {
+    "other": "ایمیل خود را تأیید کنید"
+  },
+  "auth.pending.logout": {
+    "other": "خروج"
+  },
+  "auth.pending.page.title": {
+    "other": "ایمیل خود را تأیید کنید"
+  },
+  "auth.pending.resend": {
+    "other": "ارسال دوبارهٔ ایمیل تأیید"
+  },
+  "auth.pending.sent.after": {
+    "other": " فرستادیم. برای تکمیل حساب خود آن را باز کنید."
+  },
+  "auth.pending.sent.before": {
+    "other": "پیوند تأیید را به"
+  },
+  "auth.register.error.email": {
+    "other": "یک نشانی ایمیل معتبر وارد کنید."
+  },
+  "auth.register.error.name": {
+    "other": "نامی بین ۱ تا ۸۰ نویسه وارد کنید."
+  },
+  "auth.register.error.password": {
+    "other": "دست‌کم ۶ نویسه شامل یک حرف و یک عدد وارد کنید."
+  },
+  "auth.register.error.unavailable": {
+    "other": "ثبت‌نام اکنون ممکن نیست."
+  },
+  "auth.register.heading": {
+    "other": "حساب خود را بسازید."
+  },
+  "auth.register.kicker": {
+    "other": "شروع کنید"
+  },
+  "auth.register.login.prompt": {
+    "other": "قبلاً ثبت‌نام کرده‌اید؟"
+  },
+  "auth.register.name": {
+    "other": "نام"
+  },
+  "auth.register.name.placeholder": {
+    "other": "چه نامی شما را صدا کنیم"
+  },
+  "auth.register.page.title": {
+    "other": "ثبت‌نام"
+  },
+  "auth.register.password": {
+    "other": "گذرواژه"
+  },
+  "auth.register.password.hint": {
+    "other": "دست‌کم ۶ نویسه، شامل یک حرف و یک عدد"
+  },
+  "auth.register.password.placeholder": {
+    "other": "گذرواژه بسازید"
+  },
+  "auth.register.subtitle": {
+    "other": "با نام، ایمیل و گذرواژه ثبت‌نام کنید."
+  },
+  "auth.recovery.error.request": {
+    "other": "درخواست ایمیل اکنون ممکن نیست."
+  },
+  "auth.resend.error.unavailable": {
+    "other": "درخواست ایمیل اکنون ممکن نیست."
+  },
+  "auth.resend.explanation": {
+    "other": "نشانی ایمیل ثبت‌نام را وارد کنید. اگر حساب در انتظار تأیید باشد، پیوند تازه‌ای می‌فرستیم."
+  },
+  "auth.resend.heading": {
+    "other": "ارسال دوبارهٔ تأیید"
+  },
+  "auth.resend.page.title": {
+    "other": "ارسال دوبارهٔ تأیید"
+  },
+  "auth.resend.submit": {
+    "other": "درخواست ایمیل تأیید"
+  },
+  "auth.reset.error.password": {
+    "other": "گذرواژه‌ای با دست‌کم ۱۲ نویسه وارد کنید."
+  },
+  "auth.reset.error.unavailable": {
+    "other": "بازنشانی گذرواژه اکنون ممکن نیست."
+  },
+  "auth.reset.heading": {
+    "other": "گذرواژهٔ تازه تعیین کنید"
+  },
+  "auth.reset.page.title": {
+    "other": "بازنشانی گذرواژه"
+  },
+  "auth.reset.password": {
+    "other": "گذرواژهٔ تازه"
+  },
+  "auth.reset.submit": {
+    "other": "بازنشانی گذرواژه"
+  },
+  "auth.theme.choice.dark": {
+    "other": "تیره"
+  },
+  "auth.theme.choice.light": {
+    "other": "روشن"
+  },
+  "auth.theme.choice.system": {
+    "other": "دستگاه"
+  },
+  "auth.theme.label": {
+    "other": "حالت نمایش"
+  },
+  "auth.verify.confirm": {
+    "other": "نشانی ایمیل را تأیید کنید:"
+  },
+  "auth.verify.error.password": {
+    "other": "گذرواژه نادرست است."
+  },
+  "auth.verify.error.unavailable": {
+    "other": "تأیید ایمیل اکنون ممکن نیست."
+  },
+  "auth.verify.heading": {
+    "other": "ایمیل خود را تأیید کنید"
+  },
+  "auth.verify.page.title": {
+    "other": "تأیید ایمیل"
+  },
+  "auth.verify.password": {
+    "other": "گذرواژهٔ حساب"
+  },
+  "auth.verify.submit": {
+    "other": "تأیید ایمیل"
+  },
+  "error.heading": {
+    "other": "مسیر کمی عوض شد."
+  },
+  "error.home": {
+    "other": "بازگشت به خانه"
+  },
+  "error.label": {
+    "other": "خطا"
+  },
+  "error.message.csrf": {
+    "other": "نشست یا کد امنیتی فرم نامعتبر است."
+  },
+  "error.message.language.change": {
+    "other": "تغییر زبان اکنون ممکن نیست."
+  },
+  "error.message.language.unsupported": {
+    "other": "زبان انتخاب‌شده پشتیبانی نمی‌شود."
+  },
+  "error.message.page.missing": {
+    "other": "صفحه پیدا نشد."
+  },
+  "error.message.rate.limit": {
+    "other": "درخواست‌های زیادی فرستاده‌اید. کمی بعد دوباره تلاش کنید."
+  },
+  "error.message.rate.retry": {
+    "other": "لطفاً کمی بعد دوباره تلاش کنید."
+  },
+  "error.message.server": {
+    "other": "خطایی در سرور رخ داد."
+  },
+  "error.message.session.unavailable": {
+    "other": "نشست در دسترس نیست."
+  },
+  "error.page.title": {
+    "other": "صفحهٔ خطا"
+  },
+  "language.switch.label": {
+    "other": "زبان"
+  },
+  "web.skip.content": {
+    "other": "رفتن به محتوا"
+  }
+}

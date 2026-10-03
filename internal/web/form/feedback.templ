@@ -1,0 +1,15 @@
+package form
+
+templ FieldError(id, message string) {
+	if message != "" {
+		<p id={ id + "-error" } class="buildx-field-error" role="alert">{ message }</p>
+	}
+}
+
+templ FormAlert(message string) {
+	if message != "" {
+		<div class="alert alert-error alert-soft mb-5" role="alert">
+			<span>{ message }</span>
+		</div>
+	}
+}

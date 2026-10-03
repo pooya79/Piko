@@ -1,0 +1,43 @@
+package shell
+
+import (
+ "buildx/internal/locale"
+ "buildx/internal/web/head"
+ "buildx/internal/web/language"
+)
+
+// Layout is shared by public forms and the minimal signed-in account page.
+templ Layout(title, displayName, csrf string, content templ.Component) {
+ <!doctype html>
+ <html lang={ locale.Language(ctx) } dir={ locale.Direction(ctx) } data-theme="buildx-light">
+  <head>@head.Head(title)</head>
+  <body class="antialiased">
+   @head.SkipLink()
+   <header class="buildx-auth-header">
+    <a class="buildx-brand" dir="ltr" href="/" aria-label={ locale.T(ctx, "auth.brand.home") }>buildx<span class="text-primary">.</span></a>
+    <div class="buildx-auth-controls">
+     @language.Switcher(csrf)
+     <div class="buildx-theme-choices" role="group" aria-label={ locale.T(ctx, "auth.theme.label") }>
+      <button type="button" data-theme-choice="system" aria-pressed="true">{ locale.T(ctx, "auth.theme.choice.system") }</button>
+      <button type="button" data-theme-choice="light" aria-pressed="false">{ locale.T(ctx, "auth.theme.choice.light") }</button>
+      <button type="button" data-theme-choice="dark" aria-pressed="false">{ locale.T(ctx, "auth.theme.choice.dark") }</button>
+     </div>
+    </div>
+   </header>
+   <main id="main-content" tabindex="-1" class="buildx-auth-main">
+    <section class="buildx-card w-full max-w-md p-6 sm:p-8">
+     if displayName != "" {
+      <div class="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-base-300 pb-4">
+       <a class="buildx-text-link break-words" href="/account"><bdi dir="auto">{ displayName }</bdi></a>
+       <form method="post" action="/logout">
+        <input type="hidden" name="csrf_token" value={ csrf }/>
+        <button class="btn btn-ghost btn-sm" type="submit">{ locale.T(ctx, "auth.pending.logout") }</button>
+       </form>
+      </div>
+     }
+     @content
+    </section>
+   </main>
+  </body>
+ </html>
+}

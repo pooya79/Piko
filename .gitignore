@@ -1,0 +1,12 @@
+.env
+/bin/
+/node_modules/
+/tmp/
+/coverage.out
+*.prof
+*.test
+.idea/
+.vscode/
+.DS_Store
+playwright-report/
+test-results/

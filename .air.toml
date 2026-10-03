@@ -1,0 +1,27 @@
+root = "."
+tmp_dir = "tmp"
+env_files = [".env"]
+
+[build]
+cmd = "go build -o ./tmp/buildx-dev ./cmd/server"
+entrypoint = ["./tmp/buildx-dev"]
+include_ext = ["go"]
+exclude_dir = ["bin", "db", "docs", "node_modules", "static", "tmp"]
+exclude_regex = ["_test\\.go"]
+exclude_unchanged = true
+send_interrupt = true
+kill_delay = 1000000000
+stop_on_error = true
+
+# Generated Go files are watched above, so a template edit rebuilds the server.
+[[build.rules]]
+name = "templ"
+include_ext = ["templ"]
+cmd = "make templ css"
+
+# CSS is served from disk and does not need a Go rebuild.
+[[build.rules]]
+name = "css"
+include_dir = ["assets"]
+include_ext = ["css"]
+cmd = "make css"
