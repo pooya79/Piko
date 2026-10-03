@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"github.com/pooya79/Piko/internal/bot/flow"
+	"github.com/pooya79/Piko/internal/locale"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -27,6 +28,15 @@ type Answer struct {
 	Type  string `json:"type"`
 }
 
+// DisplayValue keeps dates in their Jalali calendar, with Persian digits.
+// Persistence retains the normalized Latin date string for all adapters.
+func (a Answer) DisplayValue() string {
+	if a.Type == "date" {
+		return locale.Digits(a.Value)
+	}
+	return a.Value
+}
+
 func Current(d flow.Definition, state State) Output {
 	o := Output{State: state}
 	f, ok := d.Form(state.FormID)
@@ -40,6 +50,9 @@ func Current(d flow.Definition, state State) Output {
 	case "question":
 		q := f.Questions[state.Question]
 		o.Messages = []string{q.Prompt}
+		if q.Type == "date" {
+			o.Messages[0] += "\nتاریخ شمسی با تقویم تهران، به صورت سال/ماه/روز؛ مانند ۱۴۰۵/۰۷/۱۱."
+		}
 		o.AcceptsAnswer = true
 		for i, option := range q.Options {
 			o.Choices = append(o.Choices, flow.Choice{ID: "option:" + strconv.Itoa(i), Label: option})
@@ -54,7 +67,7 @@ func Current(d flow.Definition, state State) Output {
 	case "review":
 		o.Messages = []string{f.Review}
 		for i, q := range f.Questions {
-			value := state.Answers[i]
+			value := (Answer{Type: q.Type, Value: state.Answers[i]}).DisplayValue()
 			if value == "" {
 				value = "بدون پاسخ"
 			}
@@ -252,6 +265,13 @@ func validateAnswer(q flow.Question, raw string) (string, string) {
 			}
 		}
 		return number.String(), ""
+	}
+	if q.Type == "date" {
+		date, err := flow.ParseDate(value)
+		if err != nil {
+			return "", "تاریخ شمسی معتبر به صورت سال/ماه/روز وارد کنید؛ مانند ۱۴۰۵/۰۷/۱۱."
+		}
+		return date, ""
 	}
 	if q.Type == "phone" {
 		value = flow.NormalizeDigits(value)

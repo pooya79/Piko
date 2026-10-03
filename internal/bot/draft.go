@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/pooya79/Piko/internal/bot/flow"
+	"github.com/pooya79/Piko/internal/bot/templates/booking"
 	"github.com/pooya79/Piko/internal/bot/templates/inquiry"
 	"github.com/pooya79/Piko/internal/bot/templates/registration"
 )
@@ -15,11 +16,15 @@ type DraftSettings struct {
 	Template            string
 	Inquiry             inquiry.Settings
 	Registration        registration.Settings
+	Booking             booking.Settings
 	Welcome, MenuPrompt string
 	Choices             []MenuMessage
 }
 
 func (s DraftSettings) Definition() flow.Definition {
+	if s.Template == "booking" {
+		return s.Booking.Definition()
+	}
 	if s.Template == "registration" {
 		return s.Registration.Definition()
 	}
@@ -47,6 +52,10 @@ func settings(d flow.Definition) DraftSettings {
 		if f.ID == "registration" {
 			s.Template = "registration"
 			s.Registration = registration.Settings{Welcome: d.Welcome.Text, MenuPrompt: d.Menu.Text, Label: d.Menu.Choices[0].Label, Review: f.Review, Acknowledgement: f.Acknowledgement, Questions: f.Questions}
+		}
+		if f.ID == "booking" {
+			s.Template = "booking"
+			s.Booking = booking.Settings{Welcome: d.Welcome.Text, MenuPrompt: d.Menu.Text, Label: d.Menu.Choices[0].Label, Review: f.Review, Acknowledgement: f.Acknowledgement, Questions: f.Questions}
 		}
 	}
 	for _, c := range d.Menu.Choices {

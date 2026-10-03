@@ -22,11 +22,11 @@ func (s Submission) Summary() string {
 		if a.Value == "" {
 			continue
 		}
-		value := []rune(a.Value)
+		value := []rune(a.DisplayValue())
 		if len(value) > 200 {
 			return a.Label + ": " + string(value[:200]) + "…"
 		}
-		return a.Label + ": " + a.Value
+		return a.Label + ": " + a.DisplayValue()
 	}
 	return ""
 }

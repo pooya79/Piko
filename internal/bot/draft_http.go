@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/pooya79/Piko/internal/auth"
 	"github.com/pooya79/Piko/internal/bot/flow"
+	"github.com/pooya79/Piko/internal/bot/templates/booking"
 	"github.com/pooya79/Piko/internal/bot/templates/inquiry"
 	"github.com/pooya79/Piko/internal/bot/templates/registration"
 	"github.com/pooya79/Piko/internal/locale"
@@ -20,6 +21,19 @@ import (
 
 func flowPage(ctx context.Context, b Bot, titleKey string) shell.Page {
 	return shell.Page{Title: locale.T(ctx, titleKey), ActiveNav: shell.BotsNav, Breadcrumbs: []shell.Breadcrumb{{Label: locale.T(ctx, "workspace.bots"), URL: "/bots"}, {Label: b.Name, URL: b.URL()}, {Label: locale.T(ctx, titleKey)}}}
+}
+
+func templateDefinition(name string) (flow.Definition, bool) {
+	switch name {
+	case "inquiry":
+		return inquiry.Default().Definition(), true
+	case "registration":
+		return registration.Default().Definition(), true
+	case "booking":
+		return booking.Default().Definition(), true
+	default:
+		return flow.Definition{}, false
+	}
 }
 
 func (h *Handler) requestedBot(w http.ResponseWriter, r *http.Request) (Bot, bool) {
@@ -47,13 +61,8 @@ func (h *Handler) Draft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s := settings(d)
-	if r.URL.Query().Get("template") == "inquiry" {
-		s = DraftSettings{Template: "inquiry", Inquiry: inquiry.Default()}
-		s.Welcome = s.Inquiry.Welcome
-		s.MenuPrompt = s.Inquiry.MenuPrompt
-	}
-	if r.URL.Query().Get("template") == "registration" {
-		s = settings(registration.Default().Definition())
+	if templateFlow, ok := templateDefinition(r.URL.Query().Get("template")); ok {
+		s = settings(templateFlow)
 	}
 	if r.URL.Query().Get("template") == "welcome" {
 		s = DraftSettings{Welcome: d.Welcome.Text, MenuPrompt: d.Menu.Text}
@@ -82,11 +91,8 @@ func (h *Handler) SaveDraft(w http.ResponseWriter, r *http.Request) {
 	}
 	d := s.Definition()
 	template := r.PostForm.Get("template")
-	if template == "inquiry" || template == "registration" {
-		d = inquiry.Default().Definition()
-		if template == "registration" {
-			d = registration.Default().Definition()
-		}
+	if templateFlow, ok := templateDefinition(template); ok {
+		d = templateFlow
 		d.Welcome.Text, d.Menu.Text = s.Welcome, s.MenuPrompt
 		d.Menu.Choices[0].Label = r.PostForm.Get("form_label")
 		f := &d.Forms[0]

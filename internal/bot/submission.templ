@@ -43,7 +43,7 @@ templ submissionContent(b Bot,s Submission) {
  if answer.Value=="" {
  { locale.T(ctx,"submission.skipped") }
  } else {
- <bdi dir="auto">{ answer.Value }</bdi>
+ <bdi dir="auto">{ answer.DisplayValue() }</bdi>
  }
  </dd>
  if answer.Type=="phone" {

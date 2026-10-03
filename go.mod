@@ -5,6 +5,7 @@ go 1.27.1
 require (
 	github.com/a-h/templ v0.3.1020
 	github.com/go-chi/chi/v5 v5.3.2
+	github.com/jalaali/go-jalaali v0.1.0
 	github.com/shopspring/decimal v1.4.0
 	golang.org/x/crypto v0.57.0
 	golang.org/x/net v0.59.0

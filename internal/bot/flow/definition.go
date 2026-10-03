@@ -141,7 +141,7 @@ func (d Definition) Validate() error {
 			}
 			questionIDs[q.ID] = true
 			switch q.Type {
-			case "short_text", "long_text", "phone":
+			case "short_text", "long_text", "phone", "date":
 				if len(q.Options) != 0 || q.Number != nil {
 					return invalid("definition")
 				}
