@@ -176,6 +176,9 @@
   "workspace.title": {
     "other": "فضای کار"
   },
+  "workspace.breadcrumb": {
+    "other": "مسیر صفحه"
+  },
   "workspace.soon": {
     "other": "به‌زودی"
   },

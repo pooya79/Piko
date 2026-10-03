@@ -4,7 +4,7 @@
  .piko-workspace-main { min-width: 0; }
  .piko-navigation { position: sticky; top: 0; width: 100%; max-width: none; height: 100dvh; max-height: none; margin: 0; padding: 0; border: 0; color: var(--color-base-content); background: var(--color-base-100); }
  .piko-drawer-heading { display: none; }
- .piko-topbar-navigation { display: flex; align-items: center; gap: 10px; }
+ .piko-topbar-navigation { display: flex; align-items: center; gap: 10px; min-width: 0; }
  .piko-menu-trigger { display: none; }
  .piko-sidebar { position: sticky; top: 0; height: 100dvh; overflow-y: auto; scrollbar-width: thin; display: flex; flex-direction: column; gap: 24px; padding: 26px 20px 18px; border-inline-end: 1px solid var(--color-base-300); background: var(--color-base-100); }
  .piko-sidebar > * { flex-shrink: 0; }
@@ -27,7 +27,7 @@
  .piko-coming-soon small { flex-shrink: 0; font-size: 9px; font-weight: 400; padding: 2px 5px; border-radius: 5px; background: var(--color-base-100); color: var(--piko-text-secondary); }
  .piko-nav-item.piko-coming-soon { justify-content: flex-start; gap: 8px; }
  .piko-nav-item small { margin-inline-start: auto; font-size: 8px; }
- .piko-nav-item span { min-width: 0; }
+ .piko-nav-item span, .piko-nav-item bdi { min-width: 0; overflow-wrap: anywhere; }
  .piko-nav-item .piko-icon { width: 18px; height: 18px; }
  .piko-sidebar-empty { padding: 10px 12px; font-size: 11px; line-height: 1.9; color: var(--piko-text-secondary); }
  .piko-sidebar-bottom { margin-top: auto; }
@@ -45,10 +45,11 @@
  .piko-logout { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 8px; color: var(--piko-text-secondary); cursor: pointer; }
  .piko-logout:hover { background: var(--piko-selection); color: var(--color-primary); }
  .piko-topbar { min-height: 77px; padding: 14px 36px; display: flex; align-items: center; justify-content: space-between; gap: 20px; background: var(--color-base-100); border-bottom: 1px solid var(--color-base-300); }
- .piko-breadcrumb { display: flex; align-items: center; gap: 11px; font-size: 11px; color: var(--piko-text-secondary); }
+ .piko-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: 11px; min-width: 0; font-size: 11px; color: var(--piko-text-secondary); }
+ .piko-breadcrumb > span, .piko-breadcrumb > a, .piko-breadcrumb strong { min-width: 0; overflow-wrap: anywhere; }
  .piko-breadcrumb strong { color: var(--color-base-content); font-weight: 550; }
  .piko-breadcrumb .piko-icon { width: 12px; height: 12px; }
- .piko-header-actions { display: flex; align-items: center; gap: 17px; }
+ .piko-header-actions { display: flex; align-items: center; flex-shrink: 0; gap: 17px; }
  .piko-primary-action { min-height: 36px; padding: 8px 12px; border-radius: 10px; background: var(--color-primary); color: var(--color-primary-content); font-size: 11px; font-weight: 600; }
  .piko-primary-action .piko-icon { width: 16px; height: 16px; }
  .piko-primary-action small { background: transparent; color: inherit; padding: 0; }
@@ -143,12 +144,12 @@
   .piko-sidebar { position: static; height: auto; min-height: 100%; overflow: visible; gap: 20px; padding: 12px 20px 18px; }
   .piko-drawer-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .piko-drawer-heading h2 { font-size: 11px; color: var(--piko-text-secondary); }
-  .piko-menu-trigger { display: grid; place-items: center; min-width: 44px; min-height: 44px; border: 1px solid var(--color-base-300); border-radius: 8px; font-size: 11px; cursor: pointer; }
+  .piko-menu-trigger { display: grid; place-items: center; flex-shrink: 0; min-width: 44px; min-height: 44px; border: 1px solid var(--color-base-300); border-radius: 8px; font-size: 11px; cursor: pointer; }
   .piko-topbar { min-height: 65px; padding: 10px 16px; gap: 8px; }
   .piko-header-actions { gap: 4px; }
   .piko-header-actions > .piko-coming-soon { display: none; }
   .piko-header-actions .piko-theme-choices button { min-height: 40px; font-size: 10px; padding-inline: 6px; }
-  .piko-breadcrumb > span, .piko-breadcrumb > .piko-icon { display: none; }
+  .piko-breadcrumb > span, .piko-breadcrumb > a, .piko-breadcrumb > .piko-icon { display: none; }
   .piko-dashboard-main { padding: 22px 18px 0; }
   .piko-dashboard-heading h1 { font-size: 24px; }
   .piko-idea-banner { padding: 24px 20px; }

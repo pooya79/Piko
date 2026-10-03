@@ -6,21 +6,22 @@ import (
 )
 
 // Workspace keeps navigation and account access separate from feature content.
-templ Workspace(displayName, csrf string, content templ.Component) {
+templ Workspace(displayName, csrf string, page Page, content templ.Component) {
+ {{ page = page.withDefaults(ctx) }}
  <!doctype html>
  <html lang="fa" dir="rtl" data-theme="piko-light">
   <head>
-   @head.Head(locale.T(ctx, "dashboard.title"))
+   @head.Head(page.Title)
    <script src="/static/dashboard.js" defer></script>
   </head>
   <body class="piko-workspace-body antialiased">
    @head.SkipLink()
    <div class="piko-workspace">
     <dialog open id="workspace-navigation" class="piko-navigation" aria-labelledby="navigation-title">
-     @sidebar(displayName, csrf)
+     @sidebar(displayName, csrf, page)
     </dialog>
     <div class="piko-workspace-main">
-     @topbar()
+     @topbar(page)
      <main id="main-content" tabindex="-1" class="piko-dashboard-main">
       @content
       <footer class="piko-workspace-footer"><span>{ locale.T(ctx, "workspace.footer.brand") }</span><span>{ locale.T(ctx, "workspace.footer.purpose") }</span></footer>
@@ -42,22 +43,36 @@ templ ComingSoon(label, icon, class string) {
  </button>
 }
 
-templ sidebar(displayName, csrf string) {
+templ sidebar(displayName, csrf string, page Page) {
  <aside class="piko-sidebar" aria-label={ locale.T(ctx, "workspace.navigation") }>
   <div class="piko-drawer-heading"><h2 id="navigation-title">{ locale.T(ctx, "workspace.navigation") }</h2><button type="button" class="piko-drawer-close" data-navigation-close autofocus>{ locale.T(ctx, "workspace.navigation.close") }</button></div>
   <a class="piko-workspace-brand" href="/dashboard"><img src="/static/brand/piko-mark-v2.webp" width="44" height="44" alt=""/><span>پیکو<small>{ locale.T(ctx, "workspace.brand.tagline") }</small></span><span class="piko-latin-brand" lang="en" dir="ltr">piko</span></a>
   <a class="piko-workspace-identity" href="/account">@Icon("user")<div><bdi dir="auto">{ displayName }</bdi><small>{ locale.T(ctx, "workspace.personal") }</small></div>@Icon("caret-left")</a>
   <nav aria-label={ locale.T(ctx, "workspace.navigation") }>
    <p class="piko-sidebar-label">{ locale.T(ctx, "workspace.title") }</p>
-   <a class="piko-nav-item piko-nav-active" href="/dashboard" aria-current="page">@Icon("house")<span>{ locale.T(ctx, "dashboard.title") }</span></a>
+   @navigationLink(locale.T(ctx, "dashboard.title"), "house", "/dashboard", page.ActiveNav == DashboardNav)
    @ComingSoon(locale.T(ctx, "workspace.chat"), "chat-circle-dots", "piko-nav-item")
-   @ComingSoon(locale.T(ctx, "workspace.bots"), "squares-four", "piko-nav-item")
+   if page.BotsURL != "" {
+    @navigationLink(locale.T(ctx, "workspace.bots"), "squares-four", page.BotsURL, page.ActiveNav == BotsNav)
+   } else {
+    @ComingSoon(locale.T(ctx, "workspace.bots"), "squares-four", "piko-nav-item")
+   }
    @ComingSoon(locale.T(ctx, "workspace.analytics"), "chart-line-up", "piko-nav-item")
    @ComingSoon(locale.T(ctx, "workspace.billing"), "credit-card", "piko-nav-item")
   </nav>
   <section class="piko-sidebar-recent" aria-labelledby="recent-bots-title">
    <div class="piko-sidebar-label"><h2 id="recent-bots-title">{ locale.T(ctx, "workspace.recent") }</h2>@Icon("plus")</div>
-   <p class="piko-sidebar-empty">{ locale.T(ctx, "dashboard.bots.empty") }</p>
+   if len(page.RecentBots) == 0 {
+    <p class="piko-sidebar-empty">{ locale.T(ctx, "dashboard.bots.empty") }</p>
+   } else {
+    for _, bot := range page.RecentBots {
+     if bot.URL != "" {
+      <a class="piko-nav-item" href={ templ.URL(bot.URL) }>@Icon("robot")<bdi dir="auto">{ bot.Name }</bdi></a>
+     } else {
+      <p class="piko-sidebar-empty"><bdi dir="auto">{ bot.Name }</bdi></p>
+     }
+    }
+   }
   </section>
   <div class="piko-sidebar-bottom">
    <section class="piko-upgrade-card">
@@ -73,11 +88,32 @@ templ sidebar(displayName, csrf string) {
  </aside>
 }
 
-templ topbar() {
+templ navigationLink(label, icon, url string, active bool) {
+ <a class={ "piko-nav-item", templ.KV("piko-nav-active", active) } href={ templ.URL(url) }
+  if active {
+   aria-current="page"
+  }
+ >@Icon(icon)<span>{ label }</span></a>
+}
+
+templ topbar(page Page) {
  <header class="piko-topbar">
   <div class="piko-topbar-navigation">
    <button type="button" class="piko-menu-trigger" data-navigation-open aria-controls="workspace-navigation" aria-haspopup="dialog" aria-expanded="false" aria-label={ locale.T(ctx, "workspace.navigation.open") }>{ locale.T(ctx, "workspace.navigation.menu") }</button>
-   <div class="piko-breadcrumb"><span>{ locale.T(ctx, "workspace.title") }</span>@Icon("caret-left")<strong>{ locale.T(ctx, "dashboard.title") }</strong></div>
+   <nav class="piko-breadcrumb" aria-label={ locale.T(ctx, "workspace.breadcrumb") }>
+    for i, crumb := range page.Breadcrumbs {
+     if i > 0 {
+      @Icon("caret-left")
+     }
+     if i == len(page.Breadcrumbs)-1 {
+      <strong aria-current="page"><bdi dir="auto">{ crumb.Label }</bdi></strong>
+     } else if crumb.URL != "" {
+      <a href={ templ.URL(crumb.URL) }><bdi dir="auto">{ crumb.Label }</bdi></a>
+     } else {
+      <span><bdi dir="auto">{ crumb.Label }</bdi></span>
+     }
+    }
+   </nav>
   </div>
   <div class="piko-header-actions">
    @themeChoices()

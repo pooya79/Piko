@@ -6,7 +6,7 @@ import (
 )
 
 templ Page(displayName, csrf, date string) {
- @shell.Workspace(displayName, csrf, content(displayName, date))
+ @shell.Workspace(displayName, csrf, shell.Page{}, content(displayName, date))
 }
 
 templ content(displayName, date string) {
