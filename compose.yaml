@@ -1,8 +1,0 @@
-name: piko
-
-services:
-  mailpit:
-    image: axllent/mailpit:v1.31.1
-    ports:
-      - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
-      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"

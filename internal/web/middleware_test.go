@@ -50,16 +50,16 @@ func TestAnonymousProtectedRouteRedirects(t *testing.T) {
 		t.Fatalf("status=%d", w.Code)
 	}
 }
-func TestPendingAccountCannotReachProtectedRoute(t *testing.T) {
+func TestAccountCanReachProtectedRoute(t *testing.T) {
 	m := Middleware{}
-	h := m.RequireAuth(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-		t.Fatal("pending account reached protected account")
+	h := m.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
 	}))
 	r := httptest.NewRequest(http.MethodGet, "/account", nil)
 	r = r.WithContext(auth.WithUser(r.Context(), auth.User{ID: 7, Email: "pending@example.test"}))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
-	if w.Code != http.StatusSeeOther || w.Header().Get("Location") != "/verify/pending" {
+	if w.Code != http.StatusOK {
 		t.Fatalf("status=%d location=%q", w.Code, w.Header().Get("Location"))
 	}
 }
@@ -70,7 +70,7 @@ func TestAuthenticatedErrorKeepsAccountNavigation(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := httptest.NewRequest(http.MethodGet, "/account", nil)
-	r = r.WithContext(auth.WithUser(catalog.With(r.Context(), "en", r.URL.RequestURI()), auth.User{ID: 7, DisplayName: "Mina", Verified: true}))
+	r = r.WithContext(auth.WithUser(catalog.With(r.Context(), "en", r.URL.RequestURI()), auth.User{ID: 7, DisplayName: "Mina"}))
 	w := httptest.NewRecorder()
 	RenderError(w, r, http.StatusBadRequest, "Invalid CSRF token.")
 	if w.Code != http.StatusBadRequest {
@@ -89,7 +89,7 @@ func TestAuthenticatedErrorUsesPersianShellAndFeedback(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := httptest.NewRequest(http.MethodGet, "/account", nil)
-	r = r.WithContext(auth.WithUser(catalog.With(r.Context(), "fa", r.URL.RequestURI()), auth.User{ID: 7, DisplayName: "Mina", Verified: true, Language: "fa"}))
+	r = r.WithContext(auth.WithUser(catalog.With(r.Context(), "fa", r.URL.RequestURI()), auth.User{ID: 7, DisplayName: "Mina", Language: "fa"}))
 	w := httptest.NewRecorder()
 	RenderError(w, r, http.StatusBadRequest, "Invalid CSRF token.")
 	for _, want := range []string{`lang="fa" dir="rtl"`, "نشست یا کد امنیتی فرم نامعتبر است.", "خطا", "۴۰۰", "خروج", "Mina"} {
@@ -108,7 +108,7 @@ func TestAuthenticatedPanicUsesLocalizedError(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := httptest.NewRequest(http.MethodGet, "/account", nil)
-	r = r.WithContext(auth.WithUser(catalog.With(r.Context(), "fa", "/account"), auth.User{ID: 7, DisplayName: "Mina", Verified: true, Language: "fa"}))
+	r = r.WithContext(auth.WithUser(catalog.With(r.Context(), "fa", "/account"), auth.User{ID: 7, DisplayName: "Mina", Language: "fa"}))
 	m := Middleware{Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
 	w := httptest.NewRecorder()
 	m.Recover(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { panic("failure") })).ServeHTTP(w, r)
@@ -117,18 +117,18 @@ func TestAuthenticatedPanicUsesLocalizedError(t *testing.T) {
 	}
 }
 
-func TestVerifiedAccountSeesLocalizedPublicAccountError(t *testing.T) {
+func TestSignedInAccountSeesLocalizedPublicAccountError(t *testing.T) {
 	catalog, err := locale.NewCatalog()
 	if err != nil {
 		t.Fatal(err)
 	}
 	request := httptest.NewRequest(http.MethodPost, "/register", nil)
 	ctx := catalog.With(request.Context(), "fa", request.URL.RequestURI())
-	request = request.WithContext(auth.WithUser(ctx, auth.User{ID: 7, DisplayName: "Mina", Verified: true, Language: "fa"}))
+	request = request.WithContext(auth.WithUser(ctx, auth.User{ID: 7, DisplayName: "Mina", Language: "fa"}))
 	response := httptest.NewRecorder()
 	RenderError(response, request, http.StatusForbidden, "Invalid CSRF token.")
 	if response.Code != http.StatusForbidden || !strings.Contains(response.Body.String(), `lang="fa"`) || !strings.Contains(response.Body.String(), `dir="rtl"`) || !strings.Contains(response.Body.String(), "نشست یا کد امنیتی فرم نامعتبر است.") {
-		t.Fatalf("verified account public error status=%d or language missing", response.Code)
+		t.Fatalf("signed-in account public error status=%d or language missing", response.Code)
 	}
 }
 

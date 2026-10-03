@@ -43,8 +43,6 @@ func TestPublicLoginDefaultsToPersian(t *testing.T) {
 	}
 	for _, page := range []struct{ path, copy string }{
 		{"/register", "حساب خود را بسازید."},
-		{"/verify/pending", "درخواست ایمیل تأیید"},
-		{"/verify/resend", "درخواست ایمیل تأیید"},
 	} {
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, page.path, nil))
@@ -124,8 +122,6 @@ func TestPublicLanguageSwitchIsSafeAndPersistent(t *testing.T) {
 	}
 	for _, page := range []struct{ path, copy string }{
 		{"/register", "Create your account."},
-		{"/verify/pending", "Request verification email"},
-		{"/verify/resend", "Request verification email"},
 	} {
 		response := send(http.MethodGet, page.path, nil, languageCookie)
 		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `lang="en"`) || !strings.Contains(response.Body.String(), `dir="ltr"`) || !strings.Contains(response.Body.String(), page.copy) {
@@ -177,7 +173,7 @@ func TestSignedInLanguageSwitchFailureUsesLocalizedFeedback(t *testing.T) {
 	} {
 		r := httptest.NewRequest(http.MethodPost, "/language", strings.NewReader("language=en"))
 		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		r = r.WithContext(auth.WithUser(catalog.With(r.Context(), tc.language, "/account"), auth.User{ID: 7, DisplayName: "Mina", Verified: true, Language: tc.language}))
+		r = r.WithContext(auth.WithUser(catalog.With(r.Context(), tc.language, "/account"), auth.User{ID: 7, DisplayName: "Mina", Language: tc.language}))
 		w := httptest.NewRecorder()
 		handler.Switch(w, r)
 		if w.Code != http.StatusInternalServerError || !strings.Contains(w.Body.String(), tc.message) || !strings.Contains(w.Body.String(), `lang="`+tc.language+`"`) || len(w.Result().Cookies()) != 0 {
@@ -186,7 +182,7 @@ func TestSignedInLanguageSwitchFailureUsesLocalizedFeedback(t *testing.T) {
 	}
 	unsupported := httptest.NewRequest(http.MethodPost, "/language", strings.NewReader("language=de"))
 	unsupported.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	unsupported = unsupported.WithContext(auth.WithUser(catalog.With(unsupported.Context(), "fa", "/account"), auth.User{ID: 7, DisplayName: "Mina", Verified: true, Language: "fa"}))
+	unsupported = unsupported.WithContext(auth.WithUser(catalog.With(unsupported.Context(), "fa", "/account"), auth.User{ID: 7, DisplayName: "Mina", Language: "fa"}))
 	response := httptest.NewRecorder()
 	handler.Switch(response, unsupported)
 	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "زبان انتخاب\u200cشده پشتیبانی نمی\u200cشود.") || len(response.Result().Cookies()) != 0 {
@@ -200,7 +196,7 @@ func TestPublicWordmarkKeepsLatinDirection(t *testing.T) {
 	mw := webx.Middleware{Log: logger, Secret: []byte("test-secret"), LocaleCatalog: testLocaleCatalog(t)}
 	router := buildRouter(nil, mw, nil, auth.NewHandler(nil, nil, logger, false))
 	for _, language := range []string{"fa", "en"} {
-		for _, path := range []string{"/login", "/register", "/verify/resend", "/password/forgot", "/password/reset", "/verify", "/verify/cancel"} {
+		for _, path := range []string{"/login", "/register"} {
 			t.Run(language+path, func(t *testing.T) {
 				r := httptest.NewRequest(http.MethodGet, path, nil)
 				r.AddCookie(&http.Cookie{Name: locale.CookieName, Value: language})

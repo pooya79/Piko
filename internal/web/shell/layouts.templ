@@ -28,10 +28,10 @@ templ Layout(title, displayName, csrf string, content templ.Component) {
     <section class="piko-card w-full max-w-md p-6 sm:p-8">
      if displayName != "" {
       <div class="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-base-300 pb-4">
-       <a class="piko-text-link break-words" href="/account"><bdi dir="auto">{ displayName }</bdi></a>
+       <a class="piko-text-link min-w-0 max-w-full wrap-anywhere" href="/account"><bdi dir="auto">{ displayName }</bdi></a>
        <form method="post" action="/logout">
         <input type="hidden" name="csrf_token" value={ csrf }/>
-        <button class="btn btn-ghost btn-sm" type="submit">{ locale.T(ctx, "auth.pending.logout") }</button>
+        <button class="btn btn-ghost btn-sm" type="submit">{ locale.T(ctx, "auth.logout") }</button>
        </form>
       </div>
      }

@@ -27,8 +27,8 @@ func TestMigrationLifecycleAndSeed(t *testing.T) {
 	if err := database.Migrate(ctx, db, true); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.QueryRowContext(ctx, "SELECT count(*) FROM users").Scan(&count); err == nil {
-		t.Fatal("rollback retained users")
+	if err := db.QueryRowContext(ctx, "SELECT count(*) FROM users").Scan(&count); err != nil || count != 1 {
+		t.Fatalf("forward migration rollback lost users: %v", err)
 	}
 	if err := database.Migrate(ctx, db, false); err != nil {
 		t.Fatal(err)

@@ -11,7 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/pooya79/Piko/internal/auth"
-	"github.com/pooya79/Piko/internal/jobs"
+	"github.com/pooya79/Piko/internal/dashboard"
 	"github.com/pooya79/Piko/internal/locale"
 	"github.com/pooya79/Piko/internal/platform/database"
 	"github.com/pooya79/Piko/internal/platform/database/dbgen"
@@ -20,12 +20,10 @@ import (
 )
 
 const (
-	loginRateLimit          = 10
-	loginRateWindow         = time.Minute
-	accountEmailRateLimit   = 5
-	accountEmailRateWindow  = time.Hour
-	accountActionRateLimit  = 10
-	accountActionRateWindow = time.Minute
+	loginRateLimit         = 10
+	loginRateWindow        = time.Minute
+	registrationRateLimit  = 5
+	registrationRateWindow = time.Hour
 )
 
 type App struct {
@@ -51,8 +49,7 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	}
 	q := dbgen.New(db)
 	authService := auth.NewService(q)
-	mailQueue := jobs.NewEmailEnqueuer()
-	accountService := auth.NewAccountService(auth.NewAccountRepository(db, mailQueue), authService, []byte(cfg.SessionSecret), cfg.PublicBaseURL, catalog)
+	accountService := auth.NewAccountService(auth.NewAccountRepository(db), authService)
 	authHandler := auth.NewHandler(authService, accountService, log, cfg.CookieSecure)
 	mw := webx.Middleware{LocaleCatalog: catalog, Auth: authService, Log: log, SecureCookie: cfg.CookieSecure, TrustedProxy: cfg.TrustedProxy, Secret: []byte(cfg.SessionSecret)}
 	limiter := webx.NewRateLimiter(db, log, mw.ClientIP)
@@ -61,6 +58,23 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	return &App{cfg: cfg, log: log, db: db, server: server}, nil
 }
 func (a *App) Run(ctx context.Context) error {
+	defer func() { _ = a.db.Close() }()
+	if err := a.cleanup(ctx); err != nil {
+		return fmt.Errorf("startup cleanup: %w", err)
+	}
+	cleanupCtx, stopCleanup := context.WithCancel(ctx)
+	ticker := time.NewTicker(time.Hour)
+	cleanupDone := make(chan struct{})
+	go func() {
+		defer close(cleanupDone)
+		a.cleanupLoop(cleanupCtx, ticker.C)
+	}()
+	// Registered after database close's defer, so cleanup always stops first.
+	defer func() {
+		stopCleanup()
+		ticker.Stop()
+		<-cleanupDone
+	}()
 	serverErr := make(chan error, 1)
 	go func() {
 		a.log.Info("server starting", "addr", a.cfg.HTTPAddr, "environment", a.cfg.Environment)
@@ -80,7 +94,6 @@ func (a *App) Run(ctx context.Context) error {
 	if e := a.server.Shutdown(shutdownCtx); e != nil && runErr == nil {
 		runErr = fmt.Errorf("http shutdown: %w", e)
 	}
-	a.db.Close()
 	return runErr
 }
 
@@ -111,12 +124,8 @@ func buildRouter(db *sql.DB, mw webx.Middleware, limiter *webx.RateLimiter, ah *
 	})
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		if u, ok := auth.UserFromContext(r.Context()); ok {
-			if u.Verified {
-				http.Redirect(w, r, "/account", http.StatusFound)
-			} else {
-				http.Redirect(w, r, "/verify/pending", http.StatusFound)
-			}
+		if _, ok := auth.UserFromContext(r.Context()); ok {
+			http.Redirect(w, r, "/dashboard", http.StatusFound)
 		} else {
 			http.Redirect(w, r, "/login", http.StatusFound)
 		}
@@ -125,25 +134,14 @@ func buildRouter(db *sql.DB, mw webx.Middleware, limiter *webx.RateLimiter, ah *
 		r.With(limiter.Middleware("login", loginRateLimit, loginRateWindow)).Post("/login", ah.Login)
 		r.Get("/login", ah.LoginForm)
 		r.Post("/language", (locale.Handler{SecureCookie: mw.SecureCookie, SaveAccountLanguage: ah.SaveLanguage, ShowError: webx.RenderError}).Switch)
-		// All mail-triggering routes share one strict IP budget.
-		r.With(limiter.MiddlewareStrict("account-email", accountEmailRateLimit, accountEmailRateWindow)).Post("/register", ah.Register)
+		r.With(limiter.MiddlewareStrict("register", registrationRateLimit, registrationRateWindow)).Post("/register", ah.Register)
 		r.Get("/register", ah.RegisterForm)
-		r.Get("/verify/pending", ah.Pending)
-		r.Get("/verify/resend", ah.ResendForm)
-		r.Get("/verify", ah.VerifyForm)
-		r.With(limiter.Middleware("account-action", accountActionRateLimit, accountActionRateWindow)).Post("/verify", ah.Verify)
-		r.Get("/verify/cancel", ah.CancelForm)
-		r.Post("/verify/cancel", ah.Cancel)
-		r.With(limiter.MiddlewareStrict("account-email", accountEmailRateLimit, accountEmailRateWindow)).Post("/verify/resend", ah.ResendVerification)
-		r.Get("/password/forgot", ah.ForgotForm)
-		r.With(limiter.MiddlewareStrict("account-email", accountEmailRateLimit, accountEmailRateWindow)).Post("/password/forgot", ah.Forgot)
-		r.Get("/password/reset", ah.ResetForm)
-		r.With(limiter.Middleware("account-action", accountActionRateLimit, accountActionRateWindow)).Post("/password/reset", ah.Reset)
 		r.Post("/logout", ah.Logout)
 	})
 	r.Group(func(r chi.Router) {
 		r.Use(mw.RequireAuth)
 		r.Get("/account", ah.Profile)
+		r.Get("/dashboard", dashboard.Handler)
 	})
 	return r
 }

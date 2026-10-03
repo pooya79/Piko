@@ -80,7 +80,7 @@ func (m Middleware) Recover(next http.Handler) http.Handler {
 		defer func() {
 			if v := recover(); v != nil {
 				m.Log.ErrorContext(r.Context(), "panic recovered", "panic", v, "stack", string(debug.Stack()), "request_id", RequestID(r.Context()))
-				if user, ok := auth.UserFromContext(r.Context()); ok && user.Verified {
+				if _, ok := auth.UserFromContext(r.Context()); ok {
 					RenderError(w, r, http.StatusInternalServerError, "Internal server error.")
 				} else {
 					http.Error(w, "Internal server error.", http.StatusInternalServerError)
@@ -155,13 +155,9 @@ func (m Middleware) Session(next http.Handler) http.Handler {
 
 func (m Middleware) RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		u, ok := auth.UserFromContext(r.Context())
+		_, ok := auth.UserFromContext(r.Context())
 		if !ok {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-		if !u.Verified {
-			http.Redirect(w, r, "/verify/pending", http.StatusSeeOther)
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -245,10 +241,9 @@ func (m Middleware) ClientIP(r *http.Request) string {
 }
 func RenderError(w http.ResponseWriter, r *http.Request, status int, message string) {
 	displayName := ""
-	// Public account actions keep the selected language even when a verified
-	// session happens to submit one of their forms.
-	accountPath := r.URL.Path == "/login" || r.URL.Path == "/register" || r.URL.Path == "/verify" || strings.HasPrefix(r.URL.Path, "/verify/")
-	if user, ok := auth.UserFromContext(r.Context()); ok && user.Verified && !accountPath {
+	// Public account forms use their own layout even for a signed-in browser.
+	accountPath := r.URL.Path == "/login" || r.URL.Path == "/register"
+	if user, ok := auth.UserFromContext(r.Context()); ok && !accountPath {
 		displayName = user.DisplayName
 	}
 	message = locale.TranslateSource(r.Context(), message)

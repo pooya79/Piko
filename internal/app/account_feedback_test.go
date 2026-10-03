@@ -23,16 +23,13 @@ func accountFeedbackRouter(t *testing.T) http.Handler {
 	catalog := testLocaleCatalog(t)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	mw := web.Middleware{Log: logger, Secret: []byte("test-secret"), LocaleCatalog: catalog}
-	h := auth.NewHandler(auth.NewService(nil), auth.NewAccountService(nil, nil, []byte("test-secret"), "", catalog), logger, false)
+	h := auth.NewHandler(auth.NewService(nil), auth.NewAccountService(nil, nil), logger, false)
 	r := chi.NewRouter()
 	r.Use(mw.RequestLocale, mw.CSRF)
 	r.Get("/register", h.RegisterForm)
 	r.Post("/register", h.Register)
 	r.Get("/login", h.LoginForm)
 	r.Post("/login", h.Login)
-	r.Post("/password/reset", h.Reset)
-	r.Post("/password/forgot", h.Forgot)
-	r.Post("/verify/resend", h.ResendVerification)
 	return r
 }
 
@@ -136,6 +133,7 @@ func TestRegistrationDetailsIdentifyOnlyKnownInvalidField(t *testing.T) {
 		for _, tc := range []struct{ field, id, value, key string }{
 			{"email", "email", "invalid-address", "auth.register.error.email"},
 			{"display_name", "display-name", "   ", "auth.register.error.name"},
+			{"display_name", "display-name", strings.Repeat("م", 81), "auth.register.error.name"},
 		} {
 			t.Run(language+tc.field, func(t *testing.T) {
 				form := url.Values{"email": {"mina@example.test"}, "display_name": {"Mina مینا"}, "password": {"private-password-123"}}
@@ -153,47 +151,6 @@ func TestRegistrationDetailsIdentifyOnlyKnownInvalidField(t *testing.T) {
 					if id != tc.id && feedbackAttr(nodes[id], "aria-invalid") == "true" {
 						t.Errorf("unrelated field %s marked invalid", id)
 					}
-				}
-			})
-		}
-	}
-}
-
-func TestResetPasswordFeedbackDescribesFieldWithoutEchoingSecret(t *testing.T) {
-	router := accountFeedbackRouter(t)
-	for _, language := range []string{"en", "fa"} {
-		w := feedbackSubmission(t, router, language, "/password/reset", url.Values{"token": {"test-challenge"}, "password": {"shortpw"}})
-		nodes := feedbackElements(t, w.Body.String())
-		if w.Code != 422 || feedbackAttr(nodes["new-password"], "aria-invalid") != "true" || feedbackAttr(nodes["new-password"], "aria-describedby") != "new-password-error" || nodes["new-password-error"] == nil {
-			t.Error("reset feedback missing field association")
-		}
-		if strings.Contains(w.Body.String(), "shortpw") {
-			t.Error("reset echoed password")
-		}
-	}
-}
-
-// Direct handler requests exercise parse failures before middleware consumes the body.
-func TestMalformedEmailRequestsRetainEmailWithGenericAlert(t *testing.T) {
-	catalog := testLocaleCatalog(t)
-	h := auth.NewHandler(nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), false)
-	for _, language := range []string{"en", "fa"} {
-		for _, tc := range []struct {
-			path, id string
-			handle   http.HandlerFunc
-		}{
-			{"/password/forgot", "recovery-email", h.Forgot},
-			{"/verify/resend", "resend-email", h.ResendVerification},
-		} {
-			t.Run(language+tc.path, func(t *testing.T) {
-				r := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader("email=mina%40example.test&broken=%"))
-				r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-				r = r.WithContext(catalog.With(r.Context(), language, tc.path))
-				w := httptest.NewRecorder()
-				tc.handle(w, r)
-				nodes := feedbackElements(t, w.Body.String())
-				if w.Code != 422 || feedbackAttr(nodes[tc.id], "value") != "mina@example.test" || !strings.Contains(w.Body.String(), `role="alert"`) {
-					t.Error("request lost editable email and contextual feedback")
 				}
 			})
 		}

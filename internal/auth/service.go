@@ -24,7 +24,6 @@ var ErrUnsupportedLanguage = errors.New("unsupported language")
 type User struct {
 	ID                 int64
 	Email, DisplayName string
-	Verified           bool
 	Language           string
 }
 type Session struct {
@@ -69,7 +68,7 @@ func (s *Service) Authenticate(ctx context.Context, email, password string) (Use
 	if !VerifyPassword(v.PasswordHash, password) {
 		return User{}, ErrInvalidCredentials
 	}
-	return User{ID: v.ID, Email: v.Email, DisplayName: v.DisplayName, Verified: v.EmailVerifiedAt.Valid, Language: v.PreferredLanguage}, nil
+	return User{ID: v.ID, Email: v.Email, DisplayName: v.DisplayName, Language: v.PreferredLanguage}, nil
 }
 
 // token returns a bearer value for the client and a SHA-256 digest for storage.
@@ -83,6 +82,10 @@ func token() (string, []byte, error) {
 	return plain, h[:], nil
 }
 func (s *Service) NewSession(ctx context.Context, userID int64) (cookie, csrf string, expires time.Time, err error) {
+	return s.newSession(ctx, s.q, userID)
+}
+
+func (s *Service) newSession(ctx context.Context, q *dbgen.Queries, userID int64) (cookie, csrf string, expires time.Time, err error) {
 	cookie, ch, e := token()
 	if e != nil {
 		return "", "", time.Time{}, e
@@ -92,7 +95,7 @@ func (s *Service) NewSession(ctx context.Context, userID int64) (cookie, csrf st
 		return "", "", time.Time{}, e
 	}
 	expires = time.Now().Add(s.ttl)
-	n, e := s.q.CreateSession(ctx, dbgen.CreateSessionParams{TokenHash: ch, ID: userID, CsrfHash: sh, ExpiresAt: expires.UnixMilli()})
+	n, e := q.CreateSession(ctx, dbgen.CreateSessionParams{TokenHash: ch, ID: userID, CsrfHash: sh, ExpiresAt: expires.UnixMilli()})
 	if e == nil && n == 0 {
 		e = ErrSessionNotFound
 	}
@@ -107,7 +110,7 @@ func (s *Service) LoadSession(ctx context.Context, cookie string) (Session, erro
 	if e != nil {
 		return Session{}, e
 	}
-	return Session{User: User{ID: v.UserID, Email: v.Email, DisplayName: v.DisplayName, Verified: v.EmailVerifiedAt.Valid, Language: v.PreferredLanguage}, ExpiresAt: time.UnixMilli(v.ExpiresAt)}, nil
+	return Session{User: User{ID: v.UserID, Email: v.Email, DisplayName: v.DisplayName, Language: v.PreferredLanguage}, ExpiresAt: time.UnixMilli(v.ExpiresAt)}, nil
 }
 func (s *Service) VerifyCSRF(ctx context.Context, cookie, csrf string) bool {
 	if cookie == "" || csrf == "" {

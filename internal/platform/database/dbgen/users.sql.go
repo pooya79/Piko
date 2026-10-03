@@ -11,7 +11,7 @@ import (
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (email, display_name, password_hash, preferred_language)
-VALUES (?1, ?2, ?3, COALESCE(?4, 'fa')) RETURNING id, email, display_name, password_hash, email_verified_at, preferred_language, created_at
+VALUES (?1, ?2, ?3, COALESCE(?4, 'fa')) RETURNING id, email, display_name, password_hash, preferred_language, created_at
 `
 
 type CreateUserParams struct {
@@ -34,38 +34,6 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Email,
 		&i.DisplayName,
 		&i.PasswordHash,
-		&i.EmailVerifiedAt,
-		&i.PreferredLanguage,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
-const deletePendingAccount = `-- name: DeletePendingAccount :execrows
-DELETE FROM users WHERE id = ?1 AND email_verified_at IS NULL
-`
-
-func (q *Queries) DeletePendingAccount(ctx context.Context, id int64) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deletePendingAccount, id)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
-}
-
-const getAccountByEmail = `-- name: GetAccountByEmail :one
-SELECT id, email, display_name, password_hash, email_verified_at, preferred_language, created_at FROM users WHERE email = ?1
-`
-
-func (q *Queries) GetAccountByEmail(ctx context.Context, email string) (User, error) {
-	row := q.db.QueryRowContext(ctx, getAccountByEmail, email)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Email,
-		&i.DisplayName,
-		&i.PasswordHash,
-		&i.EmailVerifiedAt,
 		&i.PreferredLanguage,
 		&i.CreatedAt,
 	)
@@ -73,7 +41,7 @@ func (q *Queries) GetAccountByEmail(ctx context.Context, email string) (User, er
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, display_name, password_hash, email_verified_at, preferred_language, created_at FROM users WHERE email = ?1
+SELECT id, email, display_name, password_hash, preferred_language, created_at FROM users WHERE email = ?1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -84,28 +52,10 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Email,
 		&i.DisplayName,
 		&i.PasswordHash,
-		&i.EmailVerifiedAt,
 		&i.PreferredLanguage,
 		&i.CreatedAt,
 	)
 	return i, err
-}
-
-const updateAccountPassword = `-- name: UpdateAccountPassword :execrows
-UPDATE users SET password_hash = ?2 WHERE id = ?1 AND email_verified_at IS NOT NULL
-`
-
-type UpdateAccountPasswordParams struct {
-	ID           int64
-	PasswordHash string
-}
-
-func (q *Queries) UpdateAccountPassword(ctx context.Context, arg UpdateAccountPasswordParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, updateAccountPassword, arg.ID, arg.PasswordHash)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
 }
 
 const updateUserLanguage = `-- name: UpdateUserLanguage :execrows
@@ -119,18 +69,6 @@ type UpdateUserLanguageParams struct {
 
 func (q *Queries) UpdateUserLanguage(ctx context.Context, arg UpdateUserLanguageParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, updateUserLanguage, arg.ID, arg.PreferredLanguage)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
-}
-
-const verifyAccountEmail = `-- name: VerifyAccountEmail :execrows
-UPDATE users SET email_verified_at = CAST(unixepoch('subsec') * 1000 AS INTEGER) WHERE id = ?1 AND email_verified_at IS NULL
-`
-
-func (q *Queries) VerifyAccountEmail(ctx context.Context, id int64) (int64, error) {
-	result, err := q.db.ExecContext(ctx, verifyAccountEmail, id)
 	if err != nil {
 		return 0, err
 	}

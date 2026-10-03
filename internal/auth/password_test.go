@@ -3,11 +3,11 @@ package auth
 import "testing"
 
 func TestPasswordRoundTrip(t *testing.T) {
-	hash, e := HashPassword("a long correct horse password")
+	hash, e := HashPassword("a long correct horse password 123")
 	if e != nil {
 		t.Fatal(e)
 	}
-	if !VerifyPassword(hash, "a long correct horse password") {
+	if !VerifyPassword(hash, "a long correct horse password 123") {
 		t.Fatal("correct password rejected")
 	}
 	if VerifyPassword(hash, "wrong password") {
@@ -35,19 +35,16 @@ func TestRegistrationPasswordRule(t *testing.T) {
 		{"multibyte too short", "éééé1"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := hashRegistrationPassword(tc.password); err == nil {
+			if _, err := HashPassword(tc.password); err == nil {
 				t.Fatal("invalid registration password accepted")
 			}
 		})
 	}
-	hash, err := hashRegistrationPassword("abcde1")
+	hash, err := HashPassword("abcde1")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !VerifyPassword(hash, "abcde1") {
 		t.Fatal("valid six-character registration password rejected")
-	}
-	if _, err := HashPassword("abcde1"); err == nil {
-		t.Fatal("password reset accepted a password below its existing minimum")
 	}
 }

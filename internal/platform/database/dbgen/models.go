@@ -4,35 +4,6 @@
 
 package dbgen
 
-import (
-	"database/sql"
-)
-
-type AccountChallenge struct {
-	Nonce     []byte
-	TokenHash []byte
-	UserID    int64
-	Purpose   string
-	ExpiresAt int64
-	CreatedAt int64
-}
-
-type AccountEmailRequest struct {
-	UserID          int64
-	Purpose         string
-	LastRequestedAt int64
-}
-
-type EmailJob struct {
-	ID          int64
-	Nonce       string
-	Attempts    int64
-	AvailableAt int64
-	LeaseToken  sql.NullString
-	LeaseUntil  sql.NullInt64
-	FailedAt    sql.NullInt64
-}
-
 type RateLimit struct {
 	Key       string
 	Count     int64
@@ -47,19 +18,11 @@ type Session struct {
 	CreatedAt int64
 }
 
-type SignupReceipt struct {
-	TokenHash []byte
-	UserID    sql.NullInt64
-	ExpiresAt int64
-	CreatedAt int64
-}
-
 type User struct {
 	ID                int64
 	Email             string
 	DisplayName       string
 	PasswordHash      string
-	EmailVerifiedAt   sql.NullInt64
 	PreferredLanguage string
 	CreatedAt         int64
 }

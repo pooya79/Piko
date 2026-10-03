@@ -8,15 +8,3 @@ SELECT * FROM users WHERE email = ?1;
 -- name: UpdateUserLanguage :execrows
 UPDATE users SET preferred_language = ?2 WHERE id = ?1;
 
--- name: GetAccountByEmail :one
-SELECT * FROM users WHERE email = ?1;
-
--- name: VerifyAccountEmail :execrows
-UPDATE users SET email_verified_at = CAST(unixepoch('subsec') * 1000 AS INTEGER) WHERE id = ?1 AND email_verified_at IS NULL;
-
--- name: DeletePendingAccount :execrows
-DELETE FROM users WHERE id = ?1 AND email_verified_at IS NULL;
-
--- name: UpdateAccountPassword :execrows
-UPDATE users SET password_hash = ?2 WHERE id = ?1 AND email_verified_at IS NOT NULL;
-

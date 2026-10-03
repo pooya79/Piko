@@ -7,7 +7,6 @@ package dbgen
 
 import (
 	"context"
-	"database/sql"
 )
 
 const createSession = `-- name: CreateSession :execrows
@@ -35,15 +34,6 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (i
 	return result.RowsAffected()
 }
 
-const deleteAccountSessions = `-- name: DeleteAccountSessions :exec
-DELETE FROM sessions WHERE user_id = ?1
-`
-
-func (q *Queries) DeleteAccountSessions(ctx context.Context, userID int64) error {
-	_, err := q.db.ExecContext(ctx, deleteAccountSessions, userID)
-	return err
-}
-
 const deleteExpiredSessions = `-- name: DeleteExpiredSessions :execrows
 DELETE FROM sessions WHERE expires_at <= CAST(unixepoch('subsec') * 1000 AS INTEGER)
 `
@@ -66,7 +56,7 @@ func (q *Queries) DeleteSession(ctx context.Context, tokenHash []byte) error {
 }
 
 const getSession = `-- name: GetSession :one
-SELECT s.user_id, s.csrf_hash, s.expires_at, u.email, u.display_name, u.email_verified_at, u.preferred_language
+SELECT s.user_id, s.csrf_hash, s.expires_at, u.email, u.display_name, u.preferred_language
 FROM sessions s JOIN users u ON u.id = s.user_id
 WHERE s.token_hash = ?1 AND s.expires_at > CAST(unixepoch('subsec') * 1000 AS INTEGER)
 `
@@ -77,7 +67,6 @@ type GetSessionRow struct {
 	ExpiresAt         int64
 	Email             string
 	DisplayName       string
-	EmailVerifiedAt   sql.NullInt64
 	PreferredLanguage string
 }
 
@@ -90,7 +79,6 @@ func (q *Queries) GetSession(ctx context.Context, tokenHash []byte) (GetSessionR
 		&i.ExpiresAt,
 		&i.Email,
 		&i.DisplayName,
-		&i.EmailVerifiedAt,
 		&i.PreferredLanguage,
 	)
 	return i, err

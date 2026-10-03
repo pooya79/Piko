@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -21,13 +20,6 @@ import (
 	"github.com/pooya79/Piko/internal/web"
 )
 
-type accountEmailQueue struct{ challenges []string }
-
-func (q *accountEmailQueue) EnqueueChallenge(_ context.Context, _ *sql.Tx, nonce string) error {
-	q.challenges = append(q.challenges, nonce)
-	return nil
-}
-
 // Exercise the public routes with real SQLite storage and cookie/CSRF rotation.
 func TestAuthJourneyAgainstSQLite(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
@@ -36,9 +28,7 @@ func TestAuthJourneyAgainstSQLite(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	catalog := testLocaleCatalog(t)
 	credentials := auth.NewService(dbgen.New(pool))
-	queue := &accountEmailQueue{}
-	accounts := auth.NewAccountService(auth.NewAccountRepository(pool, queue), credentials,
-		[]byte("test-account-secret-with-at-least-32-bytes"), "http://localhost:8080", catalog)
+	accounts := auth.NewAccountService(auth.NewAccountRepository(pool), credentials)
 	mw := web.Middleware{Auth: credentials, LocaleCatalog: catalog, Log: logger, Secret: []byte("test-csrf-secret")}
 	rateKey := fmt.Sprintf("auth-journey-%d", time.Now().UnixNano())
 	limiter := web.NewRateLimiter(pool, logger, func(*http.Request) string { return rateKey })
@@ -82,52 +72,31 @@ func TestAuthJourneyAgainstSQLite(t *testing.T) {
 		}
 		return string(body)
 	}
-	linkToken := func(index int) string {
-		t.Helper()
-		message, err := accounts.MessageForChallenge(ctx, queue.challenges[index])
-		if err != nil {
-			t.Fatal(err)
-		}
-		link, err := url.Parse(strings.Fields(message.Body)[0])
-		if err != nil {
-			t.Fatal(err)
-		}
-		return link.Query().Get("token")
-	}
 	send(http.MethodGet, "/account", nil, http.StatusSeeOther, "/login")
+	send(http.MethodGet, "/dashboard", nil, http.StatusSeeOther, "/login")
+	send(http.MethodGet, "/", nil, http.StatusFound, "/login")
 	send(http.MethodGet, "/register", nil, http.StatusOK, "")
-	registration := url.Values{"email": {"journey@example.test"}, "display_name": {"Mina"}, "password": {"original-password-123"}}
-	send(http.MethodPost, "/register", registration, http.StatusOK, "")
-	if len(queue.challenges) != 1 || cookie(auth.SignupCookie) == "" {
-		t.Fatal("registration did not queue verification and issue browser proof")
-	}
-	verification := linkToken(0)
-	send(http.MethodPost, "/verify", url.Values{"token": {verification}}, http.StatusSeeOther, "/account")
+	registration := url.Values{"email": {" Journey@Example.Test "}, "display_name": {"  Mina مینا  "}, "password": {"original-password-123"}}
+	send(http.MethodPost, "/register", registration, http.StatusSeeOther, "/dashboard")
 	oldSession := cookie(auth.SessionCookie)
 	if oldSession == "" {
-		t.Fatal("verification did not establish a session")
+		t.Fatal("registration did not establish a session")
+	}
+	dashboard := send(http.MethodGet, "/dashboard", nil, http.StatusOK, "")
+	if !strings.Contains(dashboard, "Mina مینا") {
+		t.Fatal("saved Display name missing from Dashboard")
 	}
 	account := send(http.MethodGet, "/account", nil, http.StatusOK, "")
-	if !strings.Contains(account, "Mina") || !strings.Contains(account, "journey@example.test") {
-		t.Fatal("signed-in account details are missing")
+	if !strings.Contains(account, "Mina مینا") || !strings.Contains(account, "journey@example.test") {
+		t.Fatal("saved account details missing")
 	}
-	for _, path := range []string{"/dashboard", "/dashboard/portfolios", "/dashboard/markets", "/admin"} {
-		send(http.MethodGet, path, nil, http.StatusNotFound, "")
-	}
-	send(http.MethodPost, "/password/forgot", url.Values{"email": {"journey@example.test"}}, http.StatusOK, "")
-	if len(queue.challenges) != 2 {
-		t.Fatal("recovery did not queue an email")
-	}
-	reset := linkToken(1)
-	send(http.MethodPost, "/password/reset", url.Values{"token": {reset}, "password": {"replacement-password-123"}}, http.StatusSeeOther, "/login")
-	if _, err := credentials.LoadSession(ctx, oldSession); !errors.Is(err, auth.ErrSessionNotFound) {
-		t.Fatalf("reset retained old session: %v", err)
-	}
-	send(http.MethodGet, "/login", nil, http.StatusOK, "")
-	send(http.MethodPost, "/login", url.Values{"email": {"journey@example.test"}, "password": {"original-password-123"}}, http.StatusUnprocessableEntity, "")
-	send(http.MethodPost, "/login", url.Values{"email": {"journey@example.test"}, "password": {"replacement-password-123"}}, http.StatusSeeOther, "/account")
-	send(http.MethodGet, "/account", nil, http.StatusOK, "")
-	send(http.MethodPost, "/password/reset", url.Values{"token": {reset}, "password": {"another-password-123"}}, http.StatusUnprocessableEntity, "")
+	send(http.MethodGet, "/", nil, http.StatusFound, "/dashboard")
 	send(http.MethodPost, "/logout", url.Values{}, http.StatusSeeOther, "/login")
-	send(http.MethodGet, "/account", nil, http.StatusSeeOther, "/login")
+	if _, err := credentials.LoadSession(ctx, oldSession); !errors.Is(err, auth.ErrSessionNotFound) {
+		t.Fatalf("logout retained session: %v", err)
+	}
+	send(http.MethodGet, "/dashboard", nil, http.StatusSeeOther, "/login")
+	send(http.MethodGet, "/login", nil, http.StatusOK, "")
+	send(http.MethodPost, "/login", url.Values{"email": {"journey@example.test"}, "password": {"original-password-123"}}, http.StatusSeeOther, "/dashboard")
+	send(http.MethodGet, "/dashboard", nil, http.StatusOK, "")
 }

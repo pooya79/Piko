@@ -1,0 +1,16 @@
+package dashboard
+
+import (
+ "github.com/pooya79/Piko/internal/locale"
+ "github.com/pooya79/Piko/internal/web/shell"
+)
+
+templ Page(displayName, csrf string) {
+ @shell.Layout(locale.T(ctx, "dashboard.title"), displayName, csrf, content(displayName))
+}
+
+templ content(displayName string) {
+ <h1 class="piko-page-title">{ locale.T(ctx, "dashboard.title") }</h1>
+ <p class="piko-page-copy break-words">{ locale.T(ctx, "dashboard.greeting") } <bdi dir="auto">{ displayName }</bdi></p>
+ <a class="piko-text-link mt-6 inline-block" href="/account">{ locale.T(ctx, "auth.account.heading") }</a>
+}

@@ -16,7 +16,6 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/piko ./cmd/server && \
-    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/piko-worker ./cmd/worker && \
     CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/piko-migrate ./cmd/migrate
 
 FROM alpine:3.24.2
@@ -24,7 +23,6 @@ RUN addgroup -S piko && adduser -S -G piko piko && mkdir /data && chown piko:pik
 ENV DATABASE_PATH=/data/piko.db
 WORKDIR /app
 COPY --from=build /out/piko /app/piko
-COPY --from=build /out/piko-worker /app/piko-worker
 COPY --from=build /out/piko-migrate /app/piko-migrate
 COPY --from=styles /src/static /app/static
 USER piko

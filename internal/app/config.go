@@ -3,7 +3,6 @@ package app
 import (
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -14,7 +13,6 @@ type Config struct {
 	HTTPAddr       string
 	DatabasePath   string
 	SessionSecret  string
-	PublicBaseURL  string
 	LogLevel       string
 	TrustedProxy   bool
 	CookieSecure   bool
@@ -27,7 +25,6 @@ func LoadConfig() (Config, error) {
 		HTTPAddr:       env("HTTP_ADDR", ":8080"),
 		DatabasePath:   os.Getenv("DATABASE_PATH"),
 		SessionSecret:  os.Getenv("SESSION_SECRET"),
-		PublicBaseURL:  env("PUBLIC_BASE_URL", "http://localhost:8080"),
 		LogLevel:       env("LOG_LEVEL", "info"),
 		ShutdownPeriod: 10 * time.Second,
 	}
@@ -43,13 +40,6 @@ func LoadConfig() (Config, error) {
 	}
 	if len(cfg.SessionSecret) < 32 {
 		return Config{}, errors.New("SESSION_SECRET must be at least 32 characters")
-	}
-	base, err := url.Parse(cfg.PublicBaseURL)
-	if err != nil || base.Host == "" || (base.Scheme != "http" && base.Scheme != "https") || base.RawQuery != "" || base.Fragment != "" {
-		return Config{}, errors.New("PUBLIC_BASE_URL must be an absolute HTTP(S) origin")
-	}
-	if cfg.Environment == "production" && base.Scheme != "https" {
-		return Config{}, errors.New("PUBLIC_BASE_URL must use HTTPS in production")
 	}
 	if cfg.Environment == "production" && !cfg.CookieSecure {
 		return Config{}, errors.New("COOKIE_SECURE must be true in production")

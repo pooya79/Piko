@@ -156,14 +156,14 @@ func Layout(title, displayName, csrf string, content templ.Component) templ.Comp
 			return templ_7745c5c3_Err
 		}
 		if displayName != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-base-300 pb-4\"><a class=\"piko-text-link break-words\" href=\"/account\"><bdi dir=\"auto\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-base-300 pb-4\"><a class=\"piko-text-link min-w-0 max-w-full wrap-anywhere\" href=\"/account\"><bdi dir=\"auto\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(displayName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell/layouts.templ`, Line: 31, Col: 90}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell/layouts.templ`, Line: 31, Col: 111}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
@@ -187,9 +187,9 @@ func Layout(title, displayName, csrf string, content templ.Component) templ.Comp
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var11 string
-			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "auth.pending.logout"))
+			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "auth.logout"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell/layouts.templ`, Line: 34, Col: 97}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell/layouts.templ`, Line: 34, Col: 89}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {

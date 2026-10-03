@@ -28,18 +28,8 @@ type argonParams struct {
 
 var passwordParams = argonParams{memory: 64 * 1024, iterations: 3, parallelism: 2, saltLength: 16, keyLength: 32}
 
+// HashPassword validates the registration rule before hashing.
 func HashPassword(password string) (string, error) {
-	if len(password) < 12 {
-		return "", fmt.Errorf("%w: must be at least 12 characters", ErrInvalidPassword)
-	}
-	if len(password) > maxPasswordBytes {
-		return "", fmt.Errorf("%w: too long", ErrInvalidPassword)
-	}
-	return hashPassword(password)
-}
-
-// Registration uses its own rule; password resets retain the existing minimum.
-func hashRegistrationPassword(password string) (string, error) {
 	if len(password) > maxPasswordBytes {
 		return "", fmt.Errorf("%w: too long", ErrInvalidPassword)
 	}
