@@ -1,0 +1,105 @@
+{
+  "errors": [],
+  "results": [
+    {
+      "view": "home-desktop",
+      "overflow": false,
+      "brokenImages": []
+    },
+    {
+      "view": "home-dark",
+      "overflow": false,
+      "brokenImages": []
+    },
+    {
+      "view": "bots-desktop",
+      "overflow": false,
+      "brokenImages": []
+    },
+    {
+      "view": "bot-detail",
+      "overflow": false,
+      "brokenImages": []
+    },
+    {
+      "view": "bot-flow",
+      "overflow": false,
+      "brokenImages": []
+    },
+    {
+      "view": "bot-analytics",
+      "overflow": false,
+      "brokenImages": []
+    },
+    {
+      "view": "chat-desktop",
+      "overflow": false,
+      "brokenImages": []
+    },
+    {
+      "view": "analytics-desktop",
+      "overflow": false,
+      "brokenImages": []
+    },
+    {
+      "view": "billing-desktop",
+      "overflow": false,
+      "brokenImages": []
+    },
+    {
+      "view": "create-desktop",
+      "overflow": false,
+      "brokenImages": []
+    },
+    {
+      "view": "create-idea",
+      "overflow": false,
+      "brokenImages": []
+    },
+    {
+      "view": "home-mobile",
+      "overflow": false,
+      "brokenImages": []
+    },
+    {
+      "view": "bots-mobile",
+      "overflow": false,
+      "brokenImages": []
+    },
+    {
+      "view": "analytics-mobile",
+      "overflow": false,
+      "brokenImages": []
+    },
+    {
+      "view": "billing-mobile",
+      "overflow": false,
+      "brokenImages": []
+    },
+    {
+      "view": "create-mobile",
+      "overflow": false,
+      "brokenImages": []
+    },
+    {
+      "view": "chat-mobile",
+      "overflow": false,
+      "brokenImages": []
+    },
+    {
+      "view": "chat-preview-mobile",
+      "overflow": false,
+      "brokenImages": []
+    },
+    {
+      "view": "home-mobile-dark",
+      "overflow": false,
+      "brokenImages": []
+    },
+    {
+      "view": "flow-mobile-dark",
+      "overflow": false,
+      "brokenImages": []
+    }
+  ]
+}

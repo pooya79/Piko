@@ -1,0 +1,12 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import '@radix-ui/themes/tokens/base.css';
+import '@radix-ui/themes/tokens/colors/mauve.css';
+import '@radix-ui/themes/tokens/colors/gray.css';
+import '@radix-ui/themes/tokens/colors/tomato.css';
+import '@radix-ui/themes/components.css';
+import '@radix-ui/themes/utilities.css';
+import App from './App.jsx';
+import './fonts.css';
+import './style.css';
+createRoot(document.getElementById('root')).render(<React.StrictMode><App/></React.StrictMode>);
