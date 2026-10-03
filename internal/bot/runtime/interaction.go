@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"github.com/pooya79/Piko/internal/bot/flow"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -40,6 +41,9 @@ func Current(d flow.Definition, state State) Output {
 		q := f.Questions[state.Question]
 		o.Messages = []string{q.Prompt}
 		o.AcceptsAnswer = true
+		for i, option := range q.Options {
+			o.Choices = append(o.Choices, flow.Choice{ID: "option:" + strconv.Itoa(i), Label: option})
+		}
 		if !q.Required {
 			o.Choices = append(o.Choices, flow.Choice{ID: "skip", Label: "رد کردن"})
 		}
@@ -100,6 +104,16 @@ func Advance(d flow.Definition, state State, input Input) (Output, error) {
 	// Copy before changing answers so failed persistence cannot mutate prior state.
 	state.Answers = append([]string(nil), state.Answers...)
 	selected := ""
+	// Choice actions are resolved only at the current question. Delivery binds
+	// these actions to its durable step token; Preview binds its revision.
+	if state.Phase == "question" && !input.Answer && strings.HasPrefix(input.Action, "option:") {
+		q := f.Questions[state.Question]
+		index, err := strconv.Atoi(strings.TrimPrefix(input.Action, "option:"))
+		if q.Type != "single_choice" || err != nil || index < 0 || index >= len(q.Options) || input.Action != "option:"+strconv.Itoa(index) {
+			return Output{}, ErrChoice
+		}
+		input.Answer, input.Text = true, q.Options[index]
+	}
 	if input.Answer {
 		if state.Phase != "question" {
 			return Output{}, ErrChoice
@@ -210,16 +224,37 @@ func validateAnswer(q flow.Question, raw string) (string, string) {
 	if utf8.RuneCountInString(value) > limit {
 		return "", "پاسخ بیش از اندازه طولانی است."
 	}
+	if q.Type == "single_choice" {
+		for _, option := range q.Options {
+			if value == option {
+				return value, ""
+			}
+		}
+		return "", "یکی از گزینه\u200cهای همین پرسش را انتخاب کنید."
+	}
+	if q.Type == "number" {
+		number, err := flow.ParseNumber(value)
+		if err != nil {
+			return "", "عدد صحیح یا اعشاری معتبر وارد کنید؛ از جداکننده هزارگان استفاده نکنید."
+		}
+		if q.Number != nil {
+			if q.Number.Min != "" {
+				min, _ := flow.ParseNumber(q.Number.Min)
+				if number.LessThan(min) {
+					return "", "عدد باید دست\u200cکم " + min.String() + " باشد."
+				}
+			}
+			if q.Number.Max != "" {
+				max, _ := flow.ParseNumber(q.Number.Max)
+				if number.GreaterThan(max) {
+					return "", "عدد باید حداکثر " + max.String() + " باشد."
+				}
+			}
+		}
+		return number.String(), ""
+	}
 	if q.Type == "phone" {
-		value = strings.Map(func(r rune) rune {
-			if r >= '۰' && r <= '۹' {
-				return '0' + r - '۰'
-			}
-			if r >= '٠' && r <= '٩' {
-				return '0' + r - '٠'
-			}
-			return r
-		}, value)
+		value = flow.NormalizeDigits(value)
 		digits := strings.TrimPrefix(value, "+")
 		if len(digits) < 7 || len(digits) > 15 {
 			return "", "شماره تلفن معتبر با ۷ تا ۱۵ رقم وارد کنید."

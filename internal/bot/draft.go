@@ -7,17 +7,22 @@ import (
 
 	"github.com/pooya79/Piko/internal/bot/flow"
 	"github.com/pooya79/Piko/internal/bot/templates/inquiry"
+	"github.com/pooya79/Piko/internal/bot/templates/registration"
 )
 
 type MenuMessage struct{ Label, Message string }
 type DraftSettings struct {
 	Template            string
 	Inquiry             inquiry.Settings
+	Registration        registration.Settings
 	Welcome, MenuPrompt string
 	Choices             []MenuMessage
 }
 
 func (s DraftSettings) Definition() flow.Definition {
+	if s.Template == "registration" {
+		return s.Registration.Definition()
+	}
 	if s.Template == "inquiry" {
 		return s.Inquiry.Definition()
 	}
@@ -39,6 +44,10 @@ func settings(d flow.Definition) DraftSettings {
 		f := d.Forms[0]
 		s.Template = "inquiry"
 		s.Inquiry = inquiry.Settings{Welcome: d.Welcome.Text, MenuPrompt: d.Menu.Text, Label: d.Menu.Choices[0].Label, Review: f.Review, Acknowledgement: f.Acknowledgement, Questions: f.Questions}
+		if f.ID == "registration" {
+			s.Template = "registration"
+			s.Registration = registration.Settings{Welcome: d.Welcome.Text, MenuPrompt: d.Menu.Text, Label: d.Menu.Choices[0].Label, Review: f.Review, Acknowledgement: f.Acknowledgement, Questions: f.Questions}
+		}
 	}
 	for _, c := range d.Menu.Choices {
 		if message, ok := d.Message(c.Target); ok {
@@ -79,4 +88,14 @@ func (s *Service) SaveDraft(ctx context.Context, botID int64, d flow.Definition)
 		return err
 	}
 	return s.repo.saveDraft(ctx, ownerID, botID, d)
+}
+
+func numberBound(q flow.Question, minimum bool) string {
+	if q.Number == nil {
+		return ""
+	}
+	if minimum {
+		return q.Number.Min
+	}
+	return q.Number.Max
 }

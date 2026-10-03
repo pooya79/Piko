@@ -27,11 +27,18 @@ type Form struct {
 }
 
 type Question struct {
-	ID       string `json:"id"`
-	Label    string `json:"label"`
-	Prompt   string `json:"prompt"`
-	Type     string `json:"type"`
-	Required bool   `json:"required"`
+	ID       string       `json:"id"`
+	Label    string       `json:"label"`
+	Prompt   string       `json:"prompt"`
+	Type     string       `json:"type"`
+	Required bool         `json:"required"`
+	Options  []string     `json:"options,omitempty"`
+	Number   *NumberRules `json:"number,omitempty"`
+}
+
+type NumberRules struct {
+	Min string `json:"min,omitempty"`
+	Max string `json:"max,omitempty"`
 }
 
 func (d Definition) Form(id string) (Form, bool) {
@@ -135,6 +142,24 @@ func (d Definition) Validate() error {
 			questionIDs[q.ID] = true
 			switch q.Type {
 			case "short_text", "long_text", "phone":
+				if len(q.Options) != 0 || q.Number != nil {
+					return invalid("definition")
+				}
+			case "single_choice":
+				if q.Number != nil || len(q.Options) < 2 || len(q.Options) > MaxChoices {
+					return invalid("definition")
+				}
+				options := map[string]bool{}
+				for _, option := range q.Options {
+					if !text(option, 80) || option != strings.TrimSpace(option) || options[option] {
+						return invalid("definition")
+					}
+					options[option] = true
+				}
+			case "number":
+				if len(q.Options) != 0 || !validNumberRules(q.Number) {
+					return invalid("definition")
+				}
 			default:
 				return invalid("definition")
 			}

@@ -17,7 +17,7 @@ func inquiryDraft() url.Values {
 	return url.Values{"template": {"inquiry"}, "welcome": {"سلام"}, "menu_prompt": {"انتخاب کنید"}, "form_label": {"درخواست"}, "review_message": {"پاسخ\u200cها را بررسی کنید"}, "acknowledgement": {"درخواست شما دریافت شد"}, "question_label": {"نام", "تماس", "درخواست"}, "question_prompt": {"نام شما چیست؟", "شماره تماس شما چیست؟", "درخواست شما چیست؟"}, "question_required": {"yes", "yes", "no"}}
 }
 
-type inquiryDriver struct {
+type formDriver struct {
 	t            *testing.T
 	a            *App
 	b            *accountBrowser
@@ -26,13 +26,18 @@ type inquiryDriver struct {
 	update, sent int
 }
 
-func newInquiryDriver(t *testing.T) *inquiryDriver {
+func newInquiryDriver(t *testing.T) *formDriver {
+	t.Helper()
+	return newFormDriver(t, inquiryDraft())
+}
+
+func newFormDriver(t *testing.T, draft url.Values) *formDriver {
 	t.Helper()
 	a, b, f := deliveryFixture(t)
 	for _, p := range []string{"draft", "publish", "activate"} {
 		values := url.Values{}
 		if p == "draft" {
-			values = inquiryDraft()
+			values = draft
 		}
 		if p == "activate" {
 			values.Set("operate", "yes")
@@ -44,10 +49,10 @@ func newInquiryDriver(t *testing.T) *inquiryDriver {
 	f.mu.Lock()
 	secret := f.secret
 	f.mu.Unlock()
-	return &inquiryDriver{t: t, a: a, b: b, f: f, secret: secret, update: 100}
+	return &formDriver{t: t, a: a, b: b, f: f, secret: secret, update: 100}
 }
 
-func (d *inquiryDriver) text(value string, count int) {
+func (d *formDriver) text(value string, count int) {
 	d.t.Helper()
 	d.update++
 	payload := fmt.Sprintf(`{"update_id":%d,"message":{"from":{"id":77},"chat":{"id":77,"type":"private"},"text":%q}}`, d.update, value)
@@ -58,7 +63,7 @@ func (d *inquiryDriver) text(value string, count int) {
 	waitSent(d.t, d.f, d.sent)
 }
 
-func (d *inquiryDriver) button(label string) string {
+func (d *formDriver) button(label string) string {
 	d.t.Helper()
 	sent := waitSent(d.t, d.f, d.sent)
 	m := sent[len(sent)-1]
@@ -75,7 +80,7 @@ func (d *inquiryDriver) button(label string) string {
 	return ""
 }
 
-func (d *inquiryDriver) press(label string, count int) {
+func (d *formDriver) press(label string, count int) {
 	d.t.Helper()
 	data := d.button(label)
 	d.update++
@@ -86,7 +91,7 @@ func (d *inquiryDriver) press(label string, count int) {
 	waitSent(d.t, d.f, d.sent)
 }
 
-func (d *inquiryDriver) countSubmissions(want int) {
+func (d *formDriver) countSubmissions(want int) {
 	d.t.Helper()
 	page := d.b.send("GET", "/bots/1/submissions", nil)
 	if page.Code != 200 || strings.Count(page.Body.String(), "data-submission-id=") != want {
