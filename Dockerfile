@@ -17,14 +17,15 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/buildx ./cmd/server && \
     CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/buildx-worker ./cmd/worker && \
-    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/buildx-river-migrate ./cmd/river-migrate
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/buildx-migrate ./cmd/migrate
 
 FROM alpine:3.24.2
-RUN addgroup -S buildx && adduser -S -G buildx buildx
+RUN addgroup -S buildx && adduser -S -G buildx buildx && mkdir /data && chown buildx:buildx /data
+ENV DATABASE_PATH=/data/buildx.db
 WORKDIR /app
 COPY --from=build /out/buildx /app/buildx
 COPY --from=build /out/buildx-worker /app/buildx-worker
-COPY --from=build /out/buildx-river-migrate /app/buildx-river-migrate
+COPY --from=build /out/buildx-migrate /app/buildx-migrate
 COPY --from=styles /src/static /app/static
 USER buildx
 EXPOSE 8080

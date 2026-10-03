@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -10,7 +11,6 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -19,36 +19,20 @@ import (
 	"buildx/internal/platform/database/dbgen"
 	"buildx/internal/testsupport"
 	"buildx/internal/web"
-	"github.com/jackc/pgx/v5"
-	"github.com/redis/go-redis/v9"
 )
 
 type accountEmailQueue struct{ challenges []string }
 
-func (q *accountEmailQueue) EnqueueChallenge(_ context.Context, _ pgx.Tx, nonce string) error {
+func (q *accountEmailQueue) EnqueueChallenge(_ context.Context, _ *sql.Tx, nonce string) error {
 	q.challenges = append(q.challenges, nonce)
 	return nil
 }
 
-// Exercise the public route boundary, including real SQL, Redis, and cookie/CSRF
-// rotation. Database tests own an isolated schema; rate keys are unique per run.
-func TestAuthJourneyAgainstPostgresAndRedis(t *testing.T) {
+// Exercise the public routes with real SQLite storage and cookie/CSRF rotation.
+func TestAuthJourneyAgainstSQLite(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	pool, _ := testsupport.MigratedPostgres(t, ctx)
-	redisURL := os.Getenv("BUILDX_TEST_REDIS_URL")
-	if redisURL == "" {
-		t.Skip("set BUILDX_TEST_REDIS_URL to a disposable Redis instance")
-	}
-	opts, err := redis.ParseURL(redisURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cache := redis.NewClient(opts)
-	t.Cleanup(func() { _ = cache.Close() })
-	if err := cache.Ping(ctx).Err(); err != nil {
-		t.Fatal(err)
-	}
+	pool, _ := testsupport.MigratedSQLite(t, ctx)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	catalog := testLocaleCatalog(t)
 	credentials := auth.NewService(dbgen.New(pool))
@@ -57,12 +41,7 @@ func TestAuthJourneyAgainstPostgresAndRedis(t *testing.T) {
 		[]byte("test-account-secret-with-at-least-32-bytes"), "http://localhost:8080", catalog)
 	mw := web.Middleware{Auth: credentials, LocaleCatalog: catalog, Log: logger, Secret: []byte("test-csrf-secret")}
 	rateKey := fmt.Sprintf("auth-journey-%d", time.Now().UnixNano())
-	limiter := web.NewRateLimiter(cache, logger, func(*http.Request) string { return rateKey })
-	t.Cleanup(func() {
-		for _, bucket := range []string{"login", "account-email", "account-action"} {
-			_ = cache.Del(context.Background(), "rate:"+bucket+":"+rateKey).Err()
-		}
-	})
+	limiter := web.NewRateLimiter(pool, logger, func(*http.Request) string { return rateKey })
 	server := httptest.NewServer(buildRouter(pool, mw, limiter, auth.NewHandler(credentials, accounts, logger, false)))
 	t.Cleanup(server.Close)
 	jar, err := cookiejar.New(nil)

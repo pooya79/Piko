@@ -7,13 +7,12 @@ package dbgen
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
+	"database/sql"
 )
 
 const createAccountChallenge = `-- name: CreateAccountChallenge :exec
 INSERT INTO account_challenges (nonce, token_hash, user_id, purpose, expires_at)
-VALUES ($1, $2, $3, $4, $5)
+VALUES (?1, ?2, ?3, ?4, ?5)
 `
 
 type CreateAccountChallengeParams struct {
@@ -21,11 +20,11 @@ type CreateAccountChallengeParams struct {
 	TokenHash []byte
 	UserID    int64
 	Purpose   string
-	ExpiresAt pgtype.Timestamptz
+	ExpiresAt int64
 }
 
 func (q *Queries) CreateAccountChallenge(ctx context.Context, arg CreateAccountChallengeParams) error {
-	_, err := q.db.Exec(ctx, createAccountChallenge,
+	_, err := q.db.ExecContext(ctx, createAccountChallenge,
 		arg.Nonce,
 		arg.TokenHash,
 		arg.UserID,
@@ -36,31 +35,31 @@ func (q *Queries) CreateAccountChallenge(ctx context.Context, arg CreateAccountC
 }
 
 const createSignupReceipt = `-- name: CreateSignupReceipt :exec
-INSERT INTO signup_receipts (token_hash, user_id, expires_at) VALUES ($1, $2, $3)
+INSERT INTO signup_receipts (token_hash, user_id, expires_at) VALUES (?1, ?2, ?3)
 `
 
 type CreateSignupReceiptParams struct {
 	TokenHash []byte
-	UserID    pgtype.Int8
-	ExpiresAt pgtype.Timestamptz
+	UserID    sql.NullInt64
+	ExpiresAt int64
 }
 
 func (q *Queries) CreateSignupReceipt(ctx context.Context, arg CreateSignupReceiptParams) error {
-	_, err := q.db.Exec(ctx, createSignupReceipt, arg.TokenHash, arg.UserID, arg.ExpiresAt)
+	_, err := q.db.ExecContext(ctx, createSignupReceipt, arg.TokenHash, arg.UserID, arg.ExpiresAt)
 	return err
 }
 
 const deleteAccountChallenge = `-- name: DeleteAccountChallenge :exec
-DELETE FROM account_challenges WHERE nonce = $1
+DELETE FROM account_challenges WHERE nonce = ?1
 `
 
 func (q *Queries) DeleteAccountChallenge(ctx context.Context, nonce []byte) error {
-	_, err := q.db.Exec(ctx, deleteAccountChallenge, nonce)
+	_, err := q.db.ExecContext(ctx, deleteAccountChallenge, nonce)
 	return err
 }
 
 const deleteAccountChallengeForUser = `-- name: DeleteAccountChallengeForUser :exec
-DELETE FROM account_challenges WHERE user_id = $1 AND purpose = $2
+DELETE FROM account_challenges WHERE user_id = ?1 AND purpose = ?2
 `
 
 type DeleteAccountChallengeForUserParams struct {
@@ -69,51 +68,51 @@ type DeleteAccountChallengeForUserParams struct {
 }
 
 func (q *Queries) DeleteAccountChallengeForUser(ctx context.Context, arg DeleteAccountChallengeForUserParams) error {
-	_, err := q.db.Exec(ctx, deleteAccountChallengeForUser, arg.UserID, arg.Purpose)
+	_, err := q.db.ExecContext(ctx, deleteAccountChallengeForUser, arg.UserID, arg.Purpose)
 	return err
 }
 
 const deleteExpiredAccountChallenges = `-- name: DeleteExpiredAccountChallenges :execrows
-DELETE FROM account_challenges WHERE expires_at <= now()
+DELETE FROM account_challenges WHERE expires_at <= CAST(unixepoch('subsec') * 1000 AS INTEGER)
 `
 
 func (q *Queries) DeleteExpiredAccountChallenges(ctx context.Context) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteExpiredAccountChallenges)
+	result, err := q.db.ExecContext(ctx, deleteExpiredAccountChallenges)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+	return result.RowsAffected()
 }
 
 const deleteExpiredSignupReceipts = `-- name: DeleteExpiredSignupReceipts :execrows
-DELETE FROM signup_receipts WHERE expires_at <= now()
+DELETE FROM signup_receipts WHERE expires_at <= CAST(unixepoch('subsec') * 1000 AS INTEGER)
 `
 
 func (q *Queries) DeleteExpiredSignupReceipts(ctx context.Context) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteExpiredSignupReceipts)
+	result, err := q.db.ExecContext(ctx, deleteExpiredSignupReceipts)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+	return result.RowsAffected()
 }
 
 const getAccountChallengeByNonce = `-- name: GetAccountChallengeByNonce :one
 SELECT c.nonce, c.user_id, c.purpose, c.expires_at, u.email, u.preferred_language
 FROM account_challenges c JOIN users u ON u.id = c.user_id
-WHERE c.nonce = $1 AND c.expires_at > now()
+WHERE c.nonce = ?1 AND c.expires_at > CAST(unixepoch('subsec') * 1000 AS INTEGER)
 `
 
 type GetAccountChallengeByNonceRow struct {
 	Nonce             []byte
 	UserID            int64
 	Purpose           string
-	ExpiresAt         pgtype.Timestamptz
+	ExpiresAt         int64
 	Email             string
 	PreferredLanguage string
 }
 
 func (q *Queries) GetAccountChallengeByNonce(ctx context.Context, nonce []byte) (GetAccountChallengeByNonceRow, error) {
-	row := q.db.QueryRow(ctx, getAccountChallengeByNonce, nonce)
+	row := q.db.QueryRowContext(ctx, getAccountChallengeByNonce, nonce)
 	var i GetAccountChallengeByNonceRow
 	err := row.Scan(
 		&i.Nonce,
@@ -129,19 +128,19 @@ func (q *Queries) GetAccountChallengeByNonce(ctx context.Context, nonce []byte) 
 const getAccountChallengeByToken = `-- name: GetAccountChallengeByToken :one
 SELECT c.nonce, c.user_id, c.purpose, c.expires_at, u.email
 FROM account_challenges c JOIN users u ON u.id = c.user_id
-WHERE c.token_hash = $1 AND c.expires_at > now()
+WHERE c.token_hash = ?1 AND c.expires_at > CAST(unixepoch('subsec') * 1000 AS INTEGER)
 `
 
 type GetAccountChallengeByTokenRow struct {
 	Nonce     []byte
 	UserID    int64
 	Purpose   string
-	ExpiresAt pgtype.Timestamptz
+	ExpiresAt int64
 	Email     string
 }
 
 func (q *Queries) GetAccountChallengeByToken(ctx context.Context, tokenHash []byte) (GetAccountChallengeByTokenRow, error) {
-	row := q.db.QueryRow(ctx, getAccountChallengeByToken, tokenHash)
+	row := q.db.QueryRowContext(ctx, getAccountChallengeByToken, tokenHash)
 	var i GetAccountChallengeByTokenRow
 	err := row.Scan(
 		&i.Nonce,
@@ -153,36 +152,8 @@ func (q *Queries) GetAccountChallengeByToken(ctx context.Context, tokenHash []by
 	return i, err
 }
 
-const getAccountChallengeByTokenForUpdate = `-- name: GetAccountChallengeByTokenForUpdate :one
-SELECT c.nonce, c.user_id, c.purpose, c.expires_at, u.email
-FROM account_challenges c JOIN users u ON u.id = c.user_id
-WHERE c.token_hash = $1 AND c.expires_at > now()
-FOR UPDATE OF c
-`
-
-type GetAccountChallengeByTokenForUpdateRow struct {
-	Nonce     []byte
-	UserID    int64
-	Purpose   string
-	ExpiresAt pgtype.Timestamptz
-	Email     string
-}
-
-func (q *Queries) GetAccountChallengeByTokenForUpdate(ctx context.Context, tokenHash []byte) (GetAccountChallengeByTokenForUpdateRow, error) {
-	row := q.db.QueryRow(ctx, getAccountChallengeByTokenForUpdate, tokenHash)
-	var i GetAccountChallengeByTokenForUpdateRow
-	err := row.Scan(
-		&i.Nonce,
-		&i.UserID,
-		&i.Purpose,
-		&i.ExpiresAt,
-		&i.Email,
-	)
-	return i, err
-}
-
 const getAccountEmailRequest = `-- name: GetAccountEmailRequest :one
-SELECT last_requested_at FROM account_email_requests WHERE user_id = $1 AND purpose = $2
+SELECT last_requested_at FROM account_email_requests WHERE user_id = ?1 AND purpose = ?2
 `
 
 type GetAccountEmailRequestParams struct {
@@ -190,9 +161,9 @@ type GetAccountEmailRequestParams struct {
 	Purpose string
 }
 
-func (q *Queries) GetAccountEmailRequest(ctx context.Context, arg GetAccountEmailRequestParams) (pgtype.Timestamptz, error) {
-	row := q.db.QueryRow(ctx, getAccountEmailRequest, arg.UserID, arg.Purpose)
-	var last_requested_at pgtype.Timestamptz
+func (q *Queries) GetAccountEmailRequest(ctx context.Context, arg GetAccountEmailRequestParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getAccountEmailRequest, arg.UserID, arg.Purpose)
+	var last_requested_at int64
 	err := row.Scan(&last_requested_at)
 	return last_requested_at, err
 }
@@ -200,7 +171,7 @@ func (q *Queries) GetAccountEmailRequest(ctx context.Context, arg GetAccountEmai
 const getRecentSignup = `-- name: GetRecentSignup :one
 SELECT u.id, u.email, u.display_name, u.preferred_language
 FROM signup_receipts s JOIN users u ON u.id = s.user_id
-WHERE s.token_hash = $1 AND s.expires_at > now() AND u.email_verified_at IS NULL
+WHERE s.token_hash = ?1 AND s.expires_at > CAST(unixepoch('subsec') * 1000 AS INTEGER) AND u.email_verified_at IS NULL
 `
 
 type GetRecentSignupRow struct {
@@ -211,7 +182,7 @@ type GetRecentSignupRow struct {
 }
 
 func (q *Queries) GetRecentSignup(ctx context.Context, tokenHash []byte) (GetRecentSignupRow, error) {
-	row := q.db.QueryRow(ctx, getRecentSignup, tokenHash)
+	row := q.db.QueryRowContext(ctx, getRecentSignup, tokenHash)
 	var i GetRecentSignupRow
 	err := row.Scan(
 		&i.ID,
@@ -224,7 +195,7 @@ func (q *Queries) GetRecentSignup(ctx context.Context, tokenHash []byte) (GetRec
 
 const upsertAccountEmailRequest = `-- name: UpsertAccountEmailRequest :exec
 INSERT INTO account_email_requests (user_id, purpose, last_requested_at)
-VALUES ($1, $2, now())
+VALUES (?1, ?2, CAST(unixepoch('subsec') * 1000 AS INTEGER))
 ON CONFLICT (user_id, purpose) DO UPDATE SET last_requested_at = EXCLUDED.last_requested_at
 `
 
@@ -234,6 +205,6 @@ type UpsertAccountEmailRequestParams struct {
 }
 
 func (q *Queries) UpsertAccountEmailRequest(ctx context.Context, arg UpsertAccountEmailRequestParams) error {
-	_, err := q.db.Exec(ctx, upsertAccountEmailRequest, arg.UserID, arg.Purpose)
+	_, err := q.db.ExecContext(ctx, upsertAccountEmailRequest, arg.UserID, arg.Purpose)
 	return err
 }

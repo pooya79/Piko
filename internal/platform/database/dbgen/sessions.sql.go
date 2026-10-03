@@ -7,24 +7,23 @@ package dbgen
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
+	"database/sql"
 )
 
 const createSession = `-- name: CreateSession :execrows
 INSERT INTO sessions (token_hash, user_id, csrf_hash, expires_at)
-SELECT $1, id, $3, $4 FROM users WHERE id = $2
+SELECT ?1, id, ?3, ?4 FROM users WHERE id = ?2
 `
 
 type CreateSessionParams struct {
 	TokenHash []byte
 	ID        int64
 	CsrfHash  []byte
-	ExpiresAt pgtype.Timestamptz
+	ExpiresAt int64
 }
 
 func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (int64, error) {
-	result, err := q.db.Exec(ctx, createSession,
+	result, err := q.db.ExecContext(ctx, createSession,
 		arg.TokenHash,
 		arg.ID,
 		arg.CsrfHash,
@@ -33,57 +32,57 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (i
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+	return result.RowsAffected()
 }
 
 const deleteAccountSessions = `-- name: DeleteAccountSessions :exec
-DELETE FROM sessions WHERE user_id = $1
+DELETE FROM sessions WHERE user_id = ?1
 `
 
 func (q *Queries) DeleteAccountSessions(ctx context.Context, userID int64) error {
-	_, err := q.db.Exec(ctx, deleteAccountSessions, userID)
+	_, err := q.db.ExecContext(ctx, deleteAccountSessions, userID)
 	return err
 }
 
 const deleteExpiredSessions = `-- name: DeleteExpiredSessions :execrows
-DELETE FROM sessions WHERE expires_at <= now()
+DELETE FROM sessions WHERE expires_at <= CAST(unixepoch('subsec') * 1000 AS INTEGER)
 `
 
 func (q *Queries) DeleteExpiredSessions(ctx context.Context) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteExpiredSessions)
+	result, err := q.db.ExecContext(ctx, deleteExpiredSessions)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+	return result.RowsAffected()
 }
 
 const deleteSession = `-- name: DeleteSession :exec
-DELETE FROM sessions WHERE token_hash = $1
+DELETE FROM sessions WHERE token_hash = ?1
 `
 
 func (q *Queries) DeleteSession(ctx context.Context, tokenHash []byte) error {
-	_, err := q.db.Exec(ctx, deleteSession, tokenHash)
+	_, err := q.db.ExecContext(ctx, deleteSession, tokenHash)
 	return err
 }
 
 const getSession = `-- name: GetSession :one
 SELECT s.user_id, s.csrf_hash, s.expires_at, u.email, u.display_name, u.email_verified_at, u.preferred_language
 FROM sessions s JOIN users u ON u.id = s.user_id
-WHERE s.token_hash = $1 AND s.expires_at > now()
+WHERE s.token_hash = ?1 AND s.expires_at > CAST(unixepoch('subsec') * 1000 AS INTEGER)
 `
 
 type GetSessionRow struct {
 	UserID            int64
 	CsrfHash          []byte
-	ExpiresAt         pgtype.Timestamptz
+	ExpiresAt         int64
 	Email             string
 	DisplayName       string
-	EmailVerifiedAt   pgtype.Timestamptz
+	EmailVerifiedAt   sql.NullInt64
 	PreferredLanguage string
 }
 
 func (q *Queries) GetSession(ctx context.Context, tokenHash []byte) (GetSessionRow, error) {
-	row := q.db.QueryRow(ctx, getSession, tokenHash)
+	row := q.db.QueryRowContext(ctx, getSession, tokenHash)
 	var i GetSessionRow
 	err := row.Scan(
 		&i.UserID,
@@ -98,7 +97,7 @@ func (q *Queries) GetSession(ctx context.Context, tokenHash []byte) (GetSessionR
 }
 
 const updateSessionCSRF = `-- name: UpdateSessionCSRF :execrows
-UPDATE sessions SET csrf_hash = $2 WHERE token_hash = $1 AND expires_at > now()
+UPDATE sessions SET csrf_hash = ?2 WHERE token_hash = ?1 AND expires_at > CAST(unixepoch('subsec') * 1000 AS INTEGER)
 `
 
 type UpdateSessionCSRFParams struct {
@@ -107,9 +106,9 @@ type UpdateSessionCSRFParams struct {
 }
 
 func (q *Queries) UpdateSessionCSRF(ctx context.Context, arg UpdateSessionCSRFParams) (int64, error) {
-	result, err := q.db.Exec(ctx, updateSessionCSRF, arg.TokenHash, arg.CsrfHash)
+	result, err := q.db.ExecContext(ctx, updateSessionCSRF, arg.TokenHash, arg.CsrfHash)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+	return result.RowsAffected()
 }

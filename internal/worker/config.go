@@ -5,7 +5,6 @@ import (
 	"net/url"
 	"os"
 	"strconv"
-	"time"
 )
 
 type Config struct {
@@ -17,23 +16,21 @@ type Config struct {
 	SMTPUsername   string
 	SMTPPassword   string
 	SMTPRequireTLS bool
-	DatabaseURL    string
+	DatabasePath   string
 	LogLevel       string
-	ShutdownPeriod time.Duration
 }
 
 func LoadConfig() (Config, error) {
 	cfg := Config{
-		DatabaseURL:    os.Getenv("DATABASE_URL"),
-		Environment:    env("APP_ENV", "development"),
-		SessionSecret:  os.Getenv("SESSION_SECRET"),
-		PublicBaseURL:  env("PUBLIC_BASE_URL", "http://localhost:8080"),
-		SMTPAddress:    env("SMTP_ADDR", "localhost:1025"),
-		SMTPFrom:       env("SMTP_FROM", "buildx@localhost.test"),
-		SMTPUsername:   os.Getenv("SMTP_USERNAME"),
-		SMTPPassword:   os.Getenv("SMTP_PASSWORD"),
-		LogLevel:       env("LOG_LEVEL", "info"),
-		ShutdownPeriod: 10 * time.Second,
+		DatabasePath:  os.Getenv("DATABASE_PATH"),
+		Environment:   env("APP_ENV", "development"),
+		SessionSecret: os.Getenv("SESSION_SECRET"),
+		PublicBaseURL: env("PUBLIC_BASE_URL", "http://localhost:8080"),
+		SMTPAddress:   env("SMTP_ADDR", "localhost:1025"),
+		SMTPFrom:      env("SMTP_FROM", "buildx@localhost.test"),
+		SMTPUsername:  os.Getenv("SMTP_USERNAME"),
+		SMTPPassword:  os.Getenv("SMTP_PASSWORD"),
+		LogLevel:      env("LOG_LEVEL", "info"),
 	}
 	tlsValue := env("SMTP_REQUIRE_TLS", strconv.FormatBool(cfg.Environment == "production"))
 	var err error
@@ -51,8 +48,8 @@ func LoadConfig() (Config, error) {
 	if cfg.Environment == "production" && (base.Scheme != "https" || !cfg.SMTPRequireTLS) {
 		return Config{}, errors.New("production requires HTTPS public links and SMTP STARTTLS")
 	}
-	if cfg.DatabaseURL == "" {
-		return Config{}, errors.New("DATABASE_URL is required")
+	if cfg.DatabasePath == "" {
+		return Config{}, errors.New("DATABASE_PATH is required")
 	}
 	return cfg, nil
 }

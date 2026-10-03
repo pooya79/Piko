@@ -20,7 +20,7 @@ prod-worker: build
 build: css
 	$(GO) build -o bin/buildx ./cmd/server
 	$(GO) build -o bin/buildx-worker ./cmd/worker
-	$(GO) build -o bin/buildx-river-migrate ./cmd/river-migrate
+	$(GO) build -o bin/buildx-migrate ./cmd/migrate
 test:
 	$(GO) test ./...
 test-race:
@@ -41,19 +41,16 @@ templ:
 sqlc:
 	$(GO) run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 generate
 infra-up:
-	docker compose up -d postgres redis mailpit
+	docker compose up -d mailpit
 infra-down:
 	docker compose down
 migrate-up:
-	docker compose run --rm migrate up
-	docker compose run --rm river-migrate
+	@set -a; . ./.env; set +a; $(GO) run ./cmd/migrate up
+# Roll back only the latest application migration; this removes its tables.
 migrate-down:
-	docker compose run --rm migrate down 1
+	@set -a; . ./.env; set +a; $(GO) run ./cmd/migrate down
 migrate-create:
 	@test -n "$(name)" || (echo "usage: make migrate-create name=description" && exit 1)
-	docker compose run --rm migrate create -ext sql -dir /migrations -seq $(name)
-# Check APP_ENV after loading .env so local seeding remains development-only.
+	$(GO) run ./cmd/migrate create "$(name)"
 seed:
-	@set -a; . ./.env; set +a; \
-		test "$$APP_ENV" = "development" || { echo "make seed requires APP_ENV=development"; exit 1; }; \
-		docker compose exec -T postgres psql -U buildx -d buildx -v ON_ERROR_STOP=1 -f /dev/stdin < db/seeds/development.sql
+	@set -a; . ./.env; set +a; $(GO) run ./cmd/migrate seed

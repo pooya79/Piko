@@ -2,30 +2,28 @@ package auth
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
 
 	"buildx/internal/platform/database/dbgen"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"modernc.org/sqlite"
 )
 
 var errAccountNotFound = errors.New("account not found")
 
 type ChallengeQueue interface {
-	EnqueueChallenge(context.Context, pgx.Tx, string) error
+	EnqueueChallenge(context.Context, *sql.Tx, string) error
 }
 
 type AccountRepository struct {
-	pool  *pgxpool.Pool
+	pool  *sql.DB
 	queue ChallengeQueue
 }
 
 type accountTx struct {
-	tx    pgx.Tx
+	tx    *sql.Tx
 	q     *dbgen.Queries
 	queue ChallengeQueue
 }
@@ -44,40 +42,32 @@ type challengeRecord struct {
 	Purpose  challengePurpose
 }
 
-func NewAccountRepository(pool *pgxpool.Pool, queue ChallengeQueue) *AccountRepository {
+func NewAccountRepository(pool *sql.DB, queue ChallengeQueue) *AccountRepository {
 	return &AccountRepository{pool: pool, queue: queue}
 }
 
-// withinTransaction keeps database and River writes under one serializable commit.
-// The callback may run again after a serialization conflict, so it must not
-// perform side effects outside this transaction.
+// withinTransaction commits the account change and its email job together.
+// Open uses BEGIN IMMEDIATE, so competing writers cannot both consume a link.
 func (r *AccountRepository) withinTransaction(ctx context.Context, fn func(*accountTx) error) error {
-	for attempt := 0; attempt < 3; attempt++ {
-		tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
-		if err != nil {
-			return fmt.Errorf("begin account transaction: %w", err)
-		}
-		err = fn(&accountTx{tx: tx, q: dbgen.New(tx), queue: r.queue})
-		if err == nil {
-			err = tx.Commit(ctx)
-		}
-		_ = tx.Rollback(ctx)
-		if err == nil {
-			return nil
-		}
-		var pgErr *pgconn.PgError
-		if attempt == 2 || !errors.As(err, &pgErr) || (pgErr.Code != "40001" && pgErr.Code != "40P01") {
-			return fmt.Errorf("account transaction: %w", err)
-		}
+	tx, err := r.pool.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin account transaction: %w", err)
 	}
-	return errors.New("account transaction retry limit exceeded")
+	defer func() { _ = tx.Rollback() }()
+	if err := fn(&accountTx{tx: tx, q: dbgen.New(tx), queue: r.queue}); err != nil {
+		return fmt.Errorf("account transaction: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit account transaction: %w", err)
+	}
+	return nil
 }
 
 func (t *accountTx) createAccount(ctx context.Context, email, name, passwordHash, language string) (User, error) {
-	v, err := t.q.CreateUser(ctx, dbgen.CreateUserParams{Email: email, DisplayName: name, PasswordHash: passwordHash, PreferredLanguage: pgtype.Text{String: language, Valid: true}})
+	v, err := t.q.CreateUser(ctx, dbgen.CreateUserParams{Email: email, DisplayName: name, PasswordHash: passwordHash, PreferredLanguage: sql.NullString{String: language, Valid: true}})
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		var sqliteErr *sqlite.Error
+		if errors.As(err, &sqliteErr) && sqliteErr.Code() == 2067 {
 			return User{}, ErrAccountExists
 		}
 		return User{}, fmt.Errorf("insert account: %w", err)
@@ -86,9 +76,9 @@ func (t *accountTx) createAccount(ctx context.Context, email, name, passwordHash
 }
 
 func (t *accountTx) saveReceipt(ctx context.Context, tokenHash []byte, userID int64, expires time.Time) error {
-	param := dbgen.CreateSignupReceiptParams{TokenHash: tokenHash, ExpiresAt: pgtype.Timestamptz{Time: expires, Valid: true}}
+	param := dbgen.CreateSignupReceiptParams{TokenHash: tokenHash, ExpiresAt: expires.UnixMilli()}
 	if userID > 0 {
-		param.UserID = pgtype.Int8{Int64: userID, Valid: true}
+		param.UserID = sql.NullInt64{Int64: userID, Valid: true}
 	}
 	if err := t.q.CreateSignupReceipt(ctx, param); err != nil {
 		return fmt.Errorf("insert signup receipt: %w", err)
@@ -98,7 +88,7 @@ func (t *accountTx) saveReceipt(ctx context.Context, tokenHash []byte, userID in
 
 func (r *AccountRepository) recentSignup(ctx context.Context, tokenHash []byte) (User, error) {
 	v, err := dbgen.New(r.pool).GetRecentSignup(ctx, tokenHash)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return User{}, ErrInvalidChallenge
 	}
 	if err != nil {
@@ -113,7 +103,7 @@ func (t *accountTx) saveChallenge(ctx context.Context, nonce, tokenHash []byte, 
 	}
 	if err := t.q.CreateAccountChallenge(ctx, dbgen.CreateAccountChallengeParams{
 		Nonce: nonce, TokenHash: tokenHash, UserID: userID, Purpose: string(purpose),
-		ExpiresAt: pgtype.Timestamptz{Time: expires, Valid: true},
+		ExpiresAt: expires.UnixMilli(),
 	}); err != nil {
 		return fmt.Errorf("insert account challenge: %w", err)
 	}
@@ -128,7 +118,7 @@ func (t *accountTx) saveChallenge(ctx context.Context, nonce, tokenHash []byte, 
 
 func (r *AccountRepository) challengeByToken(ctx context.Context, hash []byte) (challengeRecord, error) {
 	v, err := dbgen.New(r.pool).GetAccountChallengeByToken(ctx, hash)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return challengeRecord{}, ErrInvalidChallenge
 	}
 	if err != nil {
@@ -139,7 +129,7 @@ func (r *AccountRepository) challengeByToken(ctx context.Context, hash []byte) (
 
 func (r *AccountRepository) challengeByNonce(ctx context.Context, nonce []byte) (challengeRecord, error) {
 	v, err := dbgen.New(r.pool).GetAccountChallengeByNonce(ctx, nonce)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return challengeRecord{}, ErrInvalidChallenge
 	}
 	if err != nil {
@@ -148,37 +138,37 @@ func (r *AccountRepository) challengeByNonce(ctx context.Context, nonce []byte) 
 	return challengeRecord{Nonce: v.Nonce, UserID: v.UserID, Email: v.Email, Language: v.PreferredLanguage, Purpose: challengePurpose(v.Purpose)}, nil
 }
 
-func (t *accountTx) challengeForUpdate(ctx context.Context, hash []byte) (challengeRecord, error) {
-	v, err := t.q.GetAccountChallengeByTokenForUpdate(ctx, hash)
-	if errors.Is(err, pgx.ErrNoRows) {
+func (t *accountTx) challengeInTransaction(ctx context.Context, hash []byte) (challengeRecord, error) {
+	v, err := t.q.GetAccountChallengeByToken(ctx, hash)
+	if errors.Is(err, sql.ErrNoRows) {
 		return challengeRecord{}, ErrInvalidChallenge
 	}
 	if err != nil {
-		return challengeRecord{}, fmt.Errorf("lock account challenge: %w", err)
+		return challengeRecord{}, fmt.Errorf("load account challenge: %w", err)
 	}
 	return challengeRecord{Nonce: v.Nonce, UserID: v.UserID, Email: v.Email, Purpose: challengePurpose(v.Purpose)}, nil
 }
 
-func (t *accountTx) accountForUpdate(ctx context.Context, email string) (accountRecord, error) {
-	v, err := t.q.GetAccountByEmailForUpdate(ctx, email)
-	if errors.Is(err, pgx.ErrNoRows) {
+func (t *accountTx) accountInTransaction(ctx context.Context, email string) (accountRecord, error) {
+	v, err := t.q.GetAccountByEmail(ctx, email)
+	if errors.Is(err, sql.ErrNoRows) {
 		return accountRecord{}, errAccountNotFound
 	}
 	if err != nil {
-		return accountRecord{}, fmt.Errorf("lock account: %w", err)
+		return accountRecord{}, fmt.Errorf("load account: %w", err)
 	}
 	return accountRecord{ID: v.ID, Email: v.Email, Verified: v.EmailVerifiedAt.Valid}, nil
 }
 
 func (t *accountTx) emailRequestedAt(ctx context.Context, userID int64, purpose challengePurpose) (time.Time, bool, error) {
 	v, err := t.q.GetAccountEmailRequest(ctx, dbgen.GetAccountEmailRequestParams{UserID: userID, Purpose: string(purpose)})
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return time.Time{}, false, nil
 	}
 	if err != nil {
 		return time.Time{}, false, fmt.Errorf("load email cooldown: %w", err)
 	}
-	return v.Time, true, nil
+	return time.UnixMilli(v), true, nil
 }
 
 func (t *accountTx) deleteChallengeForUser(ctx context.Context, userID int64, purpose challengePurpose) error {

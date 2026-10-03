@@ -1,17 +1,11 @@
 version: "2"
 sql:
-  - engine: postgresql
+  - engine: sqlite
     schema: db/migrations
     queries: db/queries
     gen:
       go:
         package: dbgen
         out: internal/platform/database/dbgen
-        sql_package: pgx/v5
-        emit_interface: false
+        sql_package: database/sql
         emit_empty_slices: true
-        overrides:
-          - db_type: pg_catalog.timestamptz
-            go_type:
-              import: time
-              type: Time

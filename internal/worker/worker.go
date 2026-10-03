@@ -2,12 +2,9 @@ package worker
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/riverqueue/river"
+	"database/sql"
 
 	"buildx/internal/auth"
 	"buildx/internal/jobs"
@@ -19,8 +16,8 @@ import (
 )
 
 type Worker struct {
-	client *river.Client[pgx.Tx]
-	db     *pgxpool.Pool
+	client *jobs.Client
+	db     *sql.DB
 	log    *slog.Logger
 }
 
@@ -30,8 +27,12 @@ func New(ctx context.Context, cfg Config) (*Worker, error) {
 	if err != nil {
 		return nil, err
 	}
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := database.Open(ctx, cfg.DatabasePath)
 	if err != nil {
+		return nil, err
+	}
+	if err := database.RequireWAL(ctx, db); err != nil {
+		_ = db.Close()
 		return nil, err
 	}
 	sender, err := mail.NewSender(mail.Config{
@@ -43,22 +44,14 @@ func New(ctx context.Context, cfg Config) (*Worker, error) {
 		return nil, err
 	}
 	mailer := auth.NewAccountService(auth.NewAccountRepository(db, nil), auth.NewService(dbgen.New(db)), []byte(cfg.SessionSecret), cfg.PublicBaseURL, catalog)
-	client, err := jobs.NewClient(db, log, cfg.ShutdownPeriod, mailer, sender)
-	if err != nil {
-		db.Close()
-		return nil, err
-	}
+	client := jobs.NewClient(db, log, mailer, sender)
 	return &Worker{client: client, db: db, log: log}, nil
 }
 
 func (w *Worker) Run(ctx context.Context) error {
-	w.log.Info("worker starting", "queue", jobs.QueueMaintenance)
-	if err := w.client.Start(ctx); err != nil {
-		w.db.Close()
-		return fmt.Errorf("start worker: %w", err)
-	}
-	<-w.client.Stopped()
+	defer func() { _ = w.db.Close() }()
+	w.log.Info("worker starting")
+	err := w.client.Run(ctx)
 	w.log.Info("worker stopped")
-	w.db.Close()
-	return nil
+	return err
 }

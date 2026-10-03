@@ -11,17 +11,17 @@ import (
 	"buildx/internal/testsupport"
 )
 
-func TestSessionRevocationAndCSRFRenewalAgainstPostgres(t *testing.T) {
+func TestSessionRevocationAndCSRFRenewalAgainstSQLite(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
-	pool, _ := testsupport.MigratedPostgres(t, ctx)
+	pool, _ := testsupport.MigratedSQLite(t, ctx)
 	q := dbgen.New(pool)
 	u, err := q.CreateUser(ctx, dbgen.CreateUserParams{Email: fmt.Sprintf("session-%d@example.test", time.Now().UnixNano()), DisplayName: "Session", PasswordHash: "test-only"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		_, _ = pool.Exec(context.Background(), "DELETE FROM users WHERE id=$1", u.ID)
+		_, _ = pool.ExecContext(context.Background(), "DELETE FROM users WHERE id=$1", u.ID)
 	})
 	service := NewService(q)
 	cookie, oldCSRF, _, err := service.NewSession(ctx, u.ID)

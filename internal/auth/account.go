@@ -236,7 +236,7 @@ func (s *AccountService) verify(ctx context.Context, token string, userID int64)
 		return ErrInvalidChallenge
 	}
 	return s.repo.withinTransaction(ctx, func(tx *accountTx) error {
-		v, err := tx.challengeForUpdate(ctx, tokenHash(token))
+		v, err := tx.challengeInTransaction(ctx, tokenHash(token))
 		if err != nil {
 			return err
 		}
@@ -255,7 +255,7 @@ func (s *AccountService) CancelPending(ctx context.Context, token string) error 
 		return ErrInvalidChallenge
 	}
 	return s.repo.withinTransaction(ctx, func(tx *accountTx) error {
-		v, err := tx.challengeForUpdate(ctx, tokenHash(token))
+		v, err := tx.challengeInTransaction(ctx, tokenHash(token))
 		if err != nil {
 			return err
 		}
@@ -280,7 +280,7 @@ func (s *AccountService) requestChallenge(ctx context.Context, email string, pur
 		return nil // Public requests do not disclose whether an address is registered.
 	}
 	return s.repo.withinTransaction(ctx, func(tx *accountTx) error {
-		account, err := tx.accountForUpdate(ctx, email)
+		account, err := tx.accountInTransaction(ctx, email)
 		if errors.Is(err, errAccountNotFound) {
 			return nil
 		}
@@ -313,7 +313,7 @@ func (s *AccountService) Reset(ctx context.Context, token, password string) erro
 		return err
 	}
 	return s.repo.withinTransaction(ctx, func(tx *accountTx) error {
-		v, err := tx.challengeForUpdate(ctx, tokenHash(token))
+		v, err := tx.challengeInTransaction(ctx, tokenHash(token))
 		if err != nil {
 			return err
 		}

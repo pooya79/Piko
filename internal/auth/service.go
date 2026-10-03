@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/base64"
 	"errors"
 	"net/mail"
@@ -13,8 +14,6 @@ import (
 
 	"buildx/internal/locale"
 	"buildx/internal/platform/database/dbgen"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 var ErrSessionNotFound = errors.New("session not found")
@@ -62,7 +61,7 @@ func (s *Service) Authenticate(ctx context.Context, email, password string) (Use
 	}
 	v, e := s.q.GetUserByEmail(ctx, email)
 	if e != nil {
-		if errors.Is(e, pgx.ErrNoRows) {
+		if errors.Is(e, sql.ErrNoRows) {
 			return User{}, ErrInvalidCredentials
 		}
 		return User{}, e
@@ -93,7 +92,7 @@ func (s *Service) NewSession(ctx context.Context, userID int64) (cookie, csrf st
 		return "", "", time.Time{}, e
 	}
 	expires = time.Now().Add(s.ttl)
-	n, e := s.q.CreateSession(ctx, dbgen.CreateSessionParams{TokenHash: ch, ID: userID, CsrfHash: sh, ExpiresAt: pgtype.Timestamptz{Time: expires, Valid: true}})
+	n, e := s.q.CreateSession(ctx, dbgen.CreateSessionParams{TokenHash: ch, ID: userID, CsrfHash: sh, ExpiresAt: expires.UnixMilli()})
 	if e == nil && n == 0 {
 		e = ErrSessionNotFound
 	}
@@ -102,13 +101,13 @@ func (s *Service) NewSession(ctx context.Context, userID int64) (cookie, csrf st
 func (s *Service) LoadSession(ctx context.Context, cookie string) (Session, error) {
 	h := sha256.Sum256([]byte(cookie))
 	v, e := s.q.GetSession(ctx, h[:])
-	if errors.Is(e, pgx.ErrNoRows) {
+	if errors.Is(e, sql.ErrNoRows) {
 		return Session{}, ErrSessionNotFound
 	}
 	if e != nil {
 		return Session{}, e
 	}
-	return Session{User: User{ID: v.UserID, Email: v.Email, DisplayName: v.DisplayName, Verified: v.EmailVerifiedAt.Valid, Language: v.PreferredLanguage}, ExpiresAt: v.ExpiresAt.Time}, nil
+	return Session{User: User{ID: v.UserID, Email: v.Email, DisplayName: v.DisplayName, Verified: v.EmailVerifiedAt.Valid, Language: v.PreferredLanguage}, ExpiresAt: time.UnixMilli(v.ExpiresAt)}, nil
 }
 func (s *Service) VerifyCSRF(ctx context.Context, cookie, csrf string) bool {
 	if cookie == "" || csrf == "" {

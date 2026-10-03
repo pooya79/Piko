@@ -10,3 +10,8 @@
 .DS_Store
 playwright-report/
 test-results/
+
+/data/
+*.db
+*.db-wal
+*.db-shm

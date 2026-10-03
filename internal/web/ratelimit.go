@@ -1,24 +1,26 @@
 package web
 
 import (
-	"github.com/redis/go-redis/v9"
+	"database/sql"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
+
+	"buildx/internal/platform/database/dbgen"
 )
 
 type RateLimiter struct {
-	redis    *redis.Client
+	q        *dbgen.Queries
 	log      *slog.Logger
 	clientIP func(*http.Request) string
 }
 
-func NewRateLimiter(r *redis.Client, l *slog.Logger, ip func(*http.Request) string) *RateLimiter {
-	return &RateLimiter{redis: r, log: l, clientIP: ip}
+func NewRateLimiter(db *sql.DB, l *slog.Logger, ip func(*http.Request) string) *RateLimiter {
+	return &RateLimiter{q: dbgen.New(db), log: l, clientIP: ip}
 }
 
-// Middleware counts requests per bucket and client IP; Redis failures allow the request through.
+// Middleware counts requests per bucket and client IP; database failures allow the request through.
 func (l *RateLimiter) Middleware(bucket string, limit int, window time.Duration) func(http.Handler) http.Handler {
 	return l.middleware(bucket, limit, window, false)
 }
@@ -29,10 +31,11 @@ func (l *RateLimiter) middleware(bucket string, limit int, window time.Duration,
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			key := "rate:" + bucket + ":" + l.clientIP(r)
-			pipe := l.redis.TxPipeline()
-			count := pipe.Incr(r.Context(), key)
-			pipe.ExpireNX(r.Context(), key, window)
-			if _, e := pipe.Exec(r.Context()); e != nil {
+			now := time.Now()
+			rate, e := l.q.IncrementRateLimit(r.Context(), dbgen.IncrementRateLimitParams{
+				Key: key, ExpiresAt: now.Add(window).UnixMilli(),
+			})
+			if e != nil {
 				l.log.WarnContext(r.Context(), "rate limiter unavailable", "error", e, "bucket", bucket)
 				if failClosed {
 					RenderError(w, r, http.StatusServiceUnavailable, "Please try again later.")
@@ -41,13 +44,13 @@ func (l *RateLimiter) middleware(bucket string, limit int, window time.Duration,
 				next.ServeHTTP(w, r)
 				return
 			}
-			remaining := limit - int(count.Val())
+			remaining := limit - int(rate.Count)
 			if remaining < 0 {
 				remaining = 0
 			}
 			w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(remaining))
-			if count.Val() > int64(limit) {
-				w.Header().Set("Retry-After", strconv.Itoa(int(window.Seconds())))
+			if rate.Count > int64(limit) {
+				w.Header().Set("Retry-After", strconv.Itoa(max(1, int((time.Until(time.UnixMilli(rate.ExpiresAt))+time.Second-1)/time.Second))))
 				RenderError(w, r, http.StatusTooManyRequests, "Too many attempts. Try again later.")
 				return
 			}

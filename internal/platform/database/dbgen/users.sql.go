@@ -7,24 +7,22 @@ package dbgen
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (email, display_name, password_hash, preferred_language)
-VALUES ($1, $2, $3, COALESCE($4::text, 'fa')) RETURNING id, email, display_name, password_hash, email_verified_at, preferred_language, created_at
+VALUES (?1, ?2, ?3, COALESCE(?4, 'fa')) RETURNING id, email, display_name, password_hash, email_verified_at, preferred_language, created_at
 `
 
 type CreateUserParams struct {
 	Email             string
 	DisplayName       string
 	PasswordHash      string
-	PreferredLanguage pgtype.Text
+	PreferredLanguage interface{}
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createUser,
+	row := q.db.QueryRowContext(ctx, createUser,
 		arg.Email,
 		arg.DisplayName,
 		arg.PasswordHash,
@@ -44,23 +42,23 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 }
 
 const deletePendingAccount = `-- name: DeletePendingAccount :execrows
-DELETE FROM users WHERE id = $1 AND email_verified_at IS NULL
+DELETE FROM users WHERE id = ?1 AND email_verified_at IS NULL
 `
 
 func (q *Queries) DeletePendingAccount(ctx context.Context, id int64) (int64, error) {
-	result, err := q.db.Exec(ctx, deletePendingAccount, id)
+	result, err := q.db.ExecContext(ctx, deletePendingAccount, id)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+	return result.RowsAffected()
 }
 
-const getAccountByEmailForUpdate = `-- name: GetAccountByEmailForUpdate :one
-SELECT id, email, display_name, password_hash, email_verified_at, preferred_language, created_at FROM users WHERE email = $1 FOR UPDATE
+const getAccountByEmail = `-- name: GetAccountByEmail :one
+SELECT id, email, display_name, password_hash, email_verified_at, preferred_language, created_at FROM users WHERE email = ?1
 `
 
-func (q *Queries) GetAccountByEmailForUpdate(ctx context.Context, email string) (User, error) {
-	row := q.db.QueryRow(ctx, getAccountByEmailForUpdate, email)
+func (q *Queries) GetAccountByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getAccountByEmail, email)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -75,11 +73,11 @@ func (q *Queries) GetAccountByEmailForUpdate(ctx context.Context, email string) 
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, display_name, password_hash, email_verified_at, preferred_language, created_at FROM users WHERE email = $1
+SELECT id, email, display_name, password_hash, email_verified_at, preferred_language, created_at FROM users WHERE email = ?1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByEmail, email)
+	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -94,7 +92,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const updateAccountPassword = `-- name: UpdateAccountPassword :execrows
-UPDATE users SET password_hash = $2 WHERE id = $1 AND email_verified_at IS NOT NULL
+UPDATE users SET password_hash = ?2 WHERE id = ?1 AND email_verified_at IS NOT NULL
 `
 
 type UpdateAccountPasswordParams struct {
@@ -103,15 +101,15 @@ type UpdateAccountPasswordParams struct {
 }
 
 func (q *Queries) UpdateAccountPassword(ctx context.Context, arg UpdateAccountPasswordParams) (int64, error) {
-	result, err := q.db.Exec(ctx, updateAccountPassword, arg.ID, arg.PasswordHash)
+	result, err := q.db.ExecContext(ctx, updateAccountPassword, arg.ID, arg.PasswordHash)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+	return result.RowsAffected()
 }
 
 const updateUserLanguage = `-- name: UpdateUserLanguage :execrows
-UPDATE users SET preferred_language = $2 WHERE id = $1
+UPDATE users SET preferred_language = ?2 WHERE id = ?1
 `
 
 type UpdateUserLanguageParams struct {
@@ -120,21 +118,21 @@ type UpdateUserLanguageParams struct {
 }
 
 func (q *Queries) UpdateUserLanguage(ctx context.Context, arg UpdateUserLanguageParams) (int64, error) {
-	result, err := q.db.Exec(ctx, updateUserLanguage, arg.ID, arg.PreferredLanguage)
+	result, err := q.db.ExecContext(ctx, updateUserLanguage, arg.ID, arg.PreferredLanguage)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+	return result.RowsAffected()
 }
 
 const verifyAccountEmail = `-- name: VerifyAccountEmail :execrows
-UPDATE users SET email_verified_at = now() WHERE id = $1 AND email_verified_at IS NULL
+UPDATE users SET email_verified_at = CAST(unixepoch('subsec') * 1000 AS INTEGER) WHERE id = ?1 AND email_verified_at IS NULL
 `
 
 func (q *Queries) VerifyAccountEmail(ctx context.Context, id int64) (int64, error) {
-	result, err := q.db.Exec(ctx, verifyAccountEmail, id)
+	result, err := q.db.ExecContext(ctx, verifyAccountEmail, id)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected(), nil
+	return result.RowsAffected()
 }

@@ -2,123 +2,119 @@ package jobs
 
 import (
 	"context"
+	"crypto/rand"
+	"database/sql"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/riverqueue/river"
-	"github.com/riverqueue/river/riverdriver/riverpgxv5"
-	"github.com/riverqueue/river/rivertype"
-
 	"buildx/internal/platform/database/dbgen"
 )
 
-const (
-	QueueMaintenance = "maintenance"
+const maxEmailAttempts = 10
 
-	cleanupSessionsKind = "cleanup_sessions"
-)
-
-// Store is the database work performed by maintenance jobs.
-type Store interface {
-	DeleteExpiredSessions(context.Context) (int64, error)
-	DeleteExpiredAccountChallenges(context.Context) (int64, error)
-	DeleteExpiredSignupReceipts(context.Context) (int64, error)
+// Client leases durable email jobs across worker processes. SMTP runs outside
+// the claim transaction, with a shorter timeout than the lease. A crashed worker
+// leaves a lease that another worker can reclaim; acknowledgements are fenced
+// by a fresh token so stale workers cannot complete someone else's job.
+type Client struct {
+	q      *dbgen.Queries
+	log    *slog.Logger
+	mailer AccountMailer
+	sender EmailSender
 }
 
-type CleanupSessionsArgs struct{}
-
-func (CleanupSessionsArgs) Kind() string { return cleanupSessionsKind }
-
-func (CleanupSessionsArgs) InsertOpts() river.InsertOpts {
-	return maintenanceInsertOpts()
+func NewClient(db *sql.DB, log *slog.Logger, mailer AccountMailer, sender EmailSender) *Client {
+	return &Client{q: dbgen.New(db), log: log, mailer: mailer, sender: sender}
 }
 
-type CleanupSessionsWorker struct {
-	river.WorkerDefaults[CleanupSessionsArgs]
-	log   *slog.Logger
-	store Store
+func (c *Client) Run(ctx context.Context) error {
+	poll := time.NewTicker(time.Second)
+	defer poll.Stop()
+	cleanup := time.NewTicker(time.Hour)
+	defer cleanup.Stop()
+	if err := c.cleanup(ctx); err != nil && ctx.Err() == nil {
+		c.log.ErrorContext(ctx, "cleanup failed")
+	}
+	for {
+		if ctx.Err() != nil {
+			return nil
+		}
+		worked, err := c.workOne(ctx)
+		if err != nil && ctx.Err() == nil {
+			c.log.ErrorContext(ctx, "email queue operation failed")
+		}
+		if worked && err == nil {
+			continue
+		}
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-poll.C:
+		case <-cleanup.C:
+			if err := c.cleanup(ctx); err != nil && ctx.Err() == nil {
+				c.log.ErrorContext(ctx, "cleanup failed")
+			}
+		}
+	}
 }
 
-func (w *CleanupSessionsWorker) Work(ctx context.Context, _ *river.Job[CleanupSessionsArgs]) error {
-	count, err := w.store.DeleteExpiredSessions(ctx)
+func (c *Client) workOne(ctx context.Context) (bool, error) {
+	var token [16]byte
+	if _, err := rand.Read(token[:]); err != nil {
+		return false, err
+	}
+	now := time.Now()
+	job, err := c.q.ClaimAccountEmail(ctx, dbgen.ClaimAccountEmailParams{
+		LeaseToken: sql.NullString{String: hex.EncodeToString(token[:]), Valid: true},
+		LeaseUntil: sql.NullInt64{Int64: now.Add(time.Minute).UnixMilli(), Valid: true},
+		Now:        now.UnixMilli(),
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
 	if err != nil {
-		return fmt.Errorf("delete expired sessions: %w", err)
+		return false, fmt.Errorf("claim email: %w", err)
 	}
-	if count > 0 {
-		w.log.InfoContext(ctx, "expired sessions removed", "count", count)
+	sendCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	if job.Attempts > maxEmailAttempts {
+		// A crash during the last attempt leaves a reclaimable lease. Retire it
+		// without sending again once the delivery budget has been exhausted.
+		err = errors.New("email attempts exhausted")
+	} else {
+		err = sendAccountEmail(sendCtx, c.mailer, c.sender, job.Nonce)
 	}
-	challenges, err := w.store.DeleteExpiredAccountChallenges(ctx)
-	if err != nil {
-		return fmt.Errorf("delete expired account challenges: %w", err)
+	cancel()
+	if err == nil {
+		_, err := c.q.CompleteAccountEmail(ctx, dbgen.CompleteAccountEmailParams{ID: job.ID, LeaseToken: job.LeaseToken})
+		return true, err
 	}
-	if challenges > 0 {
-		w.log.InfoContext(ctx, "expired account challenges removed", "count", challenges)
+	// Avoid logging SMTP errors: they can contain account addresses or link data.
+	c.log.WarnContext(ctx, "account email delivery failed", "job_id", job.ID, "attempt", job.Attempts)
+	failed := sql.NullInt64{}
+	if job.Attempts >= maxEmailAttempts {
+		failed = sql.NullInt64{Int64: time.Now().UnixMilli(), Valid: true}
 	}
-	receipts, err := w.store.DeleteExpiredSignupReceipts(ctx)
-	if err != nil {
-		return fmt.Errorf("delete expired signup receipts: %w", err)
-	}
-	if receipts > 0 {
-		w.log.InfoContext(ctx, "expired signup receipts removed", "count", receipts)
-	}
-	return nil
+	delay := time.Second * time.Duration(1<<min(job.Attempts, 10))
+	_, err = c.q.RetryAccountEmail(ctx, dbgen.RetryAccountEmailParams{
+		ID: job.ID, LeaseToken: job.LeaseToken, FailedAt: failed,
+		AvailableAt: time.Now().Add(delay).UnixMilli(),
+	})
+	return true, err
 }
 
-func (*CleanupSessionsWorker) Timeout(*river.Job[CleanupSessionsArgs]) time.Duration {
-	return 30 * time.Second
-}
-
-// maintenanceInsertOpts prevents duplicate jobs while one is queued, retrying, or running.
-func maintenanceInsertOpts() river.InsertOpts {
-	return river.InsertOpts{
-		MaxAttempts: 5,
-		Queue:       QueueMaintenance,
-		UniqueOpts: river.UniqueOpts{
-			ByArgs:  true,
-			ByQueue: true,
-			ByState: []rivertype.JobState{
-				rivertype.JobStateAvailable,
-				rivertype.JobStatePending,
-				rivertype.JobStateRetryable,
-				rivertype.JobStateRunning,
-				rivertype.JobStateScheduled,
-			},
-		},
+func (c *Client) cleanup(ctx context.Context) error {
+	tasks := []func(context.Context) (int64, error){c.q.DeleteExpiredSessions, c.q.DeleteExpiredAccountChallenges, c.q.DeleteExpiredSignupReceipts}
+	for _, task := range tasks {
+		if _, err := task(ctx); err != nil {
+			return err
+		}
 	}
-}
-
-// NewClient runs the durable account-email queue and session cleanup.
-func NewClient(pool *pgxpool.Pool, log *slog.Logger, softStopTimeout time.Duration, mailer AccountMailer, sender EmailSender) (*river.Client[pgx.Tx], error) {
-	config := workerConfig(dbgen.New(pool), log, softStopTimeout)
-	river.AddWorker(config.Workers, &SendAccountEmailWorker{mailer: mailer, sender: sender})
-	config.Queues[QueueEmail] = river.QueueConfig{MaxWorkers: 2}
-	client, err := river.NewClient(riverpgxv5.New(pool), config)
-	if err != nil {
-		return nil, fmt.Errorf("create job client: %w", err)
+	if _, err := c.q.DeleteExpiredRateLimits(ctx); err != nil {
+		return err
 	}
-	return client, nil
-}
-
-func workerConfig(store Store, log *slog.Logger, softStopTimeout time.Duration) *river.Config {
-	workers := river.NewWorkers()
-	river.AddWorker(workers, &CleanupSessionsWorker{log: log, store: store})
-
-	return &river.Config{
-		Logger:          log,
-		SoftStopTimeout: softStopTimeout,
-		Queues: map[string]river.QueueConfig{
-			QueueMaintenance: {MaxWorkers: 2},
-		},
-		Workers: workers,
-		PeriodicJobs: []*river.PeriodicJob{
-			river.NewPeriodicJob(
-				river.PeriodicInterval(time.Hour),
-				func() (river.JobArgs, *river.InsertOpts) { return CleanupSessionsArgs{}, nil },
-				&river.PeriodicJobOpts{ID: cleanupSessionsKind, RunOnStart: true},
-			),
-		},
-	}
+	_, err := c.q.DeleteOldFailedEmails(ctx, sql.NullInt64{Int64: time.Now().Add(-24 * time.Hour).UnixMilli(), Valid: true})
+	return err
 }

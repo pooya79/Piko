@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -11,14 +12,11 @@ import (
 	"buildx/internal/auth"
 	"buildx/internal/jobs"
 	"buildx/internal/locale"
-	"buildx/internal/platform/cache"
 	"buildx/internal/platform/database"
 	"buildx/internal/platform/database/dbgen"
 	"buildx/internal/platform/logging"
 	webx "buildx/internal/web"
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/redis/go-redis/v9"
 )
 
 const (
@@ -33,8 +31,7 @@ const (
 type App struct {
 	cfg    Config
 	log    *slog.Logger
-	db     *pgxpool.Pool
-	redis  *redis.Client
+	db     *sql.DB
 	server *http.Server
 }
 
@@ -44,30 +41,24 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 	if e != nil {
 		return nil, e
 	}
-	db, e := database.Open(ctx, cfg.DatabaseURL)
+	db, e := database.Open(ctx, cfg.DatabasePath)
 	if e != nil {
 		return nil, e
 	}
-	redisClient, e := cache.Open(ctx, cfg.RedisURL)
-	if e != nil {
-		db.Close()
+	if e := database.RequireWAL(ctx, db); e != nil {
+		_ = db.Close()
 		return nil, e
 	}
 	q := dbgen.New(db)
 	authService := auth.NewService(q)
-	mailQueue, e := jobs.NewEmailEnqueuer(db, log)
-	if e != nil {
-		_ = redisClient.Close()
-		db.Close()
-		return nil, e
-	}
+	mailQueue := jobs.NewEmailEnqueuer()
 	accountService := auth.NewAccountService(auth.NewAccountRepository(db, mailQueue), authService, []byte(cfg.SessionSecret), cfg.PublicBaseURL, catalog)
 	authHandler := auth.NewHandler(authService, accountService, log, cfg.CookieSecure)
 	mw := webx.Middleware{LocaleCatalog: catalog, Auth: authService, Log: log, SecureCookie: cfg.CookieSecure, TrustedProxy: cfg.TrustedProxy, Secret: []byte(cfg.SessionSecret)}
-	limiter := webx.NewRateLimiter(redisClient, log, mw.ClientIP)
+	limiter := webx.NewRateLimiter(db, log, mw.ClientIP)
 	router := buildRouter(db, mw, limiter, authHandler)
 	server := &http.Server{Addr: cfg.HTTPAddr, Handler: router, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}
-	return &App{cfg: cfg, log: log, db: db, redis: redisClient, server: server}, nil
+	return &App{cfg: cfg, log: log, db: db, server: server}, nil
 }
 func (a *App) Run(ctx context.Context) error {
 	serverErr := make(chan error, 1)
@@ -89,15 +80,12 @@ func (a *App) Run(ctx context.Context) error {
 	if e := a.server.Shutdown(shutdownCtx); e != nil && runErr == nil {
 		runErr = fmt.Errorf("http shutdown: %w", e)
 	}
-	if e := a.redis.Close(); e != nil {
-		a.log.Warn("close redis", "error", e)
-	}
 	a.db.Close()
 	return runErr
 }
 
 // buildRouter loads sessions before CSRF checks so the latter can choose session-bound tokens.
-func buildRouter(db *pgxpool.Pool, mw webx.Middleware, limiter *webx.RateLimiter, ah *auth.Handler) http.Handler {
+func buildRouter(db *sql.DB, mw webx.Middleware, limiter *webx.RateLimiter, ah *auth.Handler) http.Handler {
 	r := chi.NewRouter()
 	// The inner recovery sees the account locale; the outer one also covers
 	// failures while loading the request locale or session.
@@ -114,7 +102,7 @@ func buildRouter(db *pgxpool.Pool, mw webx.Middleware, limiter *webx.RateLimiter
 	r.Get("/health/ready", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), time.Second)
 		defer cancel()
-		if e := db.Ping(ctx); e != nil {
+		if e := db.PingContext(ctx); e != nil {
 			http.Error(w, "not ready", http.StatusServiceUnavailable)
 			return
 		}

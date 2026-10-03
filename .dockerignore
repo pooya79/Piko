@@ -4,3 +4,8 @@ bin
 node_modules
 tmp
 coverage.out
+
+/data/
+*.db
+*.db-wal
+*.db-shm

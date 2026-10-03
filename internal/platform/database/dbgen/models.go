@@ -5,7 +5,7 @@
 package dbgen
 
 import (
-	"github.com/jackc/pgx/v5/pgtype"
+	"database/sql"
 )
 
 type AccountChallenge struct {
@@ -13,29 +13,45 @@ type AccountChallenge struct {
 	TokenHash []byte
 	UserID    int64
 	Purpose   string
-	ExpiresAt pgtype.Timestamptz
-	CreatedAt pgtype.Timestamptz
+	ExpiresAt int64
+	CreatedAt int64
 }
 
 type AccountEmailRequest struct {
 	UserID          int64
 	Purpose         string
-	LastRequestedAt pgtype.Timestamptz
+	LastRequestedAt int64
+}
+
+type EmailJob struct {
+	ID          int64
+	Nonce       string
+	Attempts    int64
+	AvailableAt int64
+	LeaseToken  sql.NullString
+	LeaseUntil  sql.NullInt64
+	FailedAt    sql.NullInt64
+}
+
+type RateLimit struct {
+	Key       string
+	Count     int64
+	ExpiresAt int64
 }
 
 type Session struct {
 	TokenHash []byte
 	UserID    int64
 	CsrfHash  []byte
-	ExpiresAt pgtype.Timestamptz
-	CreatedAt pgtype.Timestamptz
+	ExpiresAt int64
+	CreatedAt int64
 }
 
 type SignupReceipt struct {
 	TokenHash []byte
-	UserID    pgtype.Int8
-	ExpiresAt pgtype.Timestamptz
-	CreatedAt pgtype.Timestamptz
+	UserID    sql.NullInt64
+	ExpiresAt int64
+	CreatedAt int64
 }
 
 type User struct {
@@ -43,7 +59,7 @@ type User struct {
 	Email             string
 	DisplayName       string
 	PasswordHash      string
-	EmailVerifiedAt   pgtype.Timestamptz
+	EmailVerifiedAt   sql.NullInt64
 	PreferredLanguage string
-	CreatedAt         pgtype.Timestamptz
+	CreatedAt         int64
 }

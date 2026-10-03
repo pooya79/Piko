@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -16,12 +17,11 @@ import (
 	"buildx/internal/locale"
 	"buildx/internal/platform/database/dbgen"
 	"buildx/internal/testsupport"
-	"github.com/jackc/pgx/v5"
 )
 
 type capturedMailQueue struct{ challenges []string }
 
-func (q *capturedMailQueue) EnqueueChallenge(_ context.Context, _ pgx.Tx, nonce string) error {
+func (q *capturedMailQueue) EnqueueChallenge(_ context.Context, _ *sql.Tx, nonce string) error {
 	q.challenges = append(q.challenges, nonce)
 	return nil
 }
@@ -29,7 +29,7 @@ func (q *capturedMailQueue) EnqueueChallenge(_ context.Context, _ pgx.Tx, nonce 
 func TestVerificationStorageFailureKeepsFormAndOmitsPassword(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	pool, _ := testsupport.MigratedPostgres(t, ctx)
+	pool, _ := testsupport.MigratedSQLite(t, ctx)
 	queue := &capturedMailQueue{}
 	accounts := NewAccountService(NewAccountRepository(pool, queue), NewService(dbgen.New(pool)), []byte("test-secret-long-enough-for-account-links"), "http://localhost:8080", accountCatalog(t))
 	registration, err := accounts.Register(ctx, "verification-feedback@example.test", "Mina", "private-password-123", "en")
@@ -46,8 +46,7 @@ func TestVerificationStorageFailureKeepsFormAndOmitsPassword(t *testing.T) {
 	}
 	// Fail at the database boundary after challenge loading, without replacing
 	// service logic or exposing a test-only production interface.
-	if _, err := pool.Exec(ctx, `CREATE FUNCTION reject_verification() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test storage failure'; END $$;
-		CREATE TRIGGER reject_verification BEFORE UPDATE OF email_verified_at ON users FOR EACH ROW EXECUTE FUNCTION reject_verification()`); err != nil {
+	if _, err := pool.ExecContext(ctx, `CREATE TRIGGER reject_verification BEFORE UPDATE OF email_verified_at ON users BEGIN SELECT RAISE(ABORT, 'test storage failure'); END`); err != nil {
 		t.Fatal(err)
 	}
 	handler := NewHandler(nil, accounts, slog.New(slog.NewTextHandler(io.Discard, nil)), false)
@@ -149,7 +148,7 @@ func TestQueuedVerificationUsesLanguageAtDelivery(t *testing.T) {
 		t.Run(tc.registered+"_to_"+tc.delivered, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 			defer cancel()
-			pool, _ := testsupport.MigratedPostgres(t, ctx)
+			pool, _ := testsupport.MigratedSQLite(t, ctx)
 			queue := &capturedMailQueue{}
 			accounts := NewAccountService(NewAccountRepository(pool, queue), NewService(dbgen.New(pool)), []byte("a-test-secret-that-is-long-enough-to-use"), "http://localhost:8080", accountCatalog(t))
 			email := fmt.Sprintf("language-%d@example.test", time.Now().UnixNano())
@@ -158,7 +157,7 @@ func TestQueuedVerificationUsesLanguageAtDelivery(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() {
-				_, _ = pool.Exec(context.Background(), "DELETE FROM users WHERE id=$1", registration.Account.ID)
+				_, _ = pool.ExecContext(context.Background(), "DELETE FROM users WHERE id=$1", registration.Account.ID)
 			})
 			if len(queue.challenges) != 1 {
 				t.Fatalf("queued challenges=%d", len(queue.challenges))
@@ -190,7 +189,7 @@ func TestQueuedRecoveryUsesLanguageAtDelivery(t *testing.T) {
 		t.Run(tc.registered+"_to_"+tc.delivered, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 			defer cancel()
-			pool, _ := testsupport.MigratedPostgres(t, ctx)
+			pool, _ := testsupport.MigratedSQLite(t, ctx)
 			queue := &capturedMailQueue{}
 			credentials := NewService(dbgen.New(pool))
 			accounts := NewAccountService(NewAccountRepository(pool, queue), credentials, []byte("a-test-secret-that-is-long-enough-to-use"), "http://localhost:8080", accountCatalog(t))
@@ -200,7 +199,7 @@ func TestQueuedRecoveryUsesLanguageAtDelivery(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() {
-				_, _ = pool.Exec(context.Background(), "DELETE FROM users WHERE id=$1", registration.Account.ID)
+				_, _ = pool.ExecContext(context.Background(), "DELETE FROM users WHERE id=$1", registration.Account.ID)
 			})
 			verifyMail, err := accounts.MessageForChallenge(ctx, queue.challenges[0])
 			if err != nil {
@@ -240,7 +239,7 @@ func TestRecoveryRouteJourneyInBothLanguages(t *testing.T) {
 		t.Run(tc.language, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 			defer cancel()
-			pool, _ := testsupport.MigratedPostgres(t, ctx)
+			pool, _ := testsupport.MigratedSQLite(t, ctx)
 			queue := &capturedMailQueue{}
 			accounts := NewAccountService(NewAccountRepository(pool, queue), NewService(dbgen.New(pool)), []byte("a-test-secret-that-is-long-enough-to-use"), "http://localhost:8080", accountCatalog(t))
 			email := fmt.Sprintf("recovery-route-%d@example.test", time.Now().UnixNano())
@@ -249,7 +248,7 @@ func TestRecoveryRouteJourneyInBothLanguages(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() {
-				_, _ = pool.Exec(context.Background(), "DELETE FROM users WHERE id=$1", registration.Account.ID)
+				_, _ = pool.ExecContext(context.Background(), "DELETE FROM users WHERE id=$1", registration.Account.ID)
 			})
 			verifyMail, err := accounts.MessageForChallenge(ctx, queue.challenges[0])
 			if err != nil {
@@ -307,7 +306,7 @@ func TestRecoveryRouteJourneyInBothLanguages(t *testing.T) {
 func TestPendingAccountRequiresEmailVerification(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
-	pool, _ := testsupport.MigratedPostgres(t, ctx)
+	pool, _ := testsupport.MigratedSQLite(t, ctx)
 	queue := &capturedMailQueue{}
 	accounts := NewAccountService(NewAccountRepository(pool, queue), NewService(dbgen.New(pool)), []byte("a-test-secret-that-is-long-enough-to-use"), "http://localhost:8080", accountCatalog(t))
 	email := fmt.Sprintf("pending-%d@example.test", time.Now().UnixNano())
@@ -316,7 +315,7 @@ func TestPendingAccountRequiresEmailVerification(t *testing.T) {
 		t.Fatal(err)
 	}
 	account := registration.Account
-	t.Cleanup(func() { _, _ = pool.Exec(context.Background(), "DELETE FROM users WHERE id=$1", account.ID) })
+	t.Cleanup(func() { _, _ = pool.ExecContext(context.Background(), "DELETE FROM users WHERE id=$1", account.ID) })
 	credentials := NewService(dbgen.New(pool))
 	pending, err := credentials.Authenticate(ctx, email, "a-strong-password-1")
 	if err != nil || pending.Verified {
@@ -358,7 +357,7 @@ func TestPendingAccountRequiresEmailVerification(t *testing.T) {
 func TestRecoveryRevokesSessionsAndConsumesLink(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
-	pool, _ := testsupport.MigratedPostgres(t, ctx)
+	pool, _ := testsupport.MigratedSQLite(t, ctx)
 	queue := &capturedMailQueue{}
 	accounts := NewAccountService(NewAccountRepository(pool, queue), NewService(dbgen.New(pool)), []byte("a-test-secret-that-is-long-enough-to-use"), "http://localhost:8080", accountCatalog(t))
 	email := fmt.Sprintf("recovery-%d@example.test", time.Now().UnixNano())
@@ -367,7 +366,7 @@ func TestRecoveryRevokesSessionsAndConsumesLink(t *testing.T) {
 		t.Fatal(err)
 	}
 	account := registration.Account
-	t.Cleanup(func() { _, _ = pool.Exec(context.Background(), "DELETE FROM users WHERE id=$1", account.ID) })
+	t.Cleanup(func() { _, _ = pool.ExecContext(context.Background(), "DELETE FROM users WHERE id=$1", account.ID) })
 	verifyMessage, err := accounts.MessageForChallenge(ctx, queue.challenges[0])
 	if err != nil {
 		t.Fatal(err)
@@ -416,7 +415,7 @@ func TestRecoveryRevokesSessionsAndConsumesLink(t *testing.T) {
 func TestMailboxOwnerCanCancelPendingAccount(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
-	pool, _ := testsupport.MigratedPostgres(t, ctx)
+	pool, _ := testsupport.MigratedSQLite(t, ctx)
 	queue := &capturedMailQueue{}
 	accounts := NewAccountService(NewAccountRepository(pool, queue), NewService(dbgen.New(pool)), []byte("a-test-secret-that-is-long-enough-to-use"), "http://localhost:8080", accountCatalog(t))
 	email := fmt.Sprintf("cancel-%d@example.test", time.Now().UnixNano())
@@ -425,7 +424,7 @@ func TestMailboxOwnerCanCancelPendingAccount(t *testing.T) {
 		t.Fatal(err)
 	}
 	account := registration.Account
-	t.Cleanup(func() { _, _ = pool.Exec(context.Background(), "DELETE FROM users WHERE email=$1", email) })
+	t.Cleanup(func() { _, _ = pool.ExecContext(context.Background(), "DELETE FROM users WHERE email=$1", email) })
 	message, err := accounts.MessageForChallenge(ctx, queue.challenges[0])
 	if err != nil {
 		t.Fatal(err)
@@ -456,9 +455,9 @@ func TestRegistrationResponseDoesNotRevealExistingAddress(t *testing.T) {
 		t.Run(tc.language, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 			defer cancel()
-			pool, _ := testsupport.MigratedPostgres(t, ctx)
+			pool, _ := testsupport.MigratedSQLite(t, ctx)
 			email := fmt.Sprintf("uniform-%d@example.test", time.Now().UnixNano())
-			t.Cleanup(func() { _, _ = pool.Exec(context.Background(), "DELETE FROM users WHERE email=$1", email) })
+			t.Cleanup(func() { _, _ = pool.ExecContext(context.Background(), "DELETE FROM users WHERE email=$1", email) })
 			queue := &capturedMailQueue{}
 			accounts := NewAccountService(NewAccountRepository(pool, queue), NewService(dbgen.New(pool)), []byte("a-test-secret-that-is-long-enough-to-use"), "http://localhost:8080", accountCatalog(t))
 			handler := NewHandler(NewService(dbgen.New(pool)), accounts, slog.New(slog.NewTextHandler(io.Discard, nil)), false)
@@ -528,7 +527,7 @@ func TestVerificationJourneyRendersBothLanguages(t *testing.T) {
 		t.Run(tc.language, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 			defer cancel()
-			pool, _ := testsupport.MigratedPostgres(t, ctx)
+			pool, _ := testsupport.MigratedSQLite(t, ctx)
 			queue := &capturedMailQueue{}
 			accounts := NewAccountService(NewAccountRepository(pool, queue), NewService(dbgen.New(pool)), []byte("a-test-secret-that-is-long-enough-to-use"), "http://localhost:8080", accountCatalog(t))
 			email := fmt.Sprintf("journey-%d@example.test", time.Now().UnixNano())
@@ -537,7 +536,7 @@ func TestVerificationJourneyRendersBothLanguages(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() {
-				_, _ = pool.Exec(context.Background(), "DELETE FROM users WHERE id=$1", registration.Account.ID)
+				_, _ = pool.ExecContext(context.Background(), "DELETE FROM users WHERE id=$1", registration.Account.ID)
 			})
 			message, err := accounts.MessageForChallenge(ctx, queue.challenges[0])
 			if err != nil {
@@ -603,7 +602,7 @@ func TestVerificationJourneyRendersBothLanguages(t *testing.T) {
 func TestVerificationRequiresPasswordOutsideSignupBrowser(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
-	pool, _ := testsupport.MigratedPostgres(t, ctx)
+	pool, _ := testsupport.MigratedSQLite(t, ctx)
 	queue := &capturedMailQueue{}
 	accounts := NewAccountService(NewAccountRepository(pool, queue), NewService(dbgen.New(pool)), []byte("a-test-secret-that-is-long-enough-to-use"), "http://localhost:8080", accountCatalog(t))
 	email := fmt.Sprintf("remote-%d@example.test", time.Now().UnixNano())
@@ -612,7 +611,7 @@ func TestVerificationRequiresPasswordOutsideSignupBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		_, _ = pool.Exec(context.Background(), "DELETE FROM users WHERE id=$1", registration.Account.ID)
+		_, _ = pool.ExecContext(context.Background(), "DELETE FROM users WHERE id=$1", registration.Account.ID)
 	})
 	message, err := accounts.MessageForChallenge(ctx, queue.challenges[0])
 	if err != nil {

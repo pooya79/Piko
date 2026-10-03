@@ -12,8 +12,7 @@ import (
 type Config struct {
 	Environment    string
 	HTTPAddr       string
-	DatabaseURL    string
-	RedisURL       string
+	DatabasePath   string
 	SessionSecret  string
 	PublicBaseURL  string
 	LogLevel       string
@@ -26,8 +25,7 @@ func LoadConfig() (Config, error) {
 	cfg := Config{
 		Environment:    env("APP_ENV", "development"),
 		HTTPAddr:       env("HTTP_ADDR", ":8080"),
-		DatabaseURL:    os.Getenv("DATABASE_URL"),
-		RedisURL:       os.Getenv("REDIS_URL"),
+		DatabasePath:   os.Getenv("DATABASE_PATH"),
 		SessionSecret:  os.Getenv("SESSION_SECRET"),
 		PublicBaseURL:  env("PUBLIC_BASE_URL", "http://localhost:8080"),
 		LogLevel:       env("LOG_LEVEL", "info"),
@@ -40,11 +38,8 @@ func LoadConfig() (Config, error) {
 	if cfg.CookieSecure, err = boolEnv("COOKIE_SECURE", cfg.Environment == "production"); err != nil {
 		return Config{}, err
 	}
-	if cfg.DatabaseURL == "" {
-		return Config{}, errors.New("DATABASE_URL is required")
-	}
-	if cfg.RedisURL == "" {
-		return Config{}, errors.New("REDIS_URL is required")
+	if cfg.DatabasePath == "" {
+		return Config{}, errors.New("DATABASE_PATH is required")
 	}
 	if len(cfg.SessionSecret) < 32 {
 		return Config{}, errors.New("SESSION_SECRET must be at least 32 characters")
