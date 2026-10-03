@@ -20,7 +20,7 @@
 }
 
 @plugin "daisyui/theme" {
-  name: buildx-light;
+  name: piko-light;
   default: true;
   prefersdark: false;
   color-scheme: light;
@@ -57,7 +57,7 @@
 }
 
 @plugin "daisyui/theme" {
-  name: buildx-dark;
+  name: piko-dark;
   default: false;
   prefersdark: false;
   color-scheme: dark;
@@ -99,23 +99,23 @@
 
 @layer base {
   :root,
-  [data-theme="buildx-light"] {
+  [data-theme="piko-light"] {
     /* Opaque roles stay readable on cards, canvas, and softly tinted surfaces. */
-    --buildx-text-secondary: #536174;
-    --buildx-text-placeholder: #596579;
-    --buildx-control-border: #758195;
-    --buildx-selection: #dce6ff;
+    --piko-text-secondary: #536174;
+    --piko-text-placeholder: #596579;
+    --piko-control-border: #758195;
+    --piko-selection: #dce6ff;
   }
-  [data-theme="buildx-dark"] {
-    --buildx-text-secondary: #b5bdcb;
-    --buildx-text-placeholder: #a6b0c0;
-    --buildx-control-border: #778397;
-    --buildx-selection: #314f8d;
+  [data-theme="piko-dark"] {
+    --piko-text-secondary: #b5bdcb;
+    --piko-text-placeholder: #a6b0c0;
+    --piko-control-border: #778397;
+    --piko-selection: #314f8d;
   }
 }
 
 @utility text-muted {
-  color: var(--buildx-text-secondary);
+  color: var(--piko-text-secondary);
 }
 
 @layer base {
@@ -134,7 +134,7 @@
     -webkit-tap-highlight-color: transparent;
   }
   ::selection {
-    background: var(--buildx-selection);
+    background: var(--piko-selection);
     color: var(--color-base-content);
   }
 }

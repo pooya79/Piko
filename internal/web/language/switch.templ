@@ -1,10 +1,10 @@
 package language
 
-import "buildx/internal/locale"
+import "github.com/pooya79/Piko/internal/locale"
 
 // Switcher uses ordinary POST forms so it works with a keyboard and without JavaScript.
 templ Switcher(csrf string) {
-    <div class="buildx-language-switch" role="group" aria-label={ locale.T(ctx, "language.switch.label") }>
+    <div class="piko-language-switch" role="group" aria-label={ locale.T(ctx, "language.switch.label") }>
         <form method="post" action="/language">
             <input type="hidden" name="csrf_token" value={ csrf }/>
             <input type="hidden" name="return_to" value={ locale.ReturnTo(ctx) }/>

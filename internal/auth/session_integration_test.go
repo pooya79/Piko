@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"buildx/internal/platform/database/dbgen"
-	"buildx/internal/testsupport"
+	"github.com/pooya79/Piko/internal/platform/database/dbgen"
+	"github.com/pooya79/Piko/internal/testsupport"
 )
 
 func TestSessionRevocationAndCSRFRenewalAgainstSQLite(t *testing.T) {

@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"buildx/internal/locale"
-	"buildx/internal/platform/database/dbgen"
-	"buildx/internal/testsupport"
+	"github.com/pooya79/Piko/internal/locale"
+	"github.com/pooya79/Piko/internal/platform/database/dbgen"
+	"github.com/pooya79/Piko/internal/testsupport"
 )
 
 type capturedMailQueue struct{ challenges []string }

@@ -84,7 +84,7 @@ func TestSenderDeliversPersianMessage(t *testing.T) {
 			}
 		}
 	}()
-	sender, err := NewSender(Config{Address: listener.Addr().String(), From: "buildx@example.test"})
+	sender, err := NewSender(Config{Address: listener.Addr().String(), From: "piko@example.test"})
 	if err != nil {
 		t.Fatal(err)
 	}

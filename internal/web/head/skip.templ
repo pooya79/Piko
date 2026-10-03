@@ -1,8 +1,8 @@
 package head
 
-import "buildx/internal/locale"
+import "github.com/pooya79/Piko/internal/locale"
 
 // SkipLink precedes repeated navigation in the document's reading order.
 templ SkipLink() {
-	<a class="buildx-skip-link" href="#main-content">{ locale.T(ctx, "web.skip.content") }</a>
+	<a class="piko-skip-link" href="#main-content">{ locale.T(ctx, "web.skip.content") }</a>
 }

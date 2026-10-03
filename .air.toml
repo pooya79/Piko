@@ -3,8 +3,8 @@ tmp_dir = "tmp"
 env_files = [".env"]
 
 [build]
-cmd = "go build -o ./tmp/buildx-dev ./cmd/server"
-entrypoint = ["./tmp/buildx-dev"]
+cmd = "go build -o ./tmp/piko-dev ./cmd/server"
+entrypoint = ["./tmp/piko-dev"]
 include_ext = ["go"]
 exclude_dir = ["bin", "db", "docs", "node_modules", "static", "tmp"]
 exclude_regex = ["_test\\.go"]

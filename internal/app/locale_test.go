@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"buildx/internal/auth"
-	"buildx/internal/locale"
-	webx "buildx/internal/web"
+	"github.com/pooya79/Piko/internal/auth"
+	"github.com/pooya79/Piko/internal/locale"
+	webx "github.com/pooya79/Piko/internal/web"
 	"golang.org/x/net/html"
 )
 
@@ -213,7 +213,7 @@ func TestPublicWordmarkKeepsLatinDirection(t *testing.T) {
 				found := false
 				var visit func(*html.Node)
 				visit = func(node *html.Node) {
-					if node.Type == html.ElementNode && node.Data == "a" && node.FirstChild != nil && node.FirstChild.Data == "buildx" {
+					if node.Type == html.ElementNode && node.Data == "a" && node.FirstChild != nil && node.FirstChild.Data == "Piko" {
 						found = true
 						attributes := map[string]string{}
 						for _, attr := range node.Attr {

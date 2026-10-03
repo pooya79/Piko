@@ -12,8 +12,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"buildx/internal/locale"
-	"buildx/internal/platform/database/dbgen"
+	"github.com/pooya79/Piko/internal/locale"
+	"github.com/pooya79/Piko/internal/platform/database/dbgen"
 )
 
 var ErrSessionNotFound = errors.New("session not found")

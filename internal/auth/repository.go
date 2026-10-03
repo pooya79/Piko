@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"buildx/internal/platform/database/dbgen"
+	"github.com/pooya79/Piko/internal/platform/database/dbgen"
 	"modernc.org/sqlite"
 )
 

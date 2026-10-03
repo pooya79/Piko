@@ -1,6 +1,6 @@
 .PHONY: dev prod prod-worker worker build test test-race vet lint security generate css css-watch templ sqlc infra-up infra-down migrate-up migrate-down migrate-create seed
 
-GOCACHE ?= /tmp/buildx-go-cache
+GOCACHE ?= /tmp/piko-go-cache
 GO := GOFLAGS=-buildvcs=false GOCACHE=$(GOCACHE) go
 
 dev: templ css
@@ -12,15 +12,15 @@ worker:
 prod: build
 	@set -a; . ./.env; set +a; \
 		test "$$APP_ENV" = "production" || { echo "make prod requires APP_ENV=production"; exit 1; }; \
-		./bin/buildx
+		./bin/piko
 prod-worker: build
 	@set -a; . ./.env; set +a; \
 		test "$$APP_ENV" = "production" || { echo "make prod-worker requires APP_ENV=production"; exit 1; }; \
-		./bin/buildx-worker
+		./bin/piko-worker
 build: css
-	$(GO) build -o bin/buildx ./cmd/server
-	$(GO) build -o bin/buildx-worker ./cmd/worker
-	$(GO) build -o bin/buildx-migrate ./cmd/migrate
+	$(GO) build -o bin/piko ./cmd/server
+	$(GO) build -o bin/piko-worker ./cmd/worker
+	$(GO) build -o bin/piko-migrate ./cmd/migrate
 test:
 	$(GO) test ./...
 test-race:

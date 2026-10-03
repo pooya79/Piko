@@ -15,18 +15,18 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/buildx ./cmd/server && \
-    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/buildx-worker ./cmd/worker && \
-    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/buildx-migrate ./cmd/migrate
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/piko ./cmd/server && \
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/piko-worker ./cmd/worker && \
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/piko-migrate ./cmd/migrate
 
 FROM alpine:3.24.2
-RUN addgroup -S buildx && adduser -S -G buildx buildx && mkdir /data && chown buildx:buildx /data
-ENV DATABASE_PATH=/data/buildx.db
+RUN addgroup -S piko && adduser -S -G piko piko && mkdir /data && chown piko:piko /data
+ENV DATABASE_PATH=/data/piko.db
 WORKDIR /app
-COPY --from=build /out/buildx /app/buildx
-COPY --from=build /out/buildx-worker /app/buildx-worker
-COPY --from=build /out/buildx-migrate /app/buildx-migrate
+COPY --from=build /out/piko /app/piko
+COPY --from=build /out/piko-worker /app/piko-worker
+COPY --from=build /out/piko-migrate /app/piko-migrate
 COPY --from=styles /src/static /app/static
-USER buildx
+USER piko
 EXPOSE 8080
-ENTRYPOINT ["/app/buildx"]
+ENTRYPOINT ["/app/piko"]

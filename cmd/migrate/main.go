@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"buildx/internal/platform/database"
+	"github.com/pooya79/Piko/internal/platform/database"
 )
 
 func main() {
@@ -25,7 +25,7 @@ func run(ctx context.Context, args []string) error {
 		return create(args[1])
 	}
 	if len(args) != 1 || (args[0] != "up" && args[0] != "down" && args[0] != "seed") {
-		return errors.New("usage: buildx-migrate up|down|seed|create name")
+		return errors.New("usage: piko-migrate up|down|seed|create name")
 	}
 	if args[0] == "seed" && os.Getenv("APP_ENV") != "development" {
 		return errors.New("seeding requires APP_ENV=development")

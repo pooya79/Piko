@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"buildx/internal/auth"
+	"github.com/pooya79/Piko/internal/auth"
 )
 
 type revokedSessionService struct{}

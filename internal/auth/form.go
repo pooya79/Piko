@@ -3,7 +3,7 @@ package auth
 import (
 	"net/http"
 
-	forms "buildx/internal/web/form"
+	forms "github.com/pooya79/Piko/internal/web/form"
 )
 
 // AccountForm retains only non-sensitive editable values. Passwords, receipts,

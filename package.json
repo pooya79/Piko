@@ -1,5 +1,5 @@
 {
-  "name": "buildx-ui",
+  "name": "piko-ui",
   "private": true,
   "packageManager": "pnpm@12.6.0",
   "scripts": {

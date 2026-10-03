@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"buildx/internal/worker"
+	"github.com/pooya79/Piko/internal/worker"
 )
 
 func main() {

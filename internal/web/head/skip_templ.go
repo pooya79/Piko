@@ -8,7 +8,7 @@ package head
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import "buildx/internal/locale"
+import "github.com/pooya79/Piko/internal/locale"
 
 // SkipLink precedes repeated navigation in the document's reading order.
 func SkipLink() templ.Component {
@@ -32,14 +32,14 @@ func SkipLink() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<a class=\"buildx-skip-link\" href=\"#main-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<a class=\"piko-skip-link\" href=\"#main-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "web.skip.content"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/head/skip.templ`, Line: 7, Col: 85}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/head/skip.templ`, Line: 7, Col: 83}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {

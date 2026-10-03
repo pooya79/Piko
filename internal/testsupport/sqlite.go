@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"buildx/internal/platform/database"
+	"github.com/pooya79/Piko/internal/platform/database"
 )
 
 func MigratedSQLite(t *testing.T, ctx context.Context) (*sql.DB, string) {

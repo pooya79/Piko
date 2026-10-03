@@ -1,4 +1,4 @@
-module buildx
+module github.com/pooya79/Piko
 
 go 1.27.1
 

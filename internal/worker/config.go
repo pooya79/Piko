@@ -27,7 +27,7 @@ func LoadConfig() (Config, error) {
 		SessionSecret: os.Getenv("SESSION_SECRET"),
 		PublicBaseURL: env("PUBLIC_BASE_URL", "http://localhost:8080"),
 		SMTPAddress:   env("SMTP_ADDR", "localhost:1025"),
-		SMTPFrom:      env("SMTP_FROM", "buildx@localhost.test"),
+		SMTPFrom:      env("SMTP_FROM", "piko@localhost.test"),
 		SMTPUsername:  os.Getenv("SMTP_USERNAME"),
 		SMTPPassword:  os.Getenv("SMTP_PASSWORD"),
 		LogLevel:      env("LOG_LEVEL", "info"),

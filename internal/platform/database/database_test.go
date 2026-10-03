@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"buildx/internal/platform/database"
-	"buildx/internal/testsupport"
+	"github.com/pooya79/Piko/internal/platform/database"
+	"github.com/pooya79/Piko/internal/testsupport"
 )
 
 func TestMigrationLifecycleAndSeed(t *testing.T) {

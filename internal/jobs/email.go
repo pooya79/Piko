@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"buildx/internal/auth"
-	"buildx/internal/platform/database/dbgen"
+	"github.com/pooya79/Piko/internal/auth"
+	"github.com/pooya79/Piko/internal/platform/database/dbgen"
 )
 
 type AccountMailer interface {

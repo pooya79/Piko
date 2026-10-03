@@ -14,7 +14,7 @@ import (
 	"golang.org/x/text/language"
 )
 
-const CookieName = "buildx_language"
+const CookieName = "piko_language"
 
 //go:embed en.json fa.json
 var catalogs embed.FS

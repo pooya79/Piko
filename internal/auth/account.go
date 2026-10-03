@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"buildx/internal/locale"
+	"github.com/pooya79/Piko/internal/locale"
 )
 
 // Policy values live in Go; transport details and public origin vary by deployment.
@@ -140,6 +140,7 @@ func (s *AccountService) createChallenge(ctx context.Context, tx *accountTx, use
 
 func (s *AccountService) deriveToken(nonce []byte, purpose challengePurpose) string {
 	mac := hmac.New(sha256.New, s.secret)
+	// Keep this signing namespace stable so existing account links and queued emails remain valid.
 	_, _ = mac.Write([]byte("buildx-account-" + string(purpose) + ":"))
 	_, _ = mac.Write(nonce)
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))

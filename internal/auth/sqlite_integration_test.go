@@ -8,9 +8,9 @@ import (
 	"sync"
 	"testing"
 
-	"buildx/internal/platform/database"
-	"buildx/internal/platform/database/dbgen"
-	"buildx/internal/testsupport"
+	"github.com/pooya79/Piko/internal/platform/database"
+	"github.com/pooya79/Piko/internal/platform/database/dbgen"
+	"github.com/pooya79/Piko/internal/testsupport"
 )
 
 func TestConcurrentVerificationConsumesLinkOnce(t *testing.T) {

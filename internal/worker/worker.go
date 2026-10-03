@@ -6,13 +6,13 @@ import (
 
 	"database/sql"
 
-	"buildx/internal/auth"
-	"buildx/internal/jobs"
-	"buildx/internal/locale"
-	"buildx/internal/mail"
-	"buildx/internal/platform/database"
-	"buildx/internal/platform/database/dbgen"
-	"buildx/internal/platform/logging"
+	"github.com/pooya79/Piko/internal/auth"
+	"github.com/pooya79/Piko/internal/jobs"
+	"github.com/pooya79/Piko/internal/locale"
+	"github.com/pooya79/Piko/internal/mail"
+	"github.com/pooya79/Piko/internal/platform/database"
+	"github.com/pooya79/Piko/internal/platform/database/dbgen"
+	"github.com/pooya79/Piko/internal/platform/logging"
 )
 
 type Worker struct {

@@ -8,7 +8,7 @@ package language
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import "buildx/internal/locale"
+import "github.com/pooya79/Piko/internal/locale"
 
 // Switcher uses ordinary POST forms so it works with a keyboard and without JavaScript.
 func Switcher(csrf string) templ.Component {
@@ -32,14 +32,14 @@ func Switcher(csrf string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"buildx-language-switch\" role=\"group\" aria-label=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"piko-language-switch\" role=\"group\" aria-label=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(locale.T(ctx, "language.switch.label"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/language/switch.templ`, Line: 7, Col: 104}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/language/switch.templ`, Line: 7, Col: 102}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {

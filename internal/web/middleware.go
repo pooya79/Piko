@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"buildx/internal/auth"
-	"buildx/internal/locale"
-	"buildx/internal/web/request"
+	"github.com/pooya79/Piko/internal/auth"
+	"github.com/pooya79/Piko/internal/locale"
+	"github.com/pooya79/Piko/internal/web/request"
 )
 
 type Middleware struct {

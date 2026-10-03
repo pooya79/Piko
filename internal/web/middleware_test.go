@@ -1,8 +1,8 @@
 package web
 
 import (
-	"buildx/internal/auth"
-	"buildx/internal/locale"
+	"github.com/pooya79/Piko/internal/auth"
+	"github.com/pooya79/Piko/internal/locale"
 	"io"
 	"log/slog"
 	"net/http"

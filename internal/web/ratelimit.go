@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"buildx/internal/platform/database/dbgen"
+	"github.com/pooya79/Piko/internal/platform/database/dbgen"
 )
 
 type RateLimiter struct {

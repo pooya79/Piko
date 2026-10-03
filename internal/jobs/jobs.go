@@ -10,7 +10,7 @@ import (
 	"log/slog"
 	"time"
 
-	"buildx/internal/platform/database/dbgen"
+	"github.com/pooya79/Piko/internal/platform/database/dbgen"
 )
 
 const maxEmailAttempts = 10

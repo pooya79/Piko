@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"buildx/internal/locale"
-	"buildx/internal/platform/database"
-	"buildx/internal/testsupport"
+	"github.com/pooya79/Piko/internal/locale"
+	"github.com/pooya79/Piko/internal/platform/database"
+	"github.com/pooya79/Piko/internal/testsupport"
 )
 
 func TestRateLimitSharedAcrossConnectionsAndExpires(t *testing.T) {

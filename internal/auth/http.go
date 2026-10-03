@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"time"
 
-	"buildx/internal/locale"
-	forms "buildx/internal/web/form"
-	"buildx/internal/web/request"
 	"github.com/a-h/templ"
+	"github.com/pooya79/Piko/internal/locale"
+	forms "github.com/pooya79/Piko/internal/web/form"
+	"github.com/pooya79/Piko/internal/web/request"
 )
 
 type contextKey struct{}
@@ -23,9 +23,9 @@ func UserFromContext(ctx context.Context) (User, bool) {
 	return u, ok
 }
 
-const SessionCookie = "buildx_session"
-const CSRFCookie = "buildx_csrf"
-const SignupCookie = "buildx_signup"
+const SessionCookie = "piko_session"
+const CSRFCookie = "piko_csrf"
+const SignupCookie = "piko_signup"
 
 type Handler struct {
 	service  *Service

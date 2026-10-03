@@ -15,10 +15,10 @@ import (
 	"testing"
 	"time"
 
-	"buildx/internal/auth"
-	"buildx/internal/platform/database/dbgen"
-	"buildx/internal/testsupport"
-	"buildx/internal/web"
+	"github.com/pooya79/Piko/internal/auth"
+	"github.com/pooya79/Piko/internal/platform/database/dbgen"
+	"github.com/pooya79/Piko/internal/testsupport"
+	"github.com/pooya79/Piko/internal/web"
 )
 
 type accountEmailQueue struct{ challenges []string }
@@ -50,7 +50,7 @@ func TestAuthJourneyAgainstSQLite(t *testing.T) {
 	}
 	client := &http.Client{Jar: jar, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	base, _ := url.Parse(server.URL)
-	jar.SetCookies(base, []*http.Cookie{{Name: "buildx_language", Value: "en"}})
+	jar.SetCookies(base, []*http.Cookie{{Name: "piko_language", Value: "en"}})
 	cookie := func(name string) string {
 		for _, c := range jar.Cookies(base) {
 			if c.Name == name {
