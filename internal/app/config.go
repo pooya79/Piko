@@ -6,27 +6,31 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/pooya79/Piko/internal/bot"
 )
 
 type Config struct {
-	Environment    string
-	HTTPAddr       string
-	DatabasePath   string
-	SessionSecret  string
-	LogLevel       string
-	TrustedProxy   bool
-	CookieSecure   bool
-	ShutdownPeriod time.Duration
+	Environment      string
+	HTTPAddr         string
+	DatabasePath     string
+	SessionSecret    string
+	BotEncryptionKey string
+	LogLevel         string
+	TrustedProxy     bool
+	CookieSecure     bool
+	ShutdownPeriod   time.Duration
 }
 
 func LoadConfig() (Config, error) {
 	cfg := Config{
-		Environment:    env("APP_ENV", "development"),
-		HTTPAddr:       env("HTTP_ADDR", ":8080"),
-		DatabasePath:   os.Getenv("DATABASE_PATH"),
-		SessionSecret:  os.Getenv("SESSION_SECRET"),
-		LogLevel:       env("LOG_LEVEL", "info"),
-		ShutdownPeriod: 10 * time.Second,
+		Environment:      env("APP_ENV", "development"),
+		HTTPAddr:         env("HTTP_ADDR", ":8080"),
+		DatabasePath:     os.Getenv("DATABASE_PATH"),
+		SessionSecret:    os.Getenv("SESSION_SECRET"),
+		BotEncryptionKey: os.Getenv("BOT_ENCRYPTION_KEY"),
+		LogLevel:         env("LOG_LEVEL", "info"),
+		ShutdownPeriod:   10 * time.Second,
 	}
 	var err error
 	if cfg.TrustedProxy, err = boolEnv("TRUSTED_PROXY", false); err != nil {
@@ -43,6 +47,9 @@ func LoadConfig() (Config, error) {
 	}
 	if cfg.Environment == "production" && !cfg.CookieSecure {
 		return Config{}, errors.New("COOKIE_SECURE must be true in production")
+	}
+	if _, err := bot.EncryptionKey(cfg.BotEncryptionKey, cfg.SessionSecret); err != nil {
+		return Config{}, err
 	}
 	return cfg, nil
 }

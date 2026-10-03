@@ -14,8 +14,16 @@ type Page struct {
 	ActiveNav   NavSection
 	// Set BotsURL only when the Bot list route is implemented. RecentBots must
 	// come from owner-authorized feature data; the shell supplies no demo data.
-	BotsURL    string
-	RecentBots []BotLink
+	BotsURL       string
+	ConnectBotURL string
+	RecentBots    []BotLink
+}
+
+type navigationKey struct{}
+
+// WithNavigation carries owner-authorized links to workspace renderers.
+func WithNavigation(ctx context.Context, page Page) context.Context {
+	return context.WithValue(ctx, navigationKey{}, page)
 }
 
 type NavSection string
@@ -40,6 +48,9 @@ type Breadcrumb struct {
 }
 
 func (p Page) withDefaults(ctx context.Context) Page {
+	if nav, ok := ctx.Value(navigationKey{}).(Page); ok && p.BotsURL == "" {
+		p.BotsURL, p.ConnectBotURL, p.RecentBots = nav.BotsURL, nav.ConnectBotURL, nav.RecentBots
+	}
 	if p.Title == "" {
 		p.Title = locale.T(ctx, "dashboard.title")
 	}

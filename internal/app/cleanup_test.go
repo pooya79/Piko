@@ -35,7 +35,7 @@ func TestServerStartupCleansExpiredRecordsBeforeClosingDatabase(t *testing.T) {
 	ctx := context.Background()
 	db, path := testsupport.MigratedSQLite(t, ctx)
 	seedCleanupRecords(t, db)
-	a, err := New(ctx, Config{DatabasePath: path, HTTPAddr: "invalid-address", LogLevel: "error", ShutdownPeriod: time.Second})
+	a, err := New(ctx, Config{BotEncryptionKey: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=", DatabasePath: path, HTTPAddr: "invalid-address", LogLevel: "error", ShutdownPeriod: time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestServerStartupCleansExpiredRecordsBeforeClosingDatabase(t *testing.T) {
 		t.Fatal("Run returned before closing database")
 	}
 	assertCleanupRecords(t, db)
-	a, err = New(ctx, Config{DatabasePath: path, HTTPAddr: "invalid-address", LogLevel: "error", ShutdownPeriod: time.Second})
+	a, err = New(ctx, Config{BotEncryptionKey: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=", DatabasePath: path, HTTPAddr: "invalid-address", LogLevel: "error", ShutdownPeriod: time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}

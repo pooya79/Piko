@@ -11,12 +11,15 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/pooya79/Piko/internal/auth"
+	"github.com/pooya79/Piko/internal/bot"
+	"github.com/pooya79/Piko/internal/bot/telegram"
 	"github.com/pooya79/Piko/internal/dashboard"
 	"github.com/pooya79/Piko/internal/locale"
 	"github.com/pooya79/Piko/internal/platform/database"
 	"github.com/pooya79/Piko/internal/platform/database/dbgen"
 	"github.com/pooya79/Piko/internal/platform/logging"
 	webx "github.com/pooya79/Piko/internal/web"
+	"github.com/pooya79/Piko/internal/web/shell"
 )
 
 const (
@@ -34,6 +37,14 @@ type App struct {
 }
 
 func New(ctx context.Context, cfg Config) (*App, error) {
+	return newWithTelegram(ctx, cfg, telegram.NewClient("https://api.telegram.org", http.DefaultClient))
+}
+
+func newWithTelegram(ctx context.Context, cfg Config, api *telegram.Client) (*App, error) {
+	key, err := bot.EncryptionKey(cfg.BotEncryptionKey, cfg.SessionSecret)
+	if err != nil {
+		return nil, err
+	}
 	log := logging.New(cfg.LogLevel)
 	catalog, e := locale.NewCatalog()
 	if e != nil {
@@ -48,12 +59,17 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 		return nil, e
 	}
 	q := dbgen.New(db)
+	botService, e := bot.NewService(bot.NewRepository(q), api, key)
+	if e != nil {
+		_ = db.Close()
+		return nil, e
+	}
 	authService := auth.NewService(q)
 	accountService := auth.NewAccountService(auth.NewAccountRepository(db), authService)
 	authHandler := auth.NewHandler(authService, accountService, log, cfg.CookieSecure)
 	mw := webx.Middleware{LocaleCatalog: catalog, Auth: authService, Log: log, SecureCookie: cfg.CookieSecure, TrustedProxy: cfg.TrustedProxy, Secret: []byte(cfg.SessionSecret)}
 	limiter := webx.NewRateLimiter(db, log, mw.ClientIP)
-	router := buildRouter(db, mw, limiter, authHandler)
+	router := buildRouter(db, mw, limiter, authHandler, botService)
 	server := &http.Server{Addr: cfg.HTTPAddr, Handler: router, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}
 	return &App{cfg: cfg, log: log, db: db, server: server}, nil
 }
@@ -98,7 +114,8 @@ func (a *App) Run(ctx context.Context) error {
 }
 
 // buildRouter loads sessions before CSRF checks so the latter can choose session-bound tokens.
-func buildRouter(db *sql.DB, mw webx.Middleware, limiter *webx.RateLimiter, ah *auth.Handler) http.Handler {
+func buildRouter(db *sql.DB, mw webx.Middleware, limiter *webx.RateLimiter, ah *auth.Handler, bots *bot.Service) http.Handler {
+	bh := bot.NewHandler(bots, mw.Log)
 	r := chi.NewRouter()
 	// The inner recovery sees the account locale; the outer one also covers
 	// failures while loading the request locale or session.
@@ -148,8 +165,22 @@ func buildRouter(db *sql.DB, mw webx.Middleware, limiter *webx.RateLimiter, ah *
 	})
 	r.Group(func(r chi.Router) {
 		r.Use(mw.RequireAuth)
+		r.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				owned, err := bots.List(req.Context())
+				if err != nil {
+					webx.RenderError(w, req, 500, "error.message.server")
+					return
+				}
+				next.ServeHTTP(w, req.WithContext(shell.WithNavigation(req.Context(), bot.Navigation(owned))))
+			})
+		})
 		r.Get("/account", ah.Profile)
-		r.Get("/dashboard", dashboard.Handler)
+		r.Get("/dashboard", dashboard.NewHandler(bots))
+		r.Get("/bots", bh.List)
+		r.Get("/bots/connect", bh.ConnectForm)
+		r.With(limiter.MiddlewareStrict("bot-connect", 10, time.Minute)).Post("/bots/connect", bh.Connect)
+		r.Get("/bots/{botID}", bh.Detail)
 	})
 	return r
 }

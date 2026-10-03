@@ -32,7 +32,7 @@ func TestAuthJourneyAgainstSQLite(t *testing.T) {
 	mw := web.Middleware{Auth: credentials, LocaleCatalog: catalog, Log: logger, Secret: []byte("test-csrf-secret")}
 	rateKey := fmt.Sprintf("auth-journey-%d", time.Now().UnixNano())
 	limiter := web.NewRateLimiter(pool, logger, func(*http.Request) string { return rateKey })
-	server := httptest.NewServer(buildRouter(pool, mw, limiter, auth.NewHandler(credentials, accounts, logger, false)))
+	server := httptest.NewServer(buildRouter(pool, mw, limiter, auth.NewHandler(credentials, accounts, logger, false), testBotService(t, pool)))
 	t.Cleanup(server.Close)
 	jar, err := cookiejar.New(nil)
 	if err != nil {
@@ -107,7 +107,7 @@ func assertEmptyDashboard(t *testing.T, body, session string) {
 	t.Helper()
 	for _, text := range []string{
 		"هنوز رباتی نساخته\u200cای", "رباتی برای پایش وجود ندارد",
-		"داده\u200cای برای نمایش آمار نداریم", "هنوز گفت\u200cوگویی ثبت نشده",
+		"آمار تعامل\u200cها هنوز در دسترس نیست", "هنوز گفت\u200cوگویی ثبت نشده",
 		"هنوز فعالیتی ثبت نشده", "اعلانی نداری", "به\u200cزودی",
 		"اولین رباتت", "گفت\u200cوگوها", "کاربران جدید", "درخواست\u200cهای موفق", "ربات\u200cهای فعال",
 		`/static/brand/piko-companion.webp`, `href="/account"`, `action="/logout"`,
@@ -125,7 +125,7 @@ func assertEmptyDashboard(t *testing.T, body, session string) {
 	for _, forbidden := range []string{
 		"<نام>", "نازنین", "کافه لیمو", "فروشگاه ماهور", "limoo_cafe_bot", "mahoor_shop_bot",
 		"همه\u200cچیز روبه\u200cراهه", "بدون مشکل", "اشتراک حرفه\u200cای", "٪", "sparkline", "chart.js",
-		`href="/bots"`, `href="/chat"`, `href="/analytics"`, `href="/billing"`,
+		`href="/chat"`, `href="/analytics"`, `href="/billing"`,
 		`name="token"`, `name="prompt"`, "journey@example.test", "original-password-123", session,
 	} {
 		if strings.Contains(body, forbidden) {

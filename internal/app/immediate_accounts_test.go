@@ -35,7 +35,7 @@ func accountTestRouter(t *testing.T, db *sql.DB) (http.Handler, *auth.Service) {
 	credentials := auth.NewService(dbgen.New(db))
 	accounts := auth.NewAccountService(auth.NewAccountRepository(db), credentials)
 	mw := web.Middleware{Auth: credentials, LocaleCatalog: testLocaleCatalog(t), Log: logger, Secret: []byte("test-secret")}
-	return buildRouter(db, mw, web.NewRateLimiter(db, logger, mw.ClientIP), auth.NewHandler(credentials, accounts, logger, false)), credentials
+	return buildRouter(db, mw, web.NewRateLimiter(db, logger, mw.ClientIP), auth.NewHandler(credentials, accounts, logger, false), testBotService(t, db)), credentials
 }
 
 func newAccountBrowser(t *testing.T, router http.Handler) *accountBrowser {
@@ -317,7 +317,7 @@ func TestRegistrationPreservesUnicodeNameAndCookieProtections(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	credentials := auth.NewService(dbgen.New(db))
 	mw := web.Middleware{Auth: credentials, LocaleCatalog: testLocaleCatalog(t), Log: logger, Secret: []byte("test-secret"), SecureCookie: true}
-	router := buildRouter(db, mw, web.NewRateLimiter(db, logger, mw.ClientIP), auth.NewHandler(credentials, auth.NewAccountService(auth.NewAccountRepository(db), credentials), logger, true))
+	router := buildRouter(db, mw, web.NewRateLimiter(db, logger, mw.ClientIP), auth.NewHandler(credentials, auth.NewAccountService(auth.NewAccountRepository(db), credentials), logger, true), testBotService(t, db))
 	visitor := newAccountBrowser(t, router)
 	visitor.base.Scheme = "https"
 	visitor.send(http.MethodGet, "/register", nil)

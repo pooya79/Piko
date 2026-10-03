@@ -3,6 +3,7 @@
 @import "./components.css";
 @import "./auth.css";
 @import "./dashboard.css";
+@import "./bot.css";
 
 @source "../internal/**/*.templ";
 @source not "../docs/design";

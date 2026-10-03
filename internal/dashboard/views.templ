@@ -2,14 +2,15 @@ package dashboard
 
 import (
  "github.com/pooya79/Piko/internal/locale"
+ "github.com/pooya79/Piko/internal/bot"
  "github.com/pooya79/Piko/internal/web/shell"
 )
 
-templ Page(displayName, csrf, date string) {
- @shell.Workspace(displayName, csrf, shell.Page{}, content(displayName, date))
+templ Page(displayName, csrf, date string, bots []bot.Bot) {
+ @shell.Workspace(displayName, csrf, shell.Page{}, content(displayName, date, bots))
 }
 
-templ content(displayName, date string) {
+templ content(displayName, date string, bots []bot.Bot) {
  <div class="piko-dashboard-heading">
   <div><h1>{ locale.T(ctx, "dashboard.greeting") } <bdi dir="auto">{ displayName }</bdi>، { locale.T(ctx, "dashboard.welcome") }</h1><p>{ locale.T(ctx, "dashboard.subtitle") }</p></div>
   <div class="piko-dashboard-date">@shell.Icon("calendar-blank")<time datetime={ date } data-persian-date>{ locale.T(ctx, "dashboard.today") }</time></div>
@@ -20,7 +21,7 @@ templ content(displayName, date string) {
     @shell.Icon("sparkle")
     <span>{ locale.T(ctx, "dashboard.idea.kicker") }</span>
    </span><h2 id="first-bot-title">{ locale.T(ctx, "dashboard.idea.title") }</h2><p>{ locale.T(ctx, "dashboard.idea.copy") }</p>
-    <div class="piko-idea-prompt"><span>{ locale.T(ctx, "dashboard.idea.example") }</span>@shell.ComingSoon(locale.T(ctx, "workspace.create"), "arrow-right", "piko-primary-action")</div>
+    <div class="piko-idea-prompt"><span>{ locale.T(ctx, "dashboard.idea.example") }</span><a href="/bots/connect" class="piko-primary-action">@shell.Icon("plus")<span>{ locale.T(ctx, "bot.connect.title") }</span></a></div>
     <p class="piko-idea-note">{ locale.T(ctx, "dashboard.idea.note") }</p>
    </div>
    <img class="piko-companion" src="/static/brand/piko-companion.webp" width="300" height="220" alt={ locale.T(ctx, "dashboard.idea.illustration") } fetchpriority="high"/>
@@ -29,7 +30,13 @@ templ content(displayName, date string) {
    <span class="piko-small-label">
     @shell.Icon("shield-check")
     <span>{ locale.T(ctx, "dashboard.monitoring.label") }</span>
-   </span><h2 id="monitoring-title">{ locale.T(ctx, "dashboard.monitoring.title") }</h2><p>{ locale.T(ctx, "dashboard.monitoring.empty") }</p>
+   </span><h2 id="monitoring-title">
+ if len(bots) == 0 {
+ { locale.T(ctx, "dashboard.monitoring.title") }
+ } else {
+ { locale.T(ctx, "bot.monitoring.inactive") }
+ }
+ </h2><p>{ locale.T(ctx, "dashboard.monitoring.empty") }</p>
    @shell.ComingSoon(locale.T(ctx, "dashboard.monitoring.action"), "arrow-up-left", "piko-subtle-action")
   </section>
  </div>
@@ -55,11 +62,15 @@ templ content(displayName, date string) {
   </section>
  </div>
  <section aria-labelledby="bots-title">
-  <div class="piko-section-heading"><h2 id="bots-title">{ locale.T(ctx, "dashboard.bots.title") }</h2>@shell.ComingSoon(locale.T(ctx, "dashboard.bots.all"), "arrow-right", "piko-subtle-action")</div>
+  <div class="piko-section-heading"><h2 id="bots-title">{ locale.T(ctx, "dashboard.bots.title") }</h2><a class="piko-subtle-action" href="/bots">{ locale.T(ctx, "dashboard.bots.all") }</a></div>
+  if len(bots) > 0 {
+   @bot.Cards(bots)
+  } else {
   <div class="piko-bots-grid">
    <div class="piko-card piko-bots-empty">@emptyState("robot", "dashboard.bots.empty", "dashboard.bots.copy")</div>
-   <div class="piko-new-bot-tile">@shell.Icon("plus")<h3>{ locale.T(ctx, "dashboard.bots.new") }</h3><p>{ locale.T(ctx, "dashboard.bots.new.copy") }</p>@shell.ComingSoon(locale.T(ctx, "workspace.create"), "plus", "piko-secondary-action")</div>
+   <div class="piko-new-bot-tile">@shell.Icon("plus")<h3>{ locale.T(ctx, "dashboard.bots.new") }</h3><p>{ locale.T(ctx, "dashboard.bots.new.copy") }</p><a href="/bots/connect" class="piko-secondary-action">@shell.Icon("plus")<span>{ locale.T(ctx, "bot.connect.title") }</span></a></div>
   </div>
+  }
  </section>
 }
 

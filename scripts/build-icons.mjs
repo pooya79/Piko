@@ -23,8 +23,10 @@ const icons = {
  "sign-out": ["regular", "sign-out"],
  "sparkle": ["regular", "sparkle"],
  "squares-four": ["regular", "squares-four"],
+ "telegram-logo": ["regular", "telegram-logo"],
  "user": ["regular", "user"],
  "users": ["regular", "users"],
+ "warning-circle": ["regular", "warning-circle"],
 };
 
 async function source(weight, name) {

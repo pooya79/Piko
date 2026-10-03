@@ -4,6 +4,18 @@
 
 package dbgen
 
+type Bot struct {
+	ID             int64
+	OwnerID        int64
+	TelegramID     int64
+	Name           string
+	Username       string
+	EncryptedToken []byte
+	HasWebhook     int64
+	PendingUpdates int64
+	VerifiedAt     int64
+}
+
 type RateLimit struct {
 	Key       string
 	Count     int64

@@ -31,7 +31,7 @@ func workspacePageResponse(t *testing.T, page shell.Page) string {
 	accounts := auth.NewAccountService(auth.NewAccountRepository(db), credentials)
 	mw := web.Middleware{Auth: credentials, LocaleCatalog: testLocaleCatalog(t), Log: log, Secret: []byte("workspace-test-secret")}
 	limiter := web.NewRateLimiter(db, log, func(*http.Request) string { return "workspace-test" })
-	router := buildRouter(db, mw, limiter, auth.NewHandler(credentials, accounts, log, false)).(*chi.Mux)
+	router := buildRouter(db, mw, limiter, auth.NewHandler(credentials, accounts, log, false), testBotService(t, db)).(*chi.Mux)
 	router.With(mw.RequireAuth).Get("/test/workspace", func(w http.ResponseWriter, r *http.Request) {
 		user, _ := auth.UserFromContext(r.Context())
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")

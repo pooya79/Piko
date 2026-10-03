@@ -124,7 +124,11 @@ templ topbar(page Page) {
      <p>{ locale.T(ctx, "workspace.notifications.empty") }</p>
     </section>
    </div>
-   @ComingSoon(locale.T(ctx, "workspace.create"), "plus", "piko-primary-action")
+   if page.ConnectBotURL != "" {
+    <a class="piko-primary-action" href={ templ.URL(page.ConnectBotURL) }>@Icon("plus")<span>{ locale.T(ctx, "bot.connect.title") }</span></a>
+   } else {
+    @ComingSoon(locale.T(ctx, "workspace.create"), "plus", "piko-primary-action")
+   }
   </div>
  </header>
 }
