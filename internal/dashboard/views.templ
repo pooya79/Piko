@@ -21,7 +21,7 @@ templ content(displayName, date string, bots []bot.Bot) {
     @shell.Icon("sparkle")
     <span>{ locale.T(ctx, "dashboard.idea.kicker") }</span>
    </span><h2 id="first-bot-title">{ locale.T(ctx, "dashboard.idea.title") }</h2><p>{ locale.T(ctx, "dashboard.idea.copy") }</p>
-    <div class="piko-idea-prompt"><span>{ locale.T(ctx, "dashboard.idea.example") }</span><a href="/bots/connect" class="piko-primary-action">@shell.Icon("plus")<span>{ locale.T(ctx, "bot.connect.title") }</span></a></div>
+    <div class="piko-idea-prompt"><span>{ locale.T(ctx, "dashboard.idea.example") }</span><a href="/bots/new" class="piko-primary-action">@shell.Icon("plus")<span>{ locale.T(ctx, "bot.create.title") }</span></a></div>
     <p class="piko-idea-note">{ locale.T(ctx, "dashboard.idea.note") }</p>
    </div>
    <img class="piko-companion" src="/static/brand/piko-companion.webp" width="300" height="220" alt={ locale.T(ctx, "dashboard.idea.illustration") } fetchpriority="high"/>
@@ -68,7 +68,7 @@ templ content(displayName, date string, bots []bot.Bot) {
   } else {
   <div class="piko-bots-grid">
    <div class="piko-card piko-bots-empty">@emptyState("robot", "dashboard.bots.empty", "dashboard.bots.copy")</div>
-   <div class="piko-new-bot-tile">@shell.Icon("plus")<h3>{ locale.T(ctx, "dashboard.bots.new") }</h3><p>{ locale.T(ctx, "dashboard.bots.new.copy") }</p><a href="/bots/connect" class="piko-secondary-action">@shell.Icon("plus")<span>{ locale.T(ctx, "bot.connect.title") }</span></a></div>
+   <div class="piko-new-bot-tile">@shell.Icon("plus")<h3>{ locale.T(ctx, "dashboard.bots.new") }</h3><p>{ locale.T(ctx, "dashboard.bots.new.copy") }</p><a href="/bots/new" class="piko-secondary-action">@shell.Icon("plus")<span>{ locale.T(ctx, "bot.create.title") }</span></a></div>
   </div>
   }
  </section>

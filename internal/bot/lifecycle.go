@@ -11,6 +11,7 @@ import (
 )
 
 var (
+	ErrUnconnected  = errors.New("Bot has no Telegram identity")
 	ErrDisconnected = errors.New("Bot credentials removed")
 	ErrIdentity     = errors.New("replacement identifies another Telegram Bot")
 )
@@ -21,6 +22,9 @@ func (s *Service) ReplaceToken(ctx context.Context, botID int64, token string, r
 	b, err := s.Get(ctx, botID)
 	if err != nil {
 		return false, err
+	}
+	if b.Unconnected {
+		return false, ErrUnconnected
 	}
 	if b.Disconnected != reconnect {
 		return false, ErrDisconnected
@@ -64,6 +68,21 @@ func (s *Service) Disconnect(ctx context.Context, botID int64, deleteData bool) 
 		return false, err
 	}
 	ownerID, _ := owner(ctx)
+	if b.Unconnected {
+		if !deleteData {
+			return false, ErrUnconnected
+		}
+		// There can be no Telegram work to stop. The identity guard excludes a
+		// concurrent future connection without manufacturing delivery state.
+		n, err := s.repo.q.DeleteOwnerUnconnectedBot(ctx, dbgen.DeleteOwnerUnconnectedBotParams{OwnerID: ownerID, ID: botID})
+		if err != nil {
+			return false, err
+		}
+		if n != 1 {
+			return false, ErrActivationBusy
+		}
+		return false, nil
+	}
 	claim, err := s.stopOwnerDelivery(ctx, ownerID, botID, -1)
 	if err != nil {
 		return false, err
@@ -215,6 +234,9 @@ func (s *Service) saveLifecycle(ctx context.Context, ownerID int64, b Bot, claim
 }
 
 func credentialStatus(b Bot) string {
+	if b.Unconnected {
+		return "bot.status.unconnected"
+	}
 	if b.Disconnected {
 		return "lifecycle.credentials.removed"
 	}

@@ -1,0 +1,34 @@
+package bot
+
+import (
+ "github.com/pooya79/Piko/internal/locale"
+ "github.com/pooya79/Piko/internal/web/shell"
+)
+
+templ CreatePage(displayName, csrf, name, message string) {
+ @shell.Workspace(displayName, csrf, shell.Page{Title: locale.T(ctx,"bot.create.title"), ActiveNav: shell.BotsNav, Breadcrumbs: []shell.Breadcrumb{{Label: locale.T(ctx,"workspace.bots"), URL: "/bots"}, {Label: locale.T(ctx,"bot.create.title")}}}, createContent(csrf, name, message))
+}
+
+templ createContent(csrf, name, message string) {
+ <h1 class="piko-page-title">{ locale.T(ctx,"bot.create.title") }</h1>
+ <p class="piko-page-copy">{ locale.T(ctx,"bot.create.copy") }</p>
+ <section class="piko-card piko-draft-section piko-activation">
+  <form class="space-y-4" method="post" action="/bots/new">
+   <input type="hidden" name="csrf_token" value={ csrf }/>
+   if message != "" {
+    <p class="piko-field-error" id="bot-name-error" role="alert">{ message }</p>
+   }
+   <label class="piko-label" for="bot-name">{ locale.T(ctx,"bot.create.name") }</label>
+   <input class="piko-input" id="bot-name" name="name" type="text" dir="auto" value={ name } required maxlength="80" autocomplete="off"
+    if message != "" {
+     aria-invalid="true" aria-describedby="bot-name-hint bot-name-error"
+    } else {
+     aria-describedby="bot-name-hint"
+    }
+   />
+   <p class="piko-helper" id="bot-name-hint">{ locale.T(ctx,"bot.create.hint") }</p>
+   <button class="piko-primary-action" type="submit">@shell.Icon("plus")<span>{ locale.T(ctx,"bot.create.submit") }</span></button>
+  </form>
+ </section>
+ <p class="piko-page-copy">{ locale.T(ctx,"bot.create.existing") } <a class="piko-text-link" href="/bots/connect">{ locale.T(ctx,"bot.connect.title") }</a></p>
+}

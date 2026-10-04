@@ -210,7 +210,7 @@ func content(displayName, date string, bots []bot.Bot) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</span><a href=\"/bots/connect\" class=\"piko-primary-action\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</span><a href=\"/bots/new\" class=\"piko-primary-action\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -223,9 +223,9 @@ func content(displayName, date string, bots []bot.Bot) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var13 string
-		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "bot.connect.title"))
+		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "bot.create.title"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views.templ`, Line: 24, Col: 203}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views.templ`, Line: 24, Col: 198}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -531,7 +531,7 @@ func content(displayName, date string, bots []bot.Bot) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "</p><a href=\"/bots/connect\" class=\"piko-secondary-action\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "</p><a href=\"/bots/new\" class=\"piko-secondary-action\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -544,9 +544,9 @@ func content(displayName, date string, bots []bot.Bot) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var29 string
-			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "bot.connect.title"))
+			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "bot.create.title"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views.templ`, Line: 71, Col: 267}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/dashboard/views.templ`, Line: 71, Col: 262}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 			if templ_7745c5c3_Err != nil {

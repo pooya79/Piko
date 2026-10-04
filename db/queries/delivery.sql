@@ -18,7 +18,7 @@ UPDATE bot_delivery SET state = 'activating', mode = ?3, activation_nonce = ?4, 
 WHERE bot_id = ?2 AND EXISTS (SELECT 1 FROM bots WHERE bots.id = ?2 AND bots.owner_id = ?1)
 AND activation_until < unixepoch() AND worker_until < unixepoch()
 AND encrypted_secret = sqlc.arg(expected_secret)
-AND EXISTS (SELECT 1 FROM bots WHERE bots.id = ?2 AND length(bots.encrypted_token) > 0 AND bots.encrypted_token = sqlc.arg(expected_token));
+AND EXISTS (SELECT 1 FROM bots WHERE bots.id = ?2 AND bots.telegram_id IS NOT NULL AND length(bots.encrypted_token) > 0 AND bots.encrypted_token = sqlc.arg(expected_token));
 
 -- name: FinishOwnerActivation :execrows
 UPDATE bot_delivery SET state = ?3, activation_until = 0
@@ -28,7 +28,7 @@ AND EXISTS (SELECT 1 FROM bots WHERE bots.id = ?2 AND bots.owner_id = ?1);
 -- name: GetIngressCredentials :one
 SELECT b.owner_id, b.telegram_id, d.encrypted_secret
 FROM bots b JOIN bot_delivery d ON d.bot_id = b.id
-WHERE b.id = ?1 AND d.mode = 'webhook' AND d.state IN ('activating','active','error') AND length(b.encrypted_token) > 0;
+WHERE b.id = ?1 AND d.mode = 'webhook' AND d.state IN ('activating','active','error') AND b.telegram_id IS NOT NULL AND length(b.encrypted_token) > 0;
 
 -- name: HasAcceptedUpdate :one
 SELECT EXISTS (SELECT 1 FROM bot_updates WHERE bot_id = ?1 AND update_id = ?2);
@@ -36,7 +36,7 @@ SELECT EXISTS (SELECT 1 FROM bot_updates WHERE bot_id = ?1 AND update_id = ?2);
 -- name: AcceptUpdate :execrows
 INSERT INTO bot_updates (bot_id, update_id, payload, participant_id, accepted_while_paused)
 SELECT ?1, ?2, ?3, ?4, bots.paused FROM bots WHERE bots.id = ?1
-AND length(bots.encrypted_token) > 0
+AND bots.telegram_id IS NOT NULL AND length(bots.encrypted_token) > 0
 AND EXISTS (SELECT 1 FROM bot_delivery WHERE bot_id = ?1 AND state IN ('activating','active','error'))
 AND (SELECT COUNT(*) FROM bot_updates WHERE bot_id = ?1 AND complete = 0) < 1000
 ON CONFLICT (bot_id, update_id) DO NOTHING;

@@ -27,7 +27,8 @@ const (
 	WebhookDelivery DeliveryMode = "webhook"
 )
 
-// Bot exposes verified identity and the saved delivery observation, never credentials.
+// Bot exposes workspace identity and saved Telegram state, never credentials.
+// TelegramID is meaningful only when Unconnected is false.
 type Bot struct {
 	ID, TelegramID   int64
 	Name, Username   string
@@ -41,6 +42,7 @@ type Bot struct {
 	WebhookIsPiko    bool
 	Paused           bool
 	Disconnected     bool
+	Unconnected      bool
 }
 
 func (b Bot) URL() string { return "/bots/" + strconv.FormatInt(b.ID, 10) }
@@ -113,6 +115,11 @@ func (s *Service) Get(ctx context.Context, id int64) (Bot, error) {
 // owner to activate again. Keep the stored mode visible without claiming work
 // that this server's workers cannot receive.
 func (s *Service) deliveryStatus(b Bot) Bot {
+	if b.Unconnected {
+		b.DeliveryState = "unconnected"
+		b.DeliveryError = false
+		return b
+	}
 	if b.Disconnected {
 		b.DeliveryState = "disconnected"
 		b.DeliveryError = false
@@ -127,7 +134,7 @@ func (s *Service) deliveryStatus(b Bot) Bot {
 	return b
 }
 func Navigation(bots []Bot) shell.Page {
-	p := shell.Page{BotsURL: "/bots", ConnectBotURL: "/bots/connect"}
+	p := shell.Page{BotsURL: "/bots", CreateBotURL: "/bots/new"}
 	for i, b := range bots {
 		if i == 5 {
 			break

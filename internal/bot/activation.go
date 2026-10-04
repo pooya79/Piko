@@ -79,13 +79,22 @@ func (s *Service) ownerToken(ctx context.Context, botID int64) (dbgen.GetOwnerBo
 	if err != nil {
 		return row, "", err
 	}
-	token, err := s.credentials.open(row.EncryptedToken, row.OwnerID, row.TelegramID)
+	if !row.TelegramID.Valid {
+		return row, "", ErrUnconnected
+	}
+	if len(row.EncryptedToken) == 0 {
+		return row, "", ErrDisconnected
+	}
+	token, err := s.credentials.open(row.EncryptedToken, row.OwnerID, row.TelegramID.Int64)
 	return row, token, err
 }
 func (s *Service) InspectActivation(ctx context.Context, botID int64) (Activation, error) {
 	b, err := s.Get(ctx, botID)
 	if err != nil {
 		return Activation{}, err
+	}
+	if b.Unconnected {
+		return Activation{}, ErrUnconnected
 	}
 	if b.Disconnected {
 		return Activation{}, ErrDisconnected
@@ -113,6 +122,9 @@ func (s *Service) Activate(ctx context.Context, botID int64, confirmation string
 	if err != nil {
 		return Activation{}, err
 	}
+	if b.Unconnected {
+		return Activation{}, ErrUnconnected
+	}
 	if b.Disconnected {
 		return Activation{}, ErrDisconnected
 	}
@@ -129,7 +141,7 @@ func (s *Service) Activate(ctx context.Context, botID int64, confirmation string
 		return a, err
 	}
 	// Domain separation prevents swapping encrypted credentials and webhook secrets.
-	encrypted, err := s.credentials.seal(secret, row.OwnerID, -row.TelegramID)
+	encrypted, err := s.credentials.seal(secret, row.OwnerID, -row.TelegramID.Int64)
 	if err != nil {
 		return a, err
 	}
@@ -140,7 +152,7 @@ func (s *Service) Activate(ctx context.Context, botID int64, confirmation string
 	if err != nil {
 		return a, err
 	}
-	secret, err = s.credentials.open(delivery.EncryptedSecret, row.OwnerID, -row.TelegramID)
+	secret, err = s.credentials.open(delivery.EncryptedSecret, row.OwnerID, -row.TelegramID.Int64)
 	if err != nil {
 		return a, err
 	}

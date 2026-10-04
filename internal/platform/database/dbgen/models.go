@@ -11,7 +11,7 @@ import (
 type Bot struct {
 	ID             int64
 	OwnerID        int64
-	TelegramID     int64
+	TelegramID     sql.NullInt64
 	Name           string
 	Username       string
 	EncryptedToken []byte

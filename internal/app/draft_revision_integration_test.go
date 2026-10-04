@@ -254,9 +254,7 @@ func TestDraftRevisionUpgradeRetainsOwnerAndBotData(t *testing.T) {
 	}
 	defer func() { _ = legacy.Close() }()
 	// Drop only the new column in this disposable file to represent version 9.
-	if err := database.Migrate(t.Context(), legacy, true); err != nil {
-		t.Fatal(err)
-	}
+	rollbackToMigration(t, legacy, "000009_bot_pause")
 	for range 2 {
 		if err := database.Migrate(t.Context(), legacy, false); err != nil {
 			t.Fatal(err)

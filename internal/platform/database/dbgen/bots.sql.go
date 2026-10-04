@@ -7,6 +7,7 @@ package dbgen
 
 import (
 	"context"
+	"database/sql"
 )
 
 const createBot = `-- name: CreateBot :one
@@ -17,7 +18,7 @@ RETURNING id, telegram_id, name, username, has_webhook, pending_updates, verifie
 
 type CreateBotParams struct {
 	OwnerID        int64
-	TelegramID     int64
+	TelegramID     sql.NullInt64
 	Name           string
 	Username       string
 	EncryptedToken []byte
@@ -28,7 +29,7 @@ type CreateBotParams struct {
 
 type CreateBotRow struct {
 	ID             int64
-	TelegramID     int64
+	TelegramID     sql.NullInt64
 	Name           string
 	Username       string
 	HasWebhook     int64
@@ -60,6 +61,41 @@ func (q *Queries) CreateBot(ctx context.Context, arg CreateBotParams) (CreateBot
 	return i, err
 }
 
+const createUnconnectedBot = `-- name: CreateUnconnectedBot :one
+INSERT INTO bots (owner_id, name, username, encrypted_token, has_webhook, pending_updates, verified_at)
+VALUES (?1, ?2, '', X'', 0, 0, 0)
+RETURNING id
+`
+
+type CreateUnconnectedBotParams struct {
+	OwnerID int64
+	Name    string
+}
+
+func (q *Queries) CreateUnconnectedBot(ctx context.Context, arg CreateUnconnectedBotParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, createUnconnectedBot, arg.OwnerID, arg.Name)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const deleteOwnerUnconnectedBot = `-- name: DeleteOwnerUnconnectedBot :execrows
+DELETE FROM bots WHERE owner_id = ?1 AND id = ?2 AND telegram_id IS NULL
+`
+
+type DeleteOwnerUnconnectedBotParams struct {
+	OwnerID int64
+	ID      int64
+}
+
+func (q *Queries) DeleteOwnerUnconnectedBot(ctx context.Context, arg DeleteOwnerUnconnectedBotParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteOwnerUnconnectedBot, arg.OwnerID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getBotPaused = `-- name: GetBotPaused :one
 SELECT paused FROM bots WHERE id = ?1
 `
@@ -73,7 +109,8 @@ func (q *Queries) GetBotPaused(ctx context.Context, id int64) (int64, error) {
 
 const getOwnerBot = `-- name: GetOwnerBot :one
 SELECT bots.id, bots.telegram_id, bots.name, bots.username, bots.has_webhook, bots.pending_updates, bots.verified_at, bots.webhook_is_piko, bots.paused,
-CAST(length(bots.encrypted_token) = 0 AS INTEGER) AS disconnected,
+CAST(bots.telegram_id IS NULL AS INTEGER) AS unconnected,
+CAST(bots.telegram_id IS NOT NULL AND length(bots.encrypted_token) = 0 AS INTEGER) AS disconnected,
 CAST(COALESCE((SELECT MAX(version) FROM bot_publications WHERE bot_id = bots.id), 0) AS INTEGER) AS published_version,
 CAST(COALESCE((SELECT state FROM bot_delivery WHERE bot_id = bots.id), 'inactive') AS TEXT) AS delivery_state,
 CAST(COALESCE((SELECT mode FROM bot_delivery WHERE bot_id = bots.id), '') AS TEXT) AS delivery_mode,
@@ -88,7 +125,7 @@ type GetOwnerBotParams struct {
 
 type GetOwnerBotRow struct {
 	ID               int64
-	TelegramID       int64
+	TelegramID       sql.NullInt64
 	Name             string
 	Username         string
 	HasWebhook       int64
@@ -96,6 +133,7 @@ type GetOwnerBotRow struct {
 	VerifiedAt       int64
 	WebhookIsPiko    int64
 	Paused           int64
+	Unconnected      int64
 	Disconnected     int64
 	PublishedVersion int64
 	DeliveryState    string
@@ -116,6 +154,7 @@ func (q *Queries) GetOwnerBot(ctx context.Context, arg GetOwnerBotParams) (GetOw
 		&i.VerifiedAt,
 		&i.WebhookIsPiko,
 		&i.Paused,
+		&i.Unconnected,
 		&i.Disconnected,
 		&i.PublishedVersion,
 		&i.DeliveryState,
@@ -127,7 +166,8 @@ func (q *Queries) GetOwnerBot(ctx context.Context, arg GetOwnerBotParams) (GetOw
 
 const listOwnerBots = `-- name: ListOwnerBots :many
 SELECT bots.id, bots.telegram_id, bots.name, bots.username, bots.has_webhook, bots.pending_updates, bots.verified_at, bots.webhook_is_piko, bots.paused,
-CAST(length(bots.encrypted_token) = 0 AS INTEGER) AS disconnected,
+CAST(bots.telegram_id IS NULL AS INTEGER) AS unconnected,
+CAST(bots.telegram_id IS NOT NULL AND length(bots.encrypted_token) = 0 AS INTEGER) AS disconnected,
 CAST(COALESCE((SELECT MAX(version) FROM bot_publications WHERE bot_id = bots.id), 0) AS INTEGER) AS published_version,
 CAST(COALESCE((SELECT state FROM bot_delivery WHERE bot_id = bots.id), 'inactive') AS TEXT) AS delivery_state,
 CAST(COALESCE((SELECT mode FROM bot_delivery WHERE bot_id = bots.id), '') AS TEXT) AS delivery_mode,
@@ -137,7 +177,7 @@ FROM bots WHERE bots.owner_id = ?1 ORDER BY bots.id DESC
 
 type ListOwnerBotsRow struct {
 	ID               int64
-	TelegramID       int64
+	TelegramID       sql.NullInt64
 	Name             string
 	Username         string
 	HasWebhook       int64
@@ -145,6 +185,7 @@ type ListOwnerBotsRow struct {
 	VerifiedAt       int64
 	WebhookIsPiko    int64
 	Paused           int64
+	Unconnected      int64
 	Disconnected     int64
 	PublishedVersion int64
 	DeliveryState    string
@@ -171,6 +212,7 @@ func (q *Queries) ListOwnerBots(ctx context.Context, ownerID int64) ([]ListOwner
 			&i.VerifiedAt,
 			&i.WebhookIsPiko,
 			&i.Paused,
+			&i.Unconnected,
 			&i.Disconnected,
 			&i.PublishedVersion,
 			&i.DeliveryState,
@@ -192,6 +234,7 @@ func (q *Queries) ListOwnerBots(ctx context.Context, ownerID int64) ([]ListOwner
 
 const setOwnerBotPaused = `-- name: SetOwnerBotPaused :execrows
 UPDATE bots SET paused = ?3 WHERE bots.owner_id = ?1 AND bots.id = ?2
+AND bots.telegram_id IS NOT NULL AND length(bots.encrypted_token) > 0
 AND EXISTS (SELECT 1 FROM bot_delivery WHERE bot_id = ?2 AND state = 'active' AND mode = ?4)
 AND EXISTS (SELECT 1 FROM bot_publications WHERE bot_id = ?2)
 `

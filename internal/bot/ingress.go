@@ -68,7 +68,7 @@ func (s *Service) authenticateDeliveryQueries(ctx context.Context, q *dbgen.Quer
 	if err != nil {
 		return err
 	}
-	expected, err := s.credentials.open(row.EncryptedSecret, row.OwnerID, -row.TelegramID)
+	expected, err := s.credentials.open(row.EncryptedSecret, row.OwnerID, -row.TelegramID.Int64)
 	if err != nil || subtle.ConstantTimeCompare([]byte(expected), []byte(secret)) != 1 {
 		return ErrUnauthorized
 	}

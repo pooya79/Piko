@@ -70,7 +70,7 @@ func (s *Service) processDelivery(ctx context.Context, work dbgen.BotDelivery) (
 	if err != nil {
 		return time.Now().Unix() + 5, 1
 	}
-	token, err := s.credentials.open(row.EncryptedToken, row.OwnerID, row.TelegramID)
+	token, err := s.credentials.open(row.EncryptedToken, row.OwnerID, row.TelegramID.Int64)
 	if err != nil {
 		return time.Now().Unix() + 60, 1
 	}

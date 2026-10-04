@@ -258,6 +258,19 @@ func (s *Service) SaveDraft(ctx context.Context, botID, expectedRevision int64, 
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := s.repo.q.WithTx(tx)
+	revision, err := saveDraft(ctx, q, ownerID, botID, expectedRevision, d)
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return revision, nil
+}
+
+// Creation and subsequent edits share the same ownership, validation and
+// revision guard inside their caller's immediate transaction.
+func saveDraft(ctx context.Context, q *dbgen.Queries, ownerID, botID, expectedRevision int64, d flow.Definition) (int64, error) {
 	// The configured immediate transaction serializes ownership and first saves.
 	if _, err := q.GetOwnerBot(ctx, dbgen.GetOwnerBotParams{OwnerID: ownerID, ID: botID}); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -277,9 +290,6 @@ func (s *Service) SaveDraft(ctx context.Context, botID, expectedRevision int64, 
 		return 0, ErrStaleDraft
 	}
 	if err != nil {
-		return 0, err
-	}
-	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
 	return revision, nil

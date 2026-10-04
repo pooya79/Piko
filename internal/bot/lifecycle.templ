@@ -12,6 +12,7 @@ templ lifecycleControls(bot Bot, csrf string) {
  <section class="piko-lifecycle" aria-labelledby="lifecycle-title">
   <h2 id="lifecycle-title">{ locale.T(ctx,"lifecycle.title") }</h2>
   <div class="piko-connect-grid">
+   if !bot.Unconnected {
    <section class="piko-card piko-token-card">
     if bot.Disconnected {
      <h3>{ locale.T(ctx,"lifecycle.reconnect.title") }</h3><p class="piko-helper">{ locale.T(ctx,"lifecycle.reconnect.copy") }</p>
@@ -21,8 +22,9 @@ templ lifecycleControls(bot Bot, csrf string) {
      @lifecycleToken(bot.URL()+"/replace-token", csrf, "lifecycle.replace.submit")
     }
    </section>
+   }
    <section class="piko-card piko-token-card">
-    if !bot.Disconnected {
+    if !bot.Unconnected && !bot.Disconnected {
      <h3>{ locale.T(ctx,"lifecycle.disconnect.title") }</h3><p class="piko-helper">{ locale.T(ctx,"lifecycle.disconnect.copy") }</p>
      <form method="post" action={ templ.URL(bot.URL()+"/disconnect") }><input type="hidden" name="csrf_token" value={ csrf }/><button class="piko-secondary-action" type="submit">{ locale.T(ctx,"lifecycle.disconnect.submit") }</button></form>
     }

@@ -22,7 +22,7 @@ func (r *Repository) create(ctx context.Context, ownerID int64, identity telegra
 	if delivery.HasWebhook {
 		webhook = 1
 	}
-	row, err := r.q.CreateBot(ctx, dbgen.CreateBotParams{OwnerID: ownerID, TelegramID: identity.ID, Name: identity.Name, Username: identity.Username, EncryptedToken: encrypted, HasWebhook: webhook, PendingUpdates: delivery.PendingUpdates, VerifiedAt: time.Now().Unix()})
+	row, err := r.q.CreateBot(ctx, dbgen.CreateBotParams{OwnerID: ownerID, TelegramID: sql.NullInt64{Int64: identity.ID, Valid: true}, Name: identity.Name, Username: identity.Username, EncryptedToken: encrypted, HasWebhook: webhook, PendingUpdates: delivery.PendingUpdates, VerifiedAt: time.Now().Unix()})
 	if err != nil {
 		var sqliteErr *sqlite.Error
 		if errors.As(err, &sqliteErr) && sqliteErr.Code() == 2067 {
@@ -54,6 +54,6 @@ func (r *Repository) get(ctx context.Context, ownerID, id int64) (Bot, error) {
 // sqlc gives the identical public projection a distinct type for each query.
 // Normalize it here so credential-free Bot mapping has one definition.
 func botFromRow(row dbgen.GetOwnerBotRow) Bot {
-	return Bot{ID: row.ID, TelegramID: row.TelegramID, Name: row.Name, Username: row.Username,
-		HasWebhook: row.HasWebhook != 0, PendingUpdates: row.PendingUpdates, VerifiedAt: time.Unix(row.VerifiedAt, 0), PublishedVersion: row.PublishedVersion, DeliveryState: row.DeliveryState, DeliveryMode: DeliveryMode(row.DeliveryMode), DeliveryError: row.DeliveryError != 0, WebhookIsPiko: row.WebhookIsPiko != 0, Paused: row.Paused != 0, Disconnected: row.Disconnected != 0}
+	return Bot{ID: row.ID, TelegramID: row.TelegramID.Int64, Name: row.Name, Username: row.Username,
+		HasWebhook: row.HasWebhook != 0, PendingUpdates: row.PendingUpdates, VerifiedAt: time.Unix(row.VerifiedAt, 0), PublishedVersion: row.PublishedVersion, DeliveryState: row.DeliveryState, DeliveryMode: DeliveryMode(row.DeliveryMode), DeliveryError: row.DeliveryError != 0, WebhookIsPiko: row.WebhookIsPiko != 0, Paused: row.Paused != 0, Disconnected: row.Disconnected != 0, Unconnected: row.Unconnected != 0}
 }

@@ -60,6 +60,8 @@ func (h *Handler) lifecycleRedirect(w http.ResponseWriter, r *http.Request, dest
 }
 func (h *Handler) lifecycleError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case errors.Is(err, ErrUnconnected):
+		web.RenderError(w, r, 409, "bot.unconnected.error")
 	case errors.Is(err, ErrIdentity):
 		web.RenderError(w, r, 422, "lifecycle.identity.error")
 	case errors.Is(err, ErrDisconnected):

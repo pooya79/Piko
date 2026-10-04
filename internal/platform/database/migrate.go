@@ -3,23 +3,44 @@ package database
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"io/fs"
 	"sort"
 	"strings"
+	"time"
 
 	source "github.com/pooya79/Piko/db"
 )
 
 // Migrate applies versioned migrations atomically and serializes concurrent migrators.
-func Migrate(ctx context.Context, db *sql.DB, down bool) error {
+func Migrate(ctx context.Context, db *sql.DB, down bool) (result error) {
 	if !down {
 		if err := initializeWAL(ctx, db); err != nil {
 			return err
 		}
 	}
-	tx, err := db.BeginTx(ctx, nil)
+	// SQLite's table-rebuild procedure must disable FK enforcement before the
+	// transaction. Pin one connection so this setting cannot affect app traffic.
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = conn.Close() }()
+	if _, err := conn.ExecContext(ctx, "PRAGMA foreign_keys=OFF"); err != nil {
+		return err
+	}
+	defer func() {
+		restoreCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		if _, err := conn.ExecContext(restoreCtx, "PRAGMA foreign_keys=ON"); err != nil {
+			// Never return a connection with disabled enforcement to the pool.
+			_ = conn.Raw(func(any) error { return driver.ErrBadConn })
+			result = errors.Join(result, fmt.Errorf("restore foreign keys: %w", err))
+		}
+	}()
+	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -72,6 +93,19 @@ func Migrate(ctx context.Context, db *sql.DB, down bool) error {
 				return err
 			}
 		}
+	}
+	rows, err := tx.QueryContext(ctx, "PRAGMA foreign_key_check")
+	if err != nil {
+		return err
+	}
+	invalid := rows.Next()
+	checkErr := rows.Err()
+	closeErr := rows.Close()
+	if invalid {
+		return errors.New("migration would violate foreign keys")
+	}
+	if err := errors.Join(checkErr, closeErr); err != nil {
+		return err
 	}
 	return tx.Commit()
 }
