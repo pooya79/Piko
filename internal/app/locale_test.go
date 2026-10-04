@@ -28,7 +28,7 @@ func TestRegistrationPasswordGuidance(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	catalog := testLocaleCatalog(t)
 	mw := webx.Middleware{Log: logger, Secret: []byte("test-secret"), LocaleCatalog: catalog}
-	router := buildRouter(nil, mw, nil, auth.NewHandler(nil, nil, logger, false), testBotService(t, nil))
+	router := buildRouter(nil, mw, nil, auth.NewHandler(nil, nil, logger, false), testBotService(t, nil), nil)
 	for _, language := range []string{"en", "fa"} {
 		t.Run(language, func(t *testing.T) {
 			r := httptest.NewRequest(http.MethodGet, "/register", nil)
@@ -80,7 +80,7 @@ func TestRegistrationPasswordGuidance(t *testing.T) {
 func TestLegacyLanguageCookieCannotRestoreEnglish(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	mw := webx.Middleware{Log: logger, Secret: []byte("test-secret"), LocaleCatalog: testLocaleCatalog(t)}
-	router := buildRouter(nil, mw, nil, auth.NewHandler(nil, nil, logger, false), testBotService(t, nil))
+	router := buildRouter(nil, mw, nil, auth.NewHandler(nil, nil, logger, false), testBotService(t, nil), nil)
 	for _, path := range []string{"/login", "/register", "/missing"} {
 		r := httptest.NewRequest(http.MethodGet, path, nil)
 		r.AddCookie(&http.Cookie{Name: "piko_language", Value: "en"})
@@ -96,7 +96,7 @@ func TestLegacyLanguageCookieCannotRestoreEnglish(t *testing.T) {
 func TestUnsupportedMethodUsesPersianSharedFeedback(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	mw := webx.Middleware{Log: logger, Secret: []byte("test-secret"), LocaleCatalog: testLocaleCatalog(t)}
-	router := buildRouter(nil, mw, nil, auth.NewHandler(nil, nil, logger, false), testBotService(t, nil))
+	router := buildRouter(nil, mw, nil, auth.NewHandler(nil, nil, logger, false), testBotService(t, nil), nil)
 	r := httptest.NewRequest(http.MethodGet, "/logout", nil)
 	r.AddCookie(&http.Cookie{Name: "piko_language", Value: "en"})
 	w := httptest.NewRecorder()

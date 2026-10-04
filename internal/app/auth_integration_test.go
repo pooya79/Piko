@@ -32,7 +32,7 @@ func TestAuthJourneyAgainstSQLite(t *testing.T) {
 	mw := web.Middleware{Auth: credentials, LocaleCatalog: catalog, Log: logger, Secret: []byte("test-csrf-secret")}
 	rateKey := fmt.Sprintf("auth-journey-%d", time.Now().UnixNano())
 	limiter := web.NewRateLimiter(pool, logger, func(*http.Request) string { return rateKey })
-	server := httptest.NewServer(buildRouter(pool, mw, limiter, auth.NewHandler(credentials, accounts, logger, false), testBotService(t, pool)))
+	server := httptest.NewServer(buildRouter(pool, mw, limiter, auth.NewHandler(credentials, accounts, logger, false), testBotService(t, pool), nil))
 	t.Cleanup(server.Close)
 	jar, err := cookiejar.New(nil)
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/pooya79/Piko/internal/bot"
+	"github.com/pooya79/Piko/internal/builder"
 )
 
 type Config struct {
@@ -21,6 +22,7 @@ type Config struct {
 	TrustedProxy     bool
 	CookieSecure     bool
 	ShutdownPeriod   time.Duration
+	Builder          builder.Config
 }
 
 func LoadConfig() (Config, error) {
@@ -35,6 +37,28 @@ func LoadConfig() (Config, error) {
 		ShutdownPeriod:   10 * time.Second,
 	}
 	var err error
+	cfg.Builder = builder.Config{APIKey: os.Getenv("OPENROUTER_API_KEY"), BaseURL: env("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"), Model: env("OPENROUTER_MODEL", "openai/gpt-6-luna"), DailyRequests: 200, MaxCalls: 20, RunTimeout: 8 * time.Minute}
+	for _, setting := range []struct {
+		key    string
+		target *int64
+	}{{"BUILDER_DAILY_REQUESTS", &cfg.Builder.DailyRequests}, {"BUILDER_MAX_CALLS", &cfg.Builder.MaxCalls}} {
+		if raw := os.Getenv(setting.key); raw != "" {
+			n, e := strconv.ParseInt(raw, 10, 64)
+			if e != nil || n < 1 {
+				return Config{}, fmt.Errorf("%s must be a positive integer", setting.key)
+			}
+			*setting.target = n
+		}
+	}
+	if raw := os.Getenv("BUILDER_RUN_TIMEOUT"); raw != "" {
+		cfg.Builder.RunTimeout, err = time.ParseDuration(raw)
+		if err != nil || cfg.Builder.RunTimeout <= 0 {
+			return Config{}, errors.New("BUILDER_RUN_TIMEOUT must be a positive duration")
+		}
+	}
+	if err := cfg.Builder.Validate(); err != nil {
+		return Config{}, err
+	}
 	if cfg.TrustedProxy, err = boolEnv("TRUSTED_PROXY", false); err != nil {
 		return Config{}, err
 	}

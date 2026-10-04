@@ -1,7 +1,7 @@
 package builder
 
 import (
- "context"
+	 "context"
  "strconv"
  "github.com/pooya79/Piko/internal/bot"
  "github.com/pooya79/Piko/internal/locale"
@@ -65,17 +65,17 @@ templ listContent(csrf string,b bot.Bot,chats []Chat,title,errorKey string) {
  }
 }
 
-templ ChatPage(displayName,csrf string,b bot.Bot,history Conversation,revision int64) {
+templ ChatPage(displayName,csrf string,b bot.Bot,history Conversation,view ChatView) {
  {{ c := history.Chat }}
  {{ p := page(ctx,b); p.Title=c.Title; p.Breadcrumbs=append(p.Breadcrumbs,shell.Breadcrumb{Label:c.Title}) }}
- @shell.Workspace(displayName,csrf,p,chatContent(csrf,b,history,revision))
+ @shell.Workspace(displayName,csrf,p,chatContent(csrf,b,history,view))
 }
 
-templ chatContent(csrf string,b bot.Bot,history Conversation,revision int64) {
+templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
  {{ c := history.Chat }}
  <div class="piko-section-heading"><h1 class="piko-page-title"><bdi dir="auto">{ c.Title }</bdi></h1><a class="piko-text-link" href={ templ.URL(b.URL()+"/chats") }>{ locale.T(ctx,"builder.back") }</a></div>
  <p class="piko-page-copy">{ locale.T(ctx,"builder.shared") }</p>
- <p class="piko-helper" data-draft-revision={ strconv.FormatInt(revision,10) }>{ locale.T(ctx,"builder.revision")+" "+locale.Digits(strconv.FormatInt(revision,10)) }</p>
+ <p class="piko-helper" data-draft-revision={ strconv.FormatInt(view.Revision,10) }>{ locale.T(ctx,"builder.revision")+" "+locale.Digits(strconv.FormatInt(view.Revision,10)) }</p>
  <div class="piko-builder-actions"><a class="piko-secondary-action" href={ templ.URL(b.URL()+"/draft") }>{ locale.T(ctx,"draft.title") }</a><a class="piko-secondary-action" href={ templ.URL(b.URL()+"/preview") }>{ locale.T(ctx,"preview.title") }</a></div>
  <section class="piko-card piko-draft-section mt-6" aria-label={ locale.T(ctx,"builder.history") }>
  if len(history.Messages)==0 {
@@ -85,21 +85,74 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,revision int64) {
   for _,message:=range history.Messages {
    <li class={ "piko-builder-message", "piko-builder-message-"+string(message.Role) }>
     <p class="piko-helper">{ locale.T(ctx,"builder.role."+string(message.Role)) } · <time datetime={ message.CreatedAt.UTC().Format("2006-01-02T15:04:05Z") } data-persian-date>{ locale.Digits(message.CreatedAt.UTC().Format("2006-01-02 15:04")) }</time></p>
-    <p class="piko-builder-text"><bdi dir="auto">{ message.Content }</bdi></p>
+    <p class="piko-builder-text"><bdi dir="auto">
+    if message.FeedbackKey()!="" {
+      { locale.T(ctx,message.FeedbackKey()) }
+    } else {
+      { message.Content }
+    }
+    </bdi></p>
    </li>
   }
   </ol>
  }
  </section>
+ <section class="piko-card piko-draft-section mt-6" aria-label={ locale.T(ctx,"builder.runs") }>
+ for _,run:=range history.Runs {
+  <div class="piko-builder-run" data-run-id={ strconv.FormatInt(run.ID,10) } data-run-status={ string(run.Status) }>
+   <p role="status">{ locale.T(ctx,run.Status.LocaleKey()) }</p>
+   <p class="piko-helper">{ locale.T(ctx,"builder.calls")+" "+locale.Digits(strconv.FormatInt(run.Calls,10)) }</p>
+   @usage(run.Usage)
+  </div>
+ }
+ <p class="piko-helper" data-admitted={ strconv.FormatInt(view.Allowance.Admitted,10) }>{ locale.T(ctx,"builder.allowance")+" "+locale.Digits(strconv.FormatInt(view.Allowance.Admitted,10)+" / "+strconv.FormatInt(view.Allowance.Limit,10)) }</p>
+ <p class="piko-helper">{ locale.T(ctx,"builder.daily.usage") }</p>
+ @usage(view.Allowance.Usage)
+ </section>
  <section class="piko-card piko-draft-section mt-6">
+ if view.FeedbackKey!="" {
+ <p class="piko-field-error" role="alert">{ locale.T(ctx,view.FeedbackKey) }</p>
+ }
+ if view.Enabled {
+  <p class="piko-page-copy" id="builder-capabilities">{ locale.T(ctx,"builder.conversation.only") }</p>
+  <form method="post" action={ c.URL()+"/messages" }>
+   <input type="hidden" name="csrf_token" value={ csrf }/>
+   <label class="piko-label" for="builder-message">{ locale.T(ctx,"builder.message") }</label>
+   <textarea id="builder-message" name="message" class="piko-input piko-builder-composer" maxlength="32768" required aria-describedby="builder-capabilities">{ view.Message }</textarea>
+   <button class="piko-primary-action" type="submit">{ locale.T(ctx,"builder.send") }</button>
+  </form>
+  <a class="piko-text-link" href={ templ.URL(c.URL()) }>{ locale.T(ctx,"builder.refresh") }</a>
+ } else {
   <p id="builder-unavailable" class="piko-page-copy">{ locale.T(ctx,"builder.unavailable") }</p>
   <label class="piko-label" for="builder-message">{ locale.T(ctx,"builder.message") }</label>
   <textarea id="builder-message" class="piko-input" disabled aria-describedby="builder-unavailable"></textarea>
   <button class="piko-primary-action" type="button" disabled>{ locale.T(ctx,"builder.send") }</button>
+ }
  </section>
  <section class="piko-card piko-draft-section mt-6">@deleteChat(csrf,c)</section>
 }
 
 templ deleteChat(csrf string,c Chat) {
  <details class="piko-submission-delete"><summary>{ locale.T(ctx,"builder.delete") }</summary><p class="piko-helper">{ locale.T(ctx,"builder.delete.copy") }</p><form method="post" action={ c.URL()+"/delete" }><input type="hidden" name="csrf_token" value={ csrf }/><button class="piko-secondary-action" type="submit">{ locale.T(ctx,"builder.delete.confirm") }</button></form></details>
+}
+
+
+templ usage(u Usage) {
+ <p class="piko-helper" data-total-tokens={ u.TotalText() } data-cost={ u.CostText() } data-usage-complete={ strconv.FormatBool(u.Complete) }>
+  { locale.T(ctx,"builder.tokens")+" " }
+  if u.Total.Valid {
+ { locale.Digits(u.TotalText()) }
+ } else {
+ { locale.T(ctx,"builder.usage.unknown") }
+ }
+ if !u.Complete && (u.Total.Valid || u.Cost.Valid) {
+  { " · "+locale.T(ctx,"builder.usage.partial") }
+ }
+  { " · "+locale.T(ctx,"builder.cost")+" " }
+  if u.Cost.Valid {
+ <bdi dir="ltr">{ u.CostText()+" USD" }</bdi>
+ } else {
+ { locale.T(ctx,"builder.usage.unknown") }
+ }
+ </p>
 }

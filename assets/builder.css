@@ -8,4 +8,6 @@
 .piko-builder-text { white-space: pre-wrap; overflow-wrap: anywhere; margin-block: .5rem 0; }
 .piko-builder-text bdi { unicode-bidi: plaintext; }
 .piko-builder-list h2 { overflow-wrap: anywhere; }
+.piko-builder-composer { min-height: 8rem; margin-block-end: 1rem; resize: vertical; }
+.piko-builder-run + .piko-builder-run { border-block-start: 1px solid var(--color-base-300); padding-block-start: 1rem; }
 }

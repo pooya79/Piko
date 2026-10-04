@@ -6,9 +6,11 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/pooya79/Piko/internal/auth"
 	"github.com/pooya79/Piko/internal/bot"
 	"github.com/pooya79/Piko/internal/platform/database/dbgen"
@@ -32,11 +34,23 @@ type Message struct {
 	CreatedAt time.Time
 }
 
+func (m Message) FeedbackKey() string {
+	if m.Role == ResultRole {
+		for _, status := range []RunStatus{RunFailed, RunTimeout, RunInterrupted} {
+			if m.Content == status.LocaleKey() {
+				return m.Content
+			}
+		}
+	}
+	return ""
+}
+
 // Conversation is the history boundary for the model-response slice. It contains
 // this chat's full ordered history; the current shared Draft comes from bot.LoadDraft.
 type Conversation struct {
 	Chat     Chat
 	Messages []Message
+	Runs     []Run
 }
 
 type Chat struct {
@@ -50,12 +64,25 @@ func (c Chat) URL() string {
 }
 
 type Service struct {
-	repo *Repository
-	bots *bot.Service
+	repo           *Repository
+	bots           *bot.Service
+	config         Config
+	genkit         *genkit.Genkit
+	now            func() time.Time
+	mu             sync.Mutex
+	stopping       bool
+	work           context.Context
+	cancel         context.CancelFunc
+	runs           sync.WaitGroup
+	storageContext context.Context
+	cancelStorage  context.CancelFunc
+	storageTimer   *time.Timer
 }
 
 func NewService(repo *Repository, bots *bot.Service) *Service {
-	return &Service{repo: repo, bots: bots}
+	ctx, cancel := context.WithCancel(context.Background())
+	storageContext, cancelStorage := context.WithCancel(context.Background())
+	return &Service{repo: repo, bots: bots, now: time.Now, config: (Config{}).defaults(), work: ctx, cancel: cancel, storageContext: storageContext, cancelStorage: cancelStorage}
 }
 
 func owner(ctx context.Context) (int64, error) {
@@ -103,7 +130,15 @@ func (s *Service) History(ctx context.Context, botID, chatID int64) (Conversatio
 		return Conversation{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	history, err := loadHistory(ctx, s.repo.q.WithTx(tx), ownerID, botID, chatID)
+	q := s.repo.q.WithTx(tx)
+	if err := recoverRuns(ctx, q); err != nil {
+		return Conversation{}, err
+	}
+	history, err := loadHistory(ctx, q, ownerID, botID, chatID)
+	if err != nil {
+		return Conversation{}, err
+	}
+	history.Runs, err = loadRuns(ctx, q, ownerID, botID, chatID)
 	if err != nil {
 		return Conversation{}, err
 	}
@@ -138,8 +173,8 @@ func (s *Service) Append(ctx context.Context, botID, chatID int64, role Role, co
 	return message, nil
 }
 
-// All chats are idle until the run-runtime slice adds admission and cancellation.
-// That slice must coordinate active-run deletion in this same write transaction.
+// Deletion and admission share the immediate write transaction. Accounting is
+// retained; active history stays available until cancellation-aware deletion.
 func (s *Service) Delete(ctx context.Context, botID, chatID int64) error {
 	ownerID, err := owner(ctx)
 	if err != nil {
@@ -150,7 +185,21 @@ func (s *Service) Delete(ctx context.Context, botID, chatID int64) error {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	n, err := s.repo.q.WithTx(tx).DeleteOwnerBuilderChat(ctx, dbgen.DeleteOwnerBuilderChatParams{OwnerID: ownerID, BotID: botID, ChatID: chatID})
+	q := s.repo.q.WithTx(tx)
+	if _, err := q.GetOwnerBuilderChat(ctx, dbgen.GetOwnerBuilderChatParams{OwnerID: ownerID, BotID: botID, ChatID: chatID}); err != nil {
+		return storageError(err)
+	}
+	if err := recoverRuns(ctx, q); err != nil {
+		return err
+	}
+	active, err := q.ActiveOwnerBuilderChat(ctx, dbgen.ActiveOwnerBuilderChatParams{OwnerID: ownerID, ChatID: sql.NullInt64{Int64: chatID, Valid: true}})
+	if err != nil {
+		return err
+	}
+	if active > 0 {
+		return ErrBusy
+	}
+	n, err := q.DeleteOwnerBuilderChat(ctx, dbgen.DeleteOwnerBuilderChatParams{OwnerID: ownerID, BotID: botID, ChatID: chatID})
 	if err != nil {
 		return err
 	}

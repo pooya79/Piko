@@ -19,6 +19,13 @@ type Handler struct {
 	log     *slog.Logger
 }
 
+type ChatView struct {
+	Revision             int64
+	Enabled              bool
+	Allowance            Allowance
+	Message, FeedbackKey string
+}
+
 func NewHandler(service *Service, bots *bot.Service, log *slog.Logger) *Handler {
 	return &Handler{service: service, bots: bots, log: log}
 }
@@ -104,6 +111,10 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		h.failed(w, r, err)
 		return
 	}
+	h.detail(w, r, b, id, 200, "", "")
+}
+
+func (h *Handler) detail(w http.ResponseWriter, r *http.Request, b bot.Bot, id int64, status int, message, key string) {
 	history, err := h.service.History(r.Context(), b.ID, id)
 	if err != nil {
 		h.failed(w, r, err)
@@ -115,7 +126,44 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u, _ := auth.UserFromContext(r.Context())
-	h.render(w, r, 200, ChatPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, history, draft.Revision))
+	allowance, err := h.service.Allowance(r.Context())
+	if err != nil {
+		h.failed(w, r, err)
+		return
+	}
+	h.render(w, r, status, ChatPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, history, ChatView{Revision: draft.Revision, Enabled: h.service.Enabled(), Allowance: allowance, Message: message, FeedbackKey: key}))
+}
+
+func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
+	b, ok := h.requestedBot(w, r)
+	if !ok {
+		return
+	}
+	id, err := chatID(r)
+	if err != nil {
+		h.failed(w, r, err)
+		return
+	}
+	if err := r.ParseForm(); err != nil || len(r.PostForm["message"]) != 1 {
+		h.detail(w, r, b, id, 422, "", "builder.message.error")
+		return
+	}
+	message := r.PostForm.Get("message")
+	err = h.service.Send(r.Context(), b.ID, id, message)
+	switch {
+	case errors.Is(err, ErrMessage):
+		h.detail(w, r, b, id, 422, message, "builder.message.error")
+	case errors.Is(err, ErrBusy):
+		h.detail(w, r, b, id, 409, message, "builder.busy")
+	case errors.Is(err, ErrDailyLimit):
+		h.detail(w, r, b, id, 429, message, "builder.limit")
+	case errors.Is(err, ErrUnavailable):
+		h.detail(w, r, b, id, 503, message, "builder.unavailable")
+	case err != nil:
+		h.failed(w, r, err)
+	default:
+		http.Redirect(w, r, b.URL()+"/chats/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+	}
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -128,6 +176,10 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		err = h.service.Delete(r.Context(), b.ID, id)
 	}
 	if err != nil {
+		if errors.Is(err, ErrBusy) {
+			h.detail(w, r, b, id, 409, "", "builder.delete.busy")
+			return
+		}
 		h.failed(w, r, err)
 		return
 	}

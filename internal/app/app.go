@@ -37,6 +37,7 @@ type App struct {
 	db             *sql.DB
 	server         *http.Server
 	bots           *bot.Service
+	builder        *builder.Service
 	now            func() time.Time
 	requestMu      sync.Mutex
 	requests       sync.WaitGroup
@@ -59,6 +60,9 @@ func newWithTelegramClock(ctx context.Context, cfg Config, api *telegram.Client,
 		return nil, err
 	}
 	log := logging.New(cfg.LogLevel)
+	if err := cfg.Builder.Validate(); err != nil {
+		return nil, err
+	}
 	catalog, e := locale.NewCatalog()
 	if e != nil {
 		return nil, e
@@ -86,18 +90,27 @@ func newWithTelegramClock(ctx context.Context, cfg Config, api *telegram.Client,
 	authHandler := auth.NewHandler(authService, accountService, log, cfg.CookieSecure)
 	mw := webx.Middleware{LocaleCatalog: catalog, Auth: authService, Log: log, SecureCookie: cfg.CookieSecure, TrustedProxy: cfg.TrustedProxy, Secret: []byte(cfg.SessionSecret)}
 	limiter := webx.NewRateLimiter(db, log, mw.ClientIP)
-	router := buildRouter(db, mw, limiter, authHandler, botService)
+	builderService := builder.NewService(builder.NewRepository(db), botService)
+	if err := builderService.Configure(cfg.Builder, now); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	router := buildRouter(db, mw, limiter, authHandler, botService, builderService)
 	server := &http.Server{Addr: cfg.HTTPAddr, Handler: router, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}
 	requestCtx, cancelRequests := context.WithCancel(context.Background())
-	a := &App{cfg: cfg, log: log, db: db, server: server, bots: botService, now: now, requestContext: requestCtx, cancelRequests: cancelRequests}
+	a := &App{cfg: cfg, log: log, db: db, server: server, bots: botService, builder: builderService, now: now, requestContext: requestCtx, cancelRequests: cancelRequests}
 	server.Handler = a.trackRequests(router)
 	return a, nil
 }
 func (a *App) Run(ctx context.Context) error {
 	defer func() { _ = a.db.Close() }()
+	defer func() { a.builder.Stop(a.cfg.ShutdownPeriod); a.builder.Wait() }()
 	defer func() { a.stopRequests(); a.requests.Wait() }()
 	if err := a.cleanup(ctx); err != nil {
 		return fmt.Errorf("startup cleanup: %w", err)
+	}
+	if err := a.builder.Recover(ctx); err != nil {
+		return fmt.Errorf("recover Builder runs: %w", err)
 	}
 	cleanupCtx, stopCleanup := context.WithCancel(ctx)
 	ticker := time.NewTicker(time.Hour)
@@ -144,9 +157,12 @@ func (a *App) Run(ctx context.Context) error {
 }
 
 // buildRouter loads sessions before CSRF checks so the latter can choose session-bound tokens.
-func buildRouter(db *sql.DB, mw webx.Middleware, limiter *webx.RateLimiter, ah *auth.Handler, bots *bot.Service) http.Handler {
+func buildRouter(db *sql.DB, mw webx.Middleware, limiter *webx.RateLimiter, ah *auth.Handler, bots *bot.Service, builders *builder.Service) http.Handler {
 	bh := bot.NewHandler(bots, mw.Log)
-	builderHandler := builder.NewHandler(builder.NewService(builder.NewRepository(db), bots), bots, mw.Log)
+	if builders == nil {
+		builders = builder.NewService(builder.NewRepository(db), bots)
+	}
+	builderHandler := builder.NewHandler(builders, bots, mw.Log)
 	r := chi.NewRouter()
 	// The inner recovery sees the account locale; the outer one also covers
 	// failures while loading the request locale or session.
@@ -212,6 +228,7 @@ func buildRouter(db *sql.DB, mw webx.Middleware, limiter *webx.RateLimiter, ah *
 		r.Get("/bots/{botID}/chats", builderHandler.List)
 		r.Post("/bots/{botID}/chats", builderHandler.Create)
 		r.Get("/bots/{botID}/chats/{chatID}", builderHandler.Detail)
+		r.Post("/bots/{botID}/chats/{chatID}/messages", builderHandler.Send)
 		r.Post("/bots/{botID}/chats/{chatID}/delete", builderHandler.Delete)
 		r.Get("/bots", bh.List)
 		r.Get("/bots/new", bh.CreateForm)

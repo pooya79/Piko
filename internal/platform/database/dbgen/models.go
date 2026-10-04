@@ -102,6 +102,15 @@ type BotUpdate struct {
 	AcceptedWhilePaused int64
 }
 
+type BuilderCall struct {
+	RunID        int64
+	Sequence     int64
+	InputTokens  sql.NullInt64
+	OutputTokens sql.NullInt64
+	TotalTokens  sql.NullInt64
+	Cost         sql.NullString
+}
+
 type BuilderChat struct {
 	ID        int64
 	BotID     int64
@@ -116,6 +125,21 @@ type BuilderMessage struct {
 	Role      string
 	Content   string
 	CreatedAt int64
+}
+
+type BuilderRun struct {
+	ID            int64
+	OwnerID       int64
+	BotID         sql.NullInt64
+	ChatID        sql.NullInt64
+	Day           string
+	Model         string
+	DraftRevision int64
+	Status        string
+	CreatedAt     int64
+	LeaseUntil    int64
+	FinishedAt    sql.NullInt64
+	ModelCalls    int64
 }
 
 type RateLimit struct {
