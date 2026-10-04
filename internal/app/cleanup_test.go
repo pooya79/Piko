@@ -64,7 +64,7 @@ func TestServerStartupCleansExpiredRecordsBeforeClosingDatabase(t *testing.T) {
 func TestPeriodicCleanupStopsOnCancellation(t *testing.T) {
 	db, _ := testsupport.MigratedSQLite(t, t.Context())
 	seedCleanupRecords(t, db)
-	a := &App{db: db, log: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	a := &App{db: db, log: slog.New(slog.NewTextHandler(io.Discard, nil)), now: time.Now}
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	ticks := make(chan time.Time, 1)

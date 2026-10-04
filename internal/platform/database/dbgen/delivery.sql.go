@@ -165,12 +165,31 @@ func (q *Queries) CompleteIgnoredUpdate(ctx context.Context, arg CompleteIgnored
 	return err
 }
 
-const deleteExpiredParticipants = `-- name: DeleteExpiredParticipants :execrows
-DELETE FROM bot_participants WHERE expires_at <= unixepoch()
+const deleteExpiredParticipant = `-- name: DeleteExpiredParticipant :one
+DELETE FROM bot_participants
+WHERE bot_id = ?1 AND participant_id = ?2 AND expires_at <= ?3
+RETURNING interaction
 `
 
-func (q *Queries) DeleteExpiredParticipants(ctx context.Context) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteExpiredParticipants)
+type DeleteExpiredParticipantParams struct {
+	BotID         int64
+	ParticipantID int64
+	Now           int64
+}
+
+func (q *Queries) DeleteExpiredParticipant(ctx context.Context, arg DeleteExpiredParticipantParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, deleteExpiredParticipant, arg.BotID, arg.ParticipantID, arg.Now)
+	var interaction string
+	err := row.Scan(&interaction)
+	return interaction, err
+}
+
+const deleteExpiredParticipants = `-- name: DeleteExpiredParticipants :execrows
+DELETE FROM bot_participants WHERE expires_at <= ?1
+`
+
+func (q *Queries) DeleteExpiredParticipants(ctx context.Context, now int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteExpiredParticipants, now)
 	if err != nil {
 		return 0, err
 	}
@@ -333,12 +352,13 @@ func (q *Queries) GetOwnerBotCredentials(ctx context.Context, arg GetOwnerBotCre
 
 const getParticipant = `-- name: GetParticipant :one
 SELECT p.bot_id, p.participant_id, p.chat_id, p.publication_id, p.step_token, p.expires_at, p.interaction, p.attempt_id, v.definition FROM bot_participants p JOIN bot_publications v ON v.id = p.publication_id
-WHERE p.bot_id = ?1 AND p.participant_id = ?2 AND p.expires_at > unixepoch()
+WHERE p.bot_id = ?1 AND p.participant_id = ?2 AND p.expires_at > ?3
 `
 
 type GetParticipantParams struct {
 	BotID         int64
 	ParticipantID int64
+	Now           int64
 }
 
 type GetParticipantRow struct {
@@ -354,7 +374,7 @@ type GetParticipantRow struct {
 }
 
 func (q *Queries) GetParticipant(ctx context.Context, arg GetParticipantParams) (GetParticipantRow, error) {
-	row := q.db.QueryRowContext(ctx, getParticipant, arg.BotID, arg.ParticipantID)
+	row := q.db.QueryRowContext(ctx, getParticipant, arg.BotID, arg.ParticipantID, arg.Now)
 	var i GetParticipantRow
 	err := row.Scan(
 		&i.BotID,
@@ -492,7 +512,7 @@ func (q *Queries) RenewDeliveryWork(ctx context.Context, arg RenewDeliveryWorkPa
 
 const saveParticipant = `-- name: SaveParticipant :exec
 INSERT INTO bot_participants (bot_id, participant_id, chat_id, publication_id, step_token, interaction, attempt_id, expires_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, unixepoch()+86400)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
 ON CONFLICT (bot_id, participant_id) DO UPDATE SET chat_id = excluded.chat_id,
 publication_id = excluded.publication_id, step_token = excluded.step_token, interaction = excluded.interaction,
 attempt_id = excluded.attempt_id, expires_at = excluded.expires_at
@@ -506,6 +526,7 @@ type SaveParticipantParams struct {
 	StepToken     string
 	Interaction   string
 	AttemptID     string
+	ExpiresAt     int64
 }
 
 func (q *Queries) SaveParticipant(ctx context.Context, arg SaveParticipantParams) error {
@@ -517,6 +538,7 @@ func (q *Queries) SaveParticipant(ctx context.Context, arg SaveParticipantParams
 		arg.StepToken,
 		arg.Interaction,
 		arg.AttemptID,
+		arg.ExpiresAt,
 	)
 	return err
 }

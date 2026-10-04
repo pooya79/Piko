@@ -491,13 +491,18 @@ func TestWebhookStorageFailureIsNotAcknowledgedAndUnsupportedChatsStaySilent(t *
 
 func deliveryFixture(t *testing.T) (*App, *accountBrowser, *telegramFake) {
 	t.Helper()
+	return deliveryFixtureClock(t, time.Now)
+}
+
+func deliveryFixtureClock(t *testing.T, now func() time.Time) (*App, *accountBrowser, *telegramFake) {
+	t.Helper()
 	_, path := testsupport.MigratedSQLite(t, t.Context())
 	fake := &telegramFake{}
 	endpoint := httptest.NewServer(fake)
 	fake.url = endpoint.URL
 	t.Cleanup(endpoint.Close)
 	cfg := Config{DatabasePath: path, HTTPAddr: "127.0.0.1:0", SessionSecret: "delivery-test-session-secret-at-least-32", BotEncryptionKey: base64.StdEncoding.EncodeToString([]byte("0123456789abcdef0123456789abcdef")), BotPublicURL: "https://piko.example.test", LogLevel: "error", ShutdownPeriod: time.Second}
-	a, err := newWithTelegram(t.Context(), cfg, telegram.NewClient(endpoint.URL, endpoint.Client()))
+	a, err := newWithTelegramClock(t.Context(), cfg, telegram.NewClient(endpoint.URL, endpoint.Client()), now)
 	if err != nil {
 		t.Fatal(err)
 	}

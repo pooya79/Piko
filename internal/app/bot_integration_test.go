@@ -23,7 +23,7 @@ const testBotToken = "123456:abcdefghijklmnopqrstuvwxyz0123456789"
 
 func testBotService(t *testing.T, db *sql.DB) *bot.Service {
 	t.Helper()
-	s, err := bot.NewService(bot.NewRepository(db), telegram.NewClient("https://api.telegram.org", http.DefaultClient), []byte("0123456789abcdef0123456789abcdef"))
+	s, err := bot.NewService(bot.NewRepository(db), telegram.NewClient("https://api.telegram.org", http.DefaultClient), []byte("0123456789abcdef0123456789abcdef"), time.Now)
 	if err != nil {
 		t.Fatal(err)
 	}

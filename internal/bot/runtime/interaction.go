@@ -10,11 +10,23 @@ import (
 
 // State is delivery-independent progress pinned to the caller's Flow version.
 type State struct {
-	FormID   string   `json:"form_id,omitempty"`
-	Phase    string   `json:"phase,omitempty"`
-	Question int      `json:"question,omitempty"`
-	Answers  []string `json:"answers,omitempty"`
-	Editing  bool     `json:"editing,omitempty"`
+	FormID         string   `json:"form_id,omitempty"`
+	Phase          string   `json:"phase,omitempty"`
+	Question       int      `json:"question,omitempty"`
+	Answers        []string `json:"answers,omitempty"`
+	Editing        bool     `json:"editing,omitempty"`
+	AwaitingResume bool     `json:"awaiting_resume,omitempty"`
+}
+
+func (s State) Unfinished() bool {
+	return s.Phase == "question" || s.Phase == "review" || s.Phase == "edit"
+}
+
+// OfferResume preserves the original question/review state until the Participant
+// explicitly continues or abandons it. The adapter selects the latest Flow on reset.
+func OfferResume(d flow.Definition, state State) Output {
+	state.AwaitingResume = true
+	return Current(d, state)
 }
 
 type Input struct {
@@ -39,6 +51,11 @@ func (a Answer) DisplayValue() string {
 
 func Current(d flow.Definition, state State) Output {
 	o := Output{State: state}
+	if state.AwaitingResume && state.Unfinished() {
+		o.Messages = []string{"پاسخ\u200cهای ناتمام شما ذخیره شده\u200cاند. ادامه می\u200cدهید یا از ابتدا شروع می\u200cکنید؟ شروع دوباره پاسخ\u200cهای ناتمام را پاک می\u200cکند و آخرین نسخه منتشرشده را باز می\u200cکند؛ هیچ درخواستی ارسال نمی\u200cشود. پیشرفت پس از ۲۴ ساعت بی\u200cفعالیتی منقضی می\u200cشود."}
+		o.Choices = []flow.Choice{{ID: "continue", Label: "ادامه"}, {ID: "again", Label: "شروع دوباره"}}
+		return o
+	}
 	f, ok := d.Form(state.FormID)
 	if !ok || state.Phase == "" || state.Phase == "menu" {
 		o.Messages = []string{d.Menu.Text}
@@ -93,6 +110,20 @@ func Current(d flow.Definition, state State) Output {
 func Advance(d flow.Definition, state State, input Input) (Output, error) {
 	if err := d.Validate(); err != nil {
 		return Output{}, err
+	}
+	if state.AwaitingResume && state.Unfinished() {
+		if input.Answer {
+			return Current(d, state), nil
+		}
+		switch input.Action {
+		case "continue":
+			state.AwaitingResume = false
+			return Current(d, state), nil
+		case "again":
+			return Start(d)
+		default:
+			return Output{}, ErrChoice
+		}
 	}
 	if state.Phase == "" || state.Phase == "menu" {
 		for _, c := range d.Menu.Choices {

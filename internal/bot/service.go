@@ -47,14 +47,15 @@ type Service struct {
 	telegram    *telegram.Client
 	credentials credentials
 	publicURL   string
+	now         func() time.Time
 }
 
-func NewService(repo *Repository, api *telegram.Client, key []byte) (*Service, error) {
+func NewService(repo *Repository, api *telegram.Client, key []byte, now func() time.Time) (*Service, error) {
 	c, err := newCredentials(key)
 	if err != nil {
 		return nil, err
 	}
-	return &Service{repo: repo, telegram: api, credentials: c}, nil
+	return &Service{repo: repo, telegram: api, credentials: c, now: now}, nil
 }
 func owner(ctx context.Context) (int64, error) {
 	u, ok := auth.UserFromContext(ctx)

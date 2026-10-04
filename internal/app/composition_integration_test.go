@@ -323,6 +323,7 @@ func TestCombinedFormsTelegramCompletesEachRouteAndPinsReorderedQuestionsAcrossP
 	d.a, d.b.router = restarted, restarted.server.Handler
 	runDeliveryApp(t, restarted)
 	d.text("/start", 1)
+	d.press("ادامه", 1)
 	if sent := waitSent(t, d.f, d.sent); sent[len(sent)-1].Text != "تماس؟" {
 		t.Fatal("in-progress Form changed version/order")
 	}

@@ -214,7 +214,23 @@ func (s *Service) transition(ctx context.Context, q *dbgen.Queries, botID int64,
 	} else {
 		return actions, nil
 	}
-	p, err := q.GetParticipant(ctx, dbgen.GetParticipantParams{BotID: botID, ParticipantID: participant})
+	// Use one instant for expiry and renewal within this immediate transaction.
+	now := s.now().Unix()
+	expiredState, err := q.DeleteExpiredParticipant(ctx, dbgen.DeleteExpiredParticipantParams{BotID: botID, ParticipantID: participant, Now: now})
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+	var prior engine.State
+	if err == nil {
+		if err = json.Unmarshal([]byte(expiredState), &prior); err != nil {
+			return nil, err
+		}
+	}
+	expired := prior.Unfinished()
+	if expired && u.Callback != nil {
+		actions[0].CallbackText = "پیشرفت پس از ۲۴ ساعت بی\u200cفعالیتی منقضی شد؛ پاسخ\u200cهای ناتمام پاک شدند. برای شروع دوباره /start را بفرستید."
+	}
+	p, err := q.GetParticipant(ctx, dbgen.GetParticipantParams{BotID: botID, ParticipantID: participant, Now: now})
 	exists := err == nil
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
@@ -256,16 +272,18 @@ func (s *Service) transition(ctx context.Context, q *dbgen.Queries, botID int64,
 		m := u.Message
 		fields := strings.Fields(m.Text)
 		start := len(fields) > 0 && (fields[0] == "/start" || strings.HasPrefix(fields[0], "/start@"))
-		active := exists && (state.Phase == "question" || state.Phase == "review" || state.Phase == "edit")
-		if start {
+		active := exists && state.Unfinished()
+		if expired {
+			fresh = true
+		} else if start {
 			if active {
-				output = engine.Current(d, state)
+				output = engine.OfferResume(d, state)
 			} else {
 				fresh = true
 			}
 		} else if active {
 			input = engine.Input{Answer: true, Text: m.Text, Unsupported: m.Text == ""}
-			if state.Phase != "question" {
+			if state.AwaitingResume || state.Phase != "question" {
 				output = engine.Current(d, state)
 			} else {
 				output, err = engine.Advance(d, state, input)
@@ -274,7 +292,11 @@ func (s *Service) transition(ctx context.Context, q *dbgen.Queries, botID int64,
 			return actions, nil
 		}
 	}
-	if fresh {
+	// A menu is not unfinished Form progress. If publication changed before a
+	// Form was chosen, refresh it rather than interpreting an old route against
+	// the new definition or starting a superseded Interaction.
+	newForm := !state.Unfinished() && output.State.Unfinished()
+	if fresh || newForm {
 		latest, e := q.GetLatestPublication(ctx, botID)
 		if errors.Is(e, sql.ErrNoRows) {
 			return actions, nil
@@ -282,12 +304,20 @@ func (s *Service) transition(ctx context.Context, q *dbgen.Queries, botID int64,
 		if e != nil {
 			return nil, e
 		}
-		d, err = flow.Decode(latest.Definition)
-		if err != nil {
-			return nil, err
+		if fresh || latest.ID != publication {
+			d, err = flow.Decode(latest.Definition)
+			if err != nil {
+				return nil, err
+			}
+			if newForm {
+				actions[0].CallbackText = "منو به\u200cروز شده است؛ فرم را از منوی تازه انتخاب کنید."
+			}
+			publication, attempt = latest.ID, ""
+			output, err = engine.Start(d)
+			if expired {
+				output.Messages = append([]string{"پیشرفت ناتمام پس از ۲۴ ساعت بی\u200cفعالیتی منقضی شد و پاسخ\u200cها پاک شدند؛ هیچ درخواستی ارسال نشد. از منوی تازه شروع کنید."}, output.Messages...)
+			}
 		}
-		publication, attempt = latest.ID, ""
-		output, err = engine.Start(d)
 	}
 	if err != nil {
 		return nil, err
@@ -318,7 +348,7 @@ func (s *Service) transition(ctx context.Context, q *dbgen.Queries, botID int64,
 	if err != nil {
 		return nil, err
 	}
-	if err = q.SaveParticipant(ctx, dbgen.SaveParticipantParams{BotID: botID, ParticipantID: participant, ChatID: chatID, PublicationID: publication, StepToken: step, Interaction: string(data), AttemptID: attempt}); err != nil {
+	if err = q.SaveParticipant(ctx, dbgen.SaveParticipantParams{BotID: botID, ParticipantID: participant, ChatID: chatID, PublicationID: publication, StepToken: step, Interaction: string(data), AttemptID: attempt, ExpiresAt: now + 86400}); err != nil {
 		return nil, err
 	}
 	messages := telegram.SplitMessages(output.Messages)

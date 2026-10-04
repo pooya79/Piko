@@ -46,6 +46,11 @@ func newInquiryDriver(t *testing.T) *formDriver {
 func newFormDriver(t *testing.T, draft url.Values) *formDriver {
 	t.Helper()
 	a, b, f := deliveryFixture(t)
+	return configureFormDriver(t, a, b, f, draft)
+}
+
+func configureFormDriver(t *testing.T, a *App, b *accountBrowser, f *telegramFake, draft url.Values) *formDriver {
+	t.Helper()
 	for _, p := range []string{"draft", "publish", "activate"} {
 		values := url.Values{}
 		if p == "draft" {
@@ -133,8 +138,19 @@ func TestInquiryRestartContinueAndVersionContinuity(t *testing.T) {
 	}
 	d.a = restarted
 	d.b.router = restarted.server.Handler
-	runDeliveryApp(t, restarted)
+	stop = runDeliveryApp(t, restarted)
 	d.text("/start", 1)
+	d.button("ادامه")
+	d.button("شروع دوباره")
+	stop()
+	restarted, err = newWithTelegram(t.Context(), d.a.cfg, telegram.NewClient(d.f.url, http.DefaultClient))
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.a, d.b.router = restarted, restarted.server.Handler
+	runDeliveryApp(t, restarted)
+	d.text("پاسخ پیش از انتخاب ادامه", 1)
+	d.press("ادامه", 1)
 	sent := waitSent(t, d.f, d.sent)
 	if sent[len(sent)-1].Text != "شماره تماس شما چیست؟" {
 		t.Fatal("Continue changed version or lost progress")

@@ -114,6 +114,7 @@ func TestBookingRetainsDateQuestionAndAnswersAcrossPublicationAndRestart(t *test
 	d.a, d.b.router = restarted, restarted.server.Handler
 	runDeliveryApp(t, restarted)
 	d.text("/start", 1)
+	d.press("ادامه", 1)
 	sent := waitSent(t, d.f, d.sent)
 	if !strings.Contains(sent[len(sent)-1].Text, "تاریخ ترجیحی شما چیست؟") || strings.Contains(sent[len(sent)-1].Text, "تاریخ تازه؟") {
 		t.Fatal("unfinished Booking switched Flow version")

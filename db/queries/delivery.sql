@@ -62,11 +62,16 @@ UPDATE bot_delivery SET worker_until = unixepoch()+60 WHERE bot_id = ?1 AND work
 
 -- name: GetParticipant :one
 SELECT p.*, v.definition FROM bot_participants p JOIN bot_publications v ON v.id = p.publication_id
-WHERE p.bot_id = ?1 AND p.participant_id = ?2 AND p.expires_at > unixepoch();
+WHERE p.bot_id = ?1 AND p.participant_id = ?2 AND p.expires_at > sqlc.arg(now);
+
+-- name: DeleteExpiredParticipant :one
+DELETE FROM bot_participants
+WHERE bot_id = ?1 AND participant_id = ?2 AND expires_at <= sqlc.arg(now)
+RETURNING interaction;
 
 -- name: SaveParticipant :exec
 INSERT INTO bot_participants (bot_id, participant_id, chat_id, publication_id, step_token, interaction, attempt_id, expires_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, unixepoch()+86400)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, sqlc.arg(expires_at))
 ON CONFLICT (bot_id, participant_id) DO UPDATE SET chat_id = excluded.chat_id,
 publication_id = excluded.publication_id, step_token = excluded.step_token, interaction = excluded.interaction,
 attempt_id = excluded.attempt_id, expires_at = excluded.expires_at;
@@ -90,7 +95,7 @@ UPDATE bot_updates SET complete = 1, terminal_failure = 1 WHERE id = ?1 AND bot_
 UPDATE bot_delivery SET polling_offset = ?3 WHERE bot_id = ?1 AND worker_nonce = ?2 AND worker_until >= unixepoch();
 
 -- name: DeleteExpiredParticipants :execrows
-DELETE FROM bot_participants WHERE expires_at <= unixepoch();
+DELETE FROM bot_participants WHERE expires_at <= sqlc.arg(now);
 
 -- name: CompactCompletedUpdateOutput :execrows
 UPDATE bot_updates SET output = NULL WHERE complete = 1 AND output IS NOT NULL AND received_at < unixepoch()-86400;

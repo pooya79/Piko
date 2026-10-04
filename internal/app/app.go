@@ -36,6 +36,7 @@ type App struct {
 	db             *sql.DB
 	server         *http.Server
 	bots           *bot.Service
+	now            func() time.Time
 	requestMu      sync.Mutex
 	requests       sync.WaitGroup
 	stopping       bool
@@ -48,6 +49,10 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 }
 
 func newWithTelegram(ctx context.Context, cfg Config, api *telegram.Client) (*App, error) {
+	return newWithTelegramClock(ctx, cfg, api, time.Now)
+}
+
+func newWithTelegramClock(ctx context.Context, cfg Config, api *telegram.Client, now func() time.Time) (*App, error) {
 	key, err := bot.EncryptionKey(cfg.BotEncryptionKey, cfg.SessionSecret)
 	if err != nil {
 		return nil, err
@@ -66,7 +71,7 @@ func newWithTelegram(ctx context.Context, cfg Config, api *telegram.Client) (*Ap
 		return nil, e
 	}
 	q := dbgen.New(db)
-	botService, e := bot.NewService(bot.NewRepository(db), api, key)
+	botService, e := bot.NewService(bot.NewRepository(db), api, key, now)
 	if e != nil {
 		_ = db.Close()
 		return nil, e
@@ -83,7 +88,7 @@ func newWithTelegram(ctx context.Context, cfg Config, api *telegram.Client) (*Ap
 	router := buildRouter(db, mw, limiter, authHandler, botService)
 	server := &http.Server{Addr: cfg.HTTPAddr, Handler: router, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}
 	requestCtx, cancelRequests := context.WithCancel(context.Background())
-	a := &App{cfg: cfg, log: log, db: db, server: server, bots: botService, requestContext: requestCtx, cancelRequests: cancelRequests}
+	a := &App{cfg: cfg, log: log, db: db, server: server, bots: botService, now: now, requestContext: requestCtx, cancelRequests: cancelRequests}
 	server.Handler = a.trackRequests(router)
 	return a, nil
 }
