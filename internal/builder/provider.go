@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/shopspring/decimal"
 )
@@ -35,7 +36,11 @@ func (t *accountingTransport) RoundTrip(req *http.Request) (*http.Response, erro
 	if err != nil {
 		return nil, err
 	}
-	// This slice requests non-streaming replies. Bound provider data before parsing.
+	if strings.HasPrefix(response.Header.Get("Content-Type"), "text/event-stream") {
+		response.Body = &accountingStream{ReadCloser: response.Body, service: s, run: run, sequence: seq}
+		return response, nil
+	}
+	// Bound non-streamed provider error data before parsing.
 	body, readErr := io.ReadAll(io.LimitReader(response.Body, (2<<20)+1))
 	_ = response.Body.Close()
 	if readErr != nil {
@@ -79,4 +84,56 @@ func reportedUsage(body []byte) Usage {
 		}
 	}
 	return u
+}
+
+// Inspect SSE usage as it crosses the wire, before the SDK can reject a chunk.
+// Keep reported metrics even when a later provider error or Stop ends the call.
+type accountingStream struct {
+	io.ReadCloser
+	service  *Service
+	run      admittedRun
+	sequence int64
+	pending  []byte
+	bytes    int
+	usage    Usage
+}
+
+func (s *accountingStream) Read(p []byte) (int, error) {
+	n, err := s.ReadCloser.Read(p)
+	s.bytes += n
+	if s.bytes > 2<<20 {
+		return 0, errors.New("builder provider response too large")
+	}
+	s.pending = append(s.pending, p[:n]...)
+	for {
+		i := bytes.IndexByte(s.pending, '\n')
+		if i < 0 {
+			break
+		}
+		line := bytes.TrimSpace(s.pending[:i])
+		s.pending = s.pending[i+1:]
+		if !bytes.HasPrefix(line, []byte("data:")) {
+			continue
+		}
+		usage := reportedUsage(bytes.TrimSpace(line[5:]))
+		if !usage.Input.Valid && !usage.Output.Valid && !usage.Total.Valid && !usage.Cost.Valid {
+			continue
+		}
+		if usage.Input.Valid {
+			s.usage.Input = usage.Input
+		}
+		if usage.Output.Valid {
+			s.usage.Output = usage.Output
+		}
+		if usage.Total.Valid {
+			s.usage.Total = usage.Total
+		}
+		if usage.Cost.Valid {
+			s.usage.Cost = usage.Cost
+		}
+		if e := s.service.accountCall(s.run, s.sequence, s.usage); e != nil {
+			return 0, errors.New("builder accounting unavailable")
+		}
+	}
+	return n, err
 }

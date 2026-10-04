@@ -75,13 +75,26 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
  {{ c := history.Chat }}
  {{ latest := history.LatestRun() }}
  if latest.Status == RunRunning {
-  <span hidden data-builder-status-url={ c.URL()+"/status" } data-builder-run-id={ strconv.FormatInt(latest.ID,10) }></span>
+  <span hidden data-builder-stream-url={ c.URL()+"/stream" } data-builder-run-id={ strconv.FormatInt(latest.ID,10) }></span>
   <script src="/static/builder-status.js" defer></script>
  }
  <div class="piko-section-heading"><h1 class="piko-page-title"><bdi dir="auto">{ c.Title }</bdi></h1><a class="piko-text-link" href={ templ.URL(b.URL()+"/chats") }>{ locale.T(ctx,"builder.back") }</a></div>
  <p class="piko-page-copy">{ locale.T(ctx,"builder.shared") }</p>
  <p class="piko-helper" data-draft-revision={ strconv.FormatInt(view.Revision,10) }>{ locale.T(ctx,"builder.revision")+" "+locale.Digits(strconv.FormatInt(view.Revision,10)) }</p>
  <div class="piko-builder-actions"><a class="piko-secondary-action" href={ templ.URL(b.URL()+"/draft") }>{ locale.T(ctx,"draft.title") }</a><a class="piko-secondary-action" href={ templ.URL(b.URL()+"/preview") }>{ locale.T(ctx,"preview.title") }</a></div>
+ if latest.Status == RunRunning {
+  <section class="piko-card piko-draft-section mt-6" aria-label={ locale.T(ctx,"builder.stream.title") }>
+   <h2>{ locale.T(ctx,"builder.stream.title") }</h2>
+   <p class="piko-helper">{ locale.T(ctx,"builder.stream.provisional") }</p>
+   <p role="status" aria-live="polite" data-builder-progress>{ locale.T(ctx,"builder.progress.model") }</p>
+   <p class="piko-builder-text"><bdi dir="auto" data-builder-reply></bdi></p>
+   <p class="piko-helper" data-builder-connection data-reconnecting={ locale.T(ctx,"builder.stream.reconnecting") } data-unavailable={ locale.T(ctx,"builder.stream.unavailable") }></p>
+   <form method="post" action={ c.URL()+"/runs/"+strconv.FormatInt(latest.ID,10)+"/stop" }>
+    <input type="hidden" name="csrf_token" value={ csrf }/>
+    <button type="submit" class="piko-secondary-action">{ locale.T(ctx,"builder.stop") }</button>
+   </form>
+  </section>
+ }
  <section class="piko-card piko-draft-section mt-6" aria-label={ locale.T(ctx,"builder.history") }>
  if len(history.Messages)==0 {
   <p>{ locale.T(ctx,"builder.history.empty") }</p>

@@ -1,39 +1,34 @@
 (() => {
-  const marker = document.querySelector('[data-builder-status-url]');
+  const marker = document.querySelector('[data-builder-stream-url]');
   if (!marker) return;
-  let stopped = false;
-  let timer;
-  window.addEventListener('pagehide', () => {
-    stopped = true;
-    clearTimeout(timer);
-  });
-  window.addEventListener('pageshow', (event) => {
-    if (event.persisted) {
-      stopped = false;
-      timer = setTimeout(refresh, 0);
+  const progress = document.querySelector('[data-builder-progress]');
+  const reply = document.querySelector('[data-builder-reply]');
+  const connection = document.querySelector('[data-builder-connection]');
+  let stream;
+  function connect() {
+    if (!window.EventSource) {
+      connection.textContent = connection.dataset.unavailable;
+      return;
     }
-  });
-  async function refresh() {
-    if (stopped) return;
-    try {
-      if (!document.hidden) {
-        const response = await fetch(marker.dataset.builderStatusUrl, {
-          cache: 'no-store', credentials: 'same-origin', redirect: 'error',
-          signal: AbortSignal.timeout(5000),
-        });
-        if (response.status === 404 || response.status === 401 || response.status === 403) return;
-        if (response.ok) {
-          const run = await response.json();
-          if (String(run.id) !== marker.dataset.builderRunId || run.status !== 'running') {
-            window.location.reload();
-            return;
-          }
-        }
+    stream = new EventSource(marker.dataset.builderStreamUrl);
+    stream.addEventListener('snapshot', event => {
+      const run = JSON.parse(event.data);
+      connection.textContent = '';
+      if (String(run.id) !== marker.dataset.builderRunId || run.status !== 'running') {
+        stream.close();
+        window.location.reload();
+        return;
       }
-    } catch {
-      // A display outage never stops the run. The manual refresh link also works.
-    }
-    if (!stopped) timer = setTimeout(refresh, 2000);
+      // Provisional text is plain text, never HTML or committed Draft feedback.
+      reply.textContent = run.text;
+      progress.textContent = run.progress;
+    });
+    stream.addEventListener('error', () => {
+      connection.textContent = stream.readyState === EventSource.CLOSED
+        ? connection.dataset.unavailable : connection.dataset.reconnecting;
+    });
   }
-  timer = setTimeout(refresh, 2000);
+  window.addEventListener('pagehide', () => stream?.close());
+  window.addEventListener('pageshow', event => { if (event.persisted) connect(); });
+  connect();
 })();

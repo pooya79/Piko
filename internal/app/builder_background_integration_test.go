@@ -17,8 +17,13 @@ import (
 
 func TestBuilderDeletedBotCannotFinishLateRun(t *testing.T) {
 	started, release, cancelled := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	var calls atomic.Int64
 	_, b := builderFixture(t, builder.Config{}, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(io.Discard, r.Body)
+		if calls.Add(1) == 1 {
+			builderToolReply(w, "prepare_draft", map[string]string{"definition": builderFormDraft})
+			return
+		}
 		close(started)
 		select {
 		case <-release:

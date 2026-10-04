@@ -4,9 +4,6 @@ SELECT COUNT(*) FROM builder_runs WHERE owner_id = sqlc.arg(owner_id) AND day = 
 -- name: ActiveOwnerBuilderBot :one
 SELECT COUNT(*) FROM builder_runs WHERE owner_id = sqlc.arg(owner_id) AND bot_id = sqlc.arg(bot_id) AND status = 'running';
 
--- name: ActiveOwnerBuilderChat :one
-SELECT COUNT(*) FROM builder_runs WHERE owner_id = sqlc.arg(owner_id) AND chat_id = sqlc.arg(chat_id) AND status = 'running';
-
 -- name: AdmitOwnerBuilderRun :one
 INSERT INTO builder_runs (owner_id,bot_id,chat_id,day,model,draft_revision,status,created_at,lease_until,request_sequence)
 SELECT b.owner_id,b.id,c.id,sqlc.arg(day),sqlc.arg(model),sqlc.arg(draft_revision),'running',sqlc.arg(created_at),sqlc.arg(lease_until),sqlc.arg(request_sequence)
@@ -20,7 +17,7 @@ JOIN builder_chats c ON c.id=r.chat_id
 JOIN bots b ON b.id=c.bot_id AND b.id=r.bot_id
 JOIN builder_messages m ON m.chat_id=c.id AND m.sequence=r.request_sequence AND m.role='owner'
 WHERE r.id=sqlc.arg(run_id) AND r.owner_id=sqlc.arg(owner_id) AND b.owner_id=sqlc.arg(owner_id)
-AND b.id=sqlc.arg(bot_id) AND c.id=sqlc.arg(chat_id) AND r.status='interrupted'
+AND b.id=sqlc.arg(bot_id) AND c.id=sqlc.arg(chat_id) AND r.status='interrupted' AND r.result <> 'stopped'
 AND r.id=(SELECT MAX(latest.id) FROM builder_runs latest WHERE latest.chat_id=c.id);
 
 -- name: FinishOwnerBuilderRun :execrows
@@ -61,7 +58,7 @@ WHERE r.owner_id=sqlc.arg(owner_id) AND b.owner_id=sqlc.arg(owner_id) AND b.id=s
 ORDER BY r.id;
 
 -- name: GetLatestOwnerBuilderRunStatus :one
-SELECT r.id,r.status FROM builder_runs r JOIN bots b ON b.id=r.bot_id
+SELECT r.id,r.status,r.result FROM builder_runs r JOIN bots b ON b.id=r.bot_id
 WHERE r.owner_id=sqlc.arg(owner_id) AND b.owner_id=sqlc.arg(owner_id)
 AND b.id=sqlc.arg(bot_id) AND r.chat_id=sqlc.arg(chat_id)
 ORDER BY r.id DESC LIMIT 1;
@@ -80,3 +77,14 @@ UPDATE builder_runs SET status='interrupted',finished_at=sqlc.arg(finished_at) W
 -- name: RenewOwnerBuilderRun :execrows
 UPDATE builder_runs SET lease_until=sqlc.arg(lease_until)
 WHERE builder_runs.id=sqlc.arg(run_id) AND builder_runs.owner_id=sqlc.arg(owner_id) AND status='running' AND lease_until > sqlc.arg(now);
+
+-- name: GetOwnerBuilderRun :one
+SELECT r.* FROM builder_runs r JOIN builder_chats c ON c.id=r.chat_id JOIN bots b ON b.id=c.bot_id
+WHERE r.id=sqlc.arg(run_id) AND r.owner_id=sqlc.arg(owner_id) AND b.owner_id=sqlc.arg(owner_id)
+AND b.id=sqlc.arg(bot_id) AND c.id=sqlc.arg(chat_id);
+
+-- name: StopOwnerBuilderRun :execrows
+UPDATE builder_runs SET status='interrupted',result='stopped',finished_at=sqlc.arg(finished_at)
+WHERE builder_runs.id=sqlc.arg(run_id) AND builder_runs.owner_id=sqlc.arg(owner_id) AND status='running'
+AND EXISTS (SELECT 1 FROM builder_chats c JOIN bots b ON b.id=c.bot_id
+ WHERE c.id=builder_runs.chat_id AND b.id=builder_runs.bot_id AND b.owner_id=builder_runs.owner_id);

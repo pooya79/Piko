@@ -47,8 +47,17 @@ type draftTemplate struct {
 // Genkit executes tool requests concurrently. Require one per model response
 // so preparation and validation have an unambiguous order, even if a provider
 // ignores parallel_tool_calls=false. Repairs still use subsequent model calls.
-func sequentialDraftTools(context.Context) (*ai.Hooks, error) {
-	return &ai.Hooks{WrapModel: func(ctx context.Context, params *ai.ModelParams, next ai.ModelNext) (*ai.ModelResponse, error) {
+func (s *Service) sequentialDraftTools(context.Context) (*ai.Hooks, error) {
+	return &ai.Hooks{WrapTool: func(ctx context.Context, params *ai.ToolParams, next ai.ToolNext) (*ai.MultipartToolResponse, error) {
+		run, ok := ctx.Value(runContextKey{}).(admittedRun)
+		if ok {
+			keys := map[string]string{"read_draft": "read.draft", "read_templates": "read.templates", "validate_draft": "validate.draft", "prepare_draft": "prepare.draft"}
+			if key, ok := keys[params.Request.Name]; ok {
+				_ = s.display(run.id, "", "builder.progress."+key)
+			}
+		}
+		return next(ctx, params)
+	}, WrapModel: func(ctx context.Context, params *ai.ModelParams, next ai.ModelNext) (*ai.ModelResponse, error) {
 		response, err := next(ctx, params)
 		if response != nil && len(response.ToolRequests()) > 1 {
 			return nil, errors.New("builder requires sequential tool requests")

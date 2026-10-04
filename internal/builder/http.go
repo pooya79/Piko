@@ -196,6 +196,28 @@ func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {
 	h.sent(w, r, b, id, "", h.service.Retry(r.Context(), b.ID, id, runID))
 }
 
+func (h *Handler) Stop(w http.ResponseWriter, r *http.Request) {
+	b, ok := h.requestedBot(w, r)
+	if !ok {
+		return
+	}
+	id, err := chatID(r)
+	if err != nil {
+		h.failed(w, r, err)
+		return
+	}
+	runID, err := strconv.ParseInt(chi.URLParam(r, "runID"), 10, 64)
+	if err != nil || runID < 1 {
+		h.failed(w, r, bot.ErrNotFound)
+		return
+	}
+	if err := h.service.StopRun(r.Context(), b.ID, id, runID); err != nil {
+		h.failed(w, r, err)
+		return
+	}
+	http.Redirect(w, r, b.URL()+"/chats/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+}
+
 func (h *Handler) sent(w http.ResponseWriter, r *http.Request, b bot.Bot, id int64, message string, err error) {
 	switch {
 	case errors.Is(err, ErrRetry):
@@ -225,10 +247,6 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		err = h.service.Delete(r.Context(), b.ID, id)
 	}
 	if err != nil {
-		if errors.Is(err, ErrBusy) {
-			h.detail(w, r, b, id, 409, "", "builder.delete.busy")
-			return
-		}
 		h.failed(w, r, err)
 		return
 	}

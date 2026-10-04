@@ -22,7 +22,7 @@ import (
 func builderFixture(t *testing.T, config builder.Config, provider http.HandlerFunc) (*App, *accountBrowser) {
 	t.Helper()
 	_, path := testsupport.MigratedSQLite(t, t.Context())
-	fake := httptest.NewServer(provider)
+	fake := httptest.NewServer(streamingBuilderProvider(provider))
 	t.Cleanup(fake.Close)
 	config.APIKey, config.BaseURL = "test-server-key", fake.URL+"/v1"
 	cfg := Config{DatabasePath: path, HTTPAddr: "127.0.0.1:0", SessionSecret: "builder-test-secret-at-least-32-characters", BotEncryptionKey: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=", LogLevel: "error", ShutdownPeriod: time.Second, Builder: config}
@@ -362,9 +362,6 @@ func TestBuilderAdmissionIsBusyWithoutLockingDraftAndRetainsAllowanceAfterDeleti
 	}
 	if got := b.post("/bots/1/chats/2/messages", url.Values{"message": {"درخواست ردشده"}}); got.Code != 409 || !strings.Contains(got.Body.String(), `data-admitted="1"`) {
 		t.Fatal("busy request was admitted or unclear")
-	}
-	if got := b.post("/bots/1/chats/1/delete", url.Values{}); got.Code != 409 {
-		t.Fatal("active chat deleted")
 	}
 	if got := b.post("/bots/1/draft", draftAtRevision(inquiryDraft(), "1")); got.Code != 303 {
 		t.Fatal("provider I/O held a write transaction")

@@ -101,7 +101,20 @@ type statusWriter struct {
 	bytes  int
 }
 
-func (w *statusWriter) WriteHeader(s int) { w.status = s; w.ResponseWriter.WriteHeader(s) }
+func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+func (w *statusWriter) FlushError() error {
+	if w.status == 0 {
+		w.WriteHeader(http.StatusOK)
+	}
+	return http.NewResponseController(w.ResponseWriter).Flush()
+}
+func (w *statusWriter) WriteHeader(s int) {
+	if w.status != 0 {
+		return
+	}
+	w.status = s
+	w.ResponseWriter.WriteHeader(s)
+}
 func (w *statusWriter) Write(p []byte) (int, error) {
 	if w.status == 0 {
 		w.WriteHeader(200)

@@ -373,7 +373,7 @@ func TestBuilderFormReplacementPreservesPublishedInteractionsAndPrivateAnswers(t
 	d.text("PRIVATE-PARTICIPANT-ANSWER", 1)
 	stop()
 	var calls atomic.Int64
-	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := httptest.NewServer(streamingBuilderProvider(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		for _, secret := range []string{"PRIVATE-PARTICIPANT-ANSWER", testBotToken, d.secret} {
 			if strings.Contains(string(body), secret) {

@@ -56,22 +56,6 @@ func (q *Queries) ActiveOwnerBuilderBot(ctx context.Context, arg ActiveOwnerBuil
 	return count, err
 }
 
-const activeOwnerBuilderChat = `-- name: ActiveOwnerBuilderChat :one
-SELECT COUNT(*) FROM builder_runs WHERE owner_id = ?1 AND chat_id = ?2 AND status = 'running'
-`
-
-type ActiveOwnerBuilderChatParams struct {
-	OwnerID int64
-	ChatID  sql.NullInt64
-}
-
-func (q *Queries) ActiveOwnerBuilderChat(ctx context.Context, arg ActiveOwnerBuilderChatParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, activeOwnerBuilderChat, arg.OwnerID, arg.ChatID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
 const admitOwnerBuilderRun = `-- name: AdmitOwnerBuilderRun :one
 INSERT INTO builder_runs (owner_id,bot_id,chat_id,day,model,draft_revision,status,created_at,lease_until,request_sequence)
 SELECT b.owner_id,b.id,c.id,?1,?2,?3,'running',?4,?5,?6
@@ -220,7 +204,7 @@ func (q *Queries) GetActiveOwnerBuilderRun(ctx context.Context, arg GetActiveOwn
 }
 
 const getLatestOwnerBuilderRunStatus = `-- name: GetLatestOwnerBuilderRunStatus :one
-SELECT r.id,r.status FROM builder_runs r JOIN bots b ON b.id=r.bot_id
+SELECT r.id,r.status,r.result FROM builder_runs r JOIN bots b ON b.id=r.bot_id
 WHERE r.owner_id=?1 AND b.owner_id=?1
 AND b.id=?2 AND r.chat_id=?3
 ORDER BY r.id DESC LIMIT 1
@@ -235,12 +219,56 @@ type GetLatestOwnerBuilderRunStatusParams struct {
 type GetLatestOwnerBuilderRunStatusRow struct {
 	ID     int64
 	Status string
+	Result string
 }
 
 func (q *Queries) GetLatestOwnerBuilderRunStatus(ctx context.Context, arg GetLatestOwnerBuilderRunStatusParams) (GetLatestOwnerBuilderRunStatusRow, error) {
 	row := q.db.QueryRowContext(ctx, getLatestOwnerBuilderRunStatus, arg.OwnerID, arg.BotID, arg.ChatID)
 	var i GetLatestOwnerBuilderRunStatusRow
-	err := row.Scan(&i.ID, &i.Status)
+	err := row.Scan(&i.ID, &i.Status, &i.Result)
+	return i, err
+}
+
+const getOwnerBuilderRun = `-- name: GetOwnerBuilderRun :one
+SELECT r.id, r.owner_id, r.bot_id, r.chat_id, r.day, r.model, r.draft_revision, r.status, r.created_at, r.lease_until, r.finished_at, r.model_calls, r.request_sequence, r.result, r.before_definition, r.after_definition, r.after_revision FROM builder_runs r JOIN builder_chats c ON c.id=r.chat_id JOIN bots b ON b.id=c.bot_id
+WHERE r.id=?1 AND r.owner_id=?2 AND b.owner_id=?2
+AND b.id=?3 AND c.id=?4
+`
+
+type GetOwnerBuilderRunParams struct {
+	RunID   int64
+	OwnerID int64
+	BotID   int64
+	ChatID  int64
+}
+
+func (q *Queries) GetOwnerBuilderRun(ctx context.Context, arg GetOwnerBuilderRunParams) (BuilderRun, error) {
+	row := q.db.QueryRowContext(ctx, getOwnerBuilderRun,
+		arg.RunID,
+		arg.OwnerID,
+		arg.BotID,
+		arg.ChatID,
+	)
+	var i BuilderRun
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.BotID,
+		&i.ChatID,
+		&i.Day,
+		&i.Model,
+		&i.DraftRevision,
+		&i.Status,
+		&i.CreatedAt,
+		&i.LeaseUntil,
+		&i.FinishedAt,
+		&i.ModelCalls,
+		&i.RequestSequence,
+		&i.Result,
+		&i.BeforeDefinition,
+		&i.AfterDefinition,
+		&i.AfterRevision,
+	)
 	return i, err
 }
 
@@ -250,7 +278,7 @@ JOIN builder_chats c ON c.id=r.chat_id
 JOIN bots b ON b.id=c.bot_id AND b.id=r.bot_id
 JOIN builder_messages m ON m.chat_id=c.id AND m.sequence=r.request_sequence AND m.role='owner'
 WHERE r.id=?1 AND r.owner_id=?2 AND b.owner_id=?2
-AND b.id=?3 AND c.id=?4 AND r.status='interrupted'
+AND b.id=?3 AND c.id=?4 AND r.status='interrupted' AND r.result <> 'stopped'
 AND r.id=(SELECT MAX(latest.id) FROM builder_runs latest WHERE latest.chat_id=c.id)
 `
 
@@ -488,4 +516,25 @@ func (q *Queries) StartOwnerBuilderCall(ctx context.Context, arg StartOwnerBuild
 	var model_calls int64
 	err := row.Scan(&model_calls)
 	return model_calls, err
+}
+
+const stopOwnerBuilderRun = `-- name: StopOwnerBuilderRun :execrows
+UPDATE builder_runs SET status='interrupted',result='stopped',finished_at=?1
+WHERE builder_runs.id=?2 AND builder_runs.owner_id=?3 AND status='running'
+AND EXISTS (SELECT 1 FROM builder_chats c JOIN bots b ON b.id=c.bot_id
+ WHERE c.id=builder_runs.chat_id AND b.id=builder_runs.bot_id AND b.owner_id=builder_runs.owner_id)
+`
+
+type StopOwnerBuilderRunParams struct {
+	FinishedAt sql.NullInt64
+	RunID      int64
+	OwnerID    int64
+}
+
+func (q *Queries) StopOwnerBuilderRun(ctx context.Context, arg StopOwnerBuilderRunParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, stopOwnerBuilderRun, arg.FinishedAt, arg.RunID, arg.OwnerID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

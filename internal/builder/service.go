@@ -38,7 +38,7 @@ type Message struct {
 
 func (m Message) FeedbackKey() string {
 	if m.Role == ResultRole {
-		for _, key := range []string{RunFailed.LocaleKey(), RunTimeout.LocaleKey(), RunInterrupted.LocaleKey(), "builder.run.saved", "builder.run.conflict", "builder.run.invalid", "builder.run.call.limit"} {
+		for _, key := range []string{RunFailed.LocaleKey(), RunTimeout.LocaleKey(), RunInterrupted.LocaleKey(), RunStopped.LocaleKey(), "builder.run.saved", "builder.run.conflict", "builder.run.invalid", "builder.run.call.limit"} {
 			if m.Content == key {
 				return m.Content
 			}
@@ -88,12 +88,13 @@ type Service struct {
 	storageContext context.Context
 	cancelStorage  context.CancelFunc
 	storageTimer   *time.Timer
+	live           map[int64]*liveRun
 }
 
 func NewService(repo *Repository, bots *bot.Service) *Service {
 	ctx, cancel := context.WithCancel(context.Background())
 	storageContext, cancelStorage := context.WithCancel(context.Background())
-	return &Service{repo: repo, bots: bots, now: time.Now, config: (Config{}).defaults(), work: ctx, cancel: cancel, storageContext: storageContext, cancelStorage: cancelStorage}
+	return &Service{live: make(map[int64]*liveRun), repo: repo, bots: bots, now: time.Now, config: (Config{}).defaults(), work: ctx, cancel: cancel, storageContext: storageContext, cancelStorage: cancelStorage}
 }
 
 func owner(ctx context.Context) (int64, error) {
@@ -180,7 +181,7 @@ func (s *Service) Status(ctx context.Context, botID, chatID int64) (Run, error) 
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return err
 		}
-		run = Run{ID: row.ID, Status: RunStatus(row.Status)}
+		run = Run{ID: row.ID, Status: visibleStatus(row.Status, row.Result), Result: row.Result}
 		return tx.Commit()
 	})
 	return run, err
@@ -214,40 +215,71 @@ func (s *Service) Append(ctx context.Context, botID, chatID int64, role Role, co
 	return message, nil
 }
 
-// Deletion and admission share the immediate write transaction. Accounting is
-// retained; active history stays available until cancellation-aware deletion.
+// Deletion's immediate transaction fences completion before cascading history.
+// Accounting remains attached to the owner; cancellation never reverses a Draft.
 func (s *Service) Delete(ctx context.Context, botID, chatID int64) error {
 	ownerID, err := owner(ctx)
 	if err != nil {
 		return err
 	}
-	tx, err := s.repo.db.BeginTx(ctx, nil)
+	err = database.RetryWrite(ctx, s.repo.db, func(conn *sql.Conn) error {
+		n, err := dbgen.New(conn).DeleteOwnerBuilderChat(ctx, dbgen.DeleteOwnerBuilderChatParams{OwnerID: ownerID, BotID: botID, ChatID: chatID})
+		if err != nil {
+			return err
+		}
+		if n != 1 {
+			return bot.ErrNotFound
+		}
+		return nil
+	})
+	if err == nil {
+		s.mu.Lock()
+		for _, live := range s.live {
+			if live.botID == botID && live.chatID == chatID {
+				live.cancel()
+			}
+		}
+		s.mu.Unlock()
+	}
+	return err
+}
+
+// StopRun is idempotent. SQLite serializes this terminal transition with finish:
+// a committed result stays applied; stopping a running result fences all writes.
+func (s *Service) StopRun(ctx context.Context, botID, chatID, runID int64) error {
+	ownerID, err := owner(ctx)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = tx.Rollback() }()
-	q := s.repo.q.WithTx(tx)
-	if _, err := q.GetOwnerBuilderChat(ctx, dbgen.GetOwnerBuilderChatParams{OwnerID: ownerID, BotID: botID, ChatID: chatID}); err != nil {
-		return storageError(err)
+	err = database.RetryWrite(ctx, s.repo.db, func(conn *sql.Conn) error {
+		tx, err := conn.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = tx.Rollback() }()
+		q := dbgen.New(tx)
+		if _, err := q.GetOwnerBuilderRun(ctx, dbgen.GetOwnerBuilderRunParams{OwnerID: ownerID, BotID: botID, ChatID: chatID, RunID: runID}); err != nil {
+			return storageError(err)
+		}
+		n, err := q.StopOwnerBuilderRun(ctx, dbgen.StopOwnerBuilderRunParams{OwnerID: ownerID, RunID: runID, FinishedAt: sql.NullInt64{Int64: s.now().Unix(), Valid: true}})
+		if err != nil {
+			return err
+		}
+		if n == 1 {
+			if _, err := appendMessage(ctx, q, ownerID, botID, chatID, ResultRole, RunStopped.LocaleKey()); err != nil {
+				return err
+			}
+		}
+		return tx.Commit()
+	})
+	if err == nil {
+		s.mu.Lock()
+		if live := s.live[runID]; live != nil {
+			live.cancel()
+		}
+		s.mu.Unlock()
 	}
-	if err := recoverRuns(ctx, q); err != nil {
-		return err
-	}
-	active, err := q.ActiveOwnerBuilderChat(ctx, dbgen.ActiveOwnerBuilderChatParams{OwnerID: ownerID, ChatID: sql.NullInt64{Int64: chatID, Valid: true}})
-	if err != nil {
-		return err
-	}
-	if active > 0 {
-		return ErrBusy
-	}
-	n, err := q.DeleteOwnerBuilderChat(ctx, dbgen.DeleteOwnerBuilderChatParams{OwnerID: ownerID, BotID: botID, ChatID: chatID})
-	if err != nil {
-		return err
-	}
-	if n != 1 {
-		return bot.ErrNotFound
-	}
-	return tx.Commit()
+	return err
 }
 
 func storageError(err error) error {
