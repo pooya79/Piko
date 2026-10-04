@@ -4,7 +4,7 @@ VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
 RETURNING id, telegram_id, name, username, has_webhook, pending_updates, verified_at;
 
 -- name: ListOwnerBots :many
-SELECT bots.id, bots.telegram_id, bots.name, bots.username, bots.has_webhook, bots.pending_updates, bots.verified_at, bots.webhook_is_piko,
+SELECT bots.id, bots.telegram_id, bots.name, bots.username, bots.has_webhook, bots.pending_updates, bots.verified_at, bots.webhook_is_piko, bots.paused,
 CAST(COALESCE((SELECT MAX(version) FROM bot_publications WHERE bot_id = bots.id), 0) AS INTEGER) AS published_version,
 CAST(COALESCE((SELECT state FROM bot_delivery WHERE bot_id = bots.id), 'inactive') AS TEXT) AS delivery_state,
 CAST(COALESCE((SELECT mode FROM bot_delivery WHERE bot_id = bots.id), '') AS TEXT) AS delivery_mode,
@@ -12,9 +12,17 @@ CAST(COALESCE((SELECT worker_error FROM bot_delivery WHERE bot_id = bots.id), 0)
 FROM bots WHERE bots.owner_id = ?1 ORDER BY bots.id DESC;
 
 -- name: GetOwnerBot :one
-SELECT bots.id, bots.telegram_id, bots.name, bots.username, bots.has_webhook, bots.pending_updates, bots.verified_at, bots.webhook_is_piko,
+SELECT bots.id, bots.telegram_id, bots.name, bots.username, bots.has_webhook, bots.pending_updates, bots.verified_at, bots.webhook_is_piko, bots.paused,
 CAST(COALESCE((SELECT MAX(version) FROM bot_publications WHERE bot_id = bots.id), 0) AS INTEGER) AS published_version,
 CAST(COALESCE((SELECT state FROM bot_delivery WHERE bot_id = bots.id), 'inactive') AS TEXT) AS delivery_state,
 CAST(COALESCE((SELECT mode FROM bot_delivery WHERE bot_id = bots.id), '') AS TEXT) AS delivery_mode,
 CAST(COALESCE((SELECT worker_error FROM bot_delivery WHERE bot_id = bots.id), 0) OR EXISTS(SELECT 1 FROM bot_updates WHERE bot_id = bots.id AND ((complete = 0 AND attempts > 0) OR terminal_failure = 1)) AS INTEGER) AS delivery_error
 FROM bots WHERE bots.owner_id = ?1 AND bots.id = ?2;
+
+-- name: SetOwnerBotPaused :execrows
+UPDATE bots SET paused = ?3 WHERE bots.owner_id = ?1 AND bots.id = ?2
+AND EXISTS (SELECT 1 FROM bot_delivery WHERE bot_id = ?2 AND state = 'active' AND mode = ?4)
+AND EXISTS (SELECT 1 FROM bot_publications WHERE bot_id = ?2);
+
+-- name: GetBotPaused :one
+SELECT paused FROM bots WHERE id = ?1;

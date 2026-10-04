@@ -32,8 +32,9 @@ WHERE b.id = ?1 AND d.mode = 'webhook' AND d.state IN ('activating','active','er
 SELECT EXISTS (SELECT 1 FROM bot_updates WHERE bot_id = ?1 AND update_id = ?2);
 
 -- name: AcceptUpdate :execrows
-INSERT INTO bot_updates (bot_id, update_id, payload, participant_id)
-SELECT ?1, ?2, ?3, ?4 WHERE (SELECT COUNT(*) FROM bot_updates WHERE bot_id = ?1 AND complete = 0) < 1000
+INSERT INTO bot_updates (bot_id, update_id, payload, participant_id, accepted_while_paused)
+SELECT ?1, ?2, ?3, ?4, bots.paused FROM bots WHERE bots.id = ?1
+AND (SELECT COUNT(*) FROM bot_updates WHERE bot_id = ?1 AND complete = 0) < 1000
 ON CONFLICT (bot_id, update_id) DO NOTHING;
 
 -- name: ClaimDeliveryWork :one

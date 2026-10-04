@@ -60,8 +60,19 @@ func (q *Queries) CreateBot(ctx context.Context, arg CreateBotParams) (CreateBot
 	return i, err
 }
 
+const getBotPaused = `-- name: GetBotPaused :one
+SELECT paused FROM bots WHERE id = ?1
+`
+
+func (q *Queries) GetBotPaused(ctx context.Context, id int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getBotPaused, id)
+	var paused int64
+	err := row.Scan(&paused)
+	return paused, err
+}
+
 const getOwnerBot = `-- name: GetOwnerBot :one
-SELECT bots.id, bots.telegram_id, bots.name, bots.username, bots.has_webhook, bots.pending_updates, bots.verified_at, bots.webhook_is_piko,
+SELECT bots.id, bots.telegram_id, bots.name, bots.username, bots.has_webhook, bots.pending_updates, bots.verified_at, bots.webhook_is_piko, bots.paused,
 CAST(COALESCE((SELECT MAX(version) FROM bot_publications WHERE bot_id = bots.id), 0) AS INTEGER) AS published_version,
 CAST(COALESCE((SELECT state FROM bot_delivery WHERE bot_id = bots.id), 'inactive') AS TEXT) AS delivery_state,
 CAST(COALESCE((SELECT mode FROM bot_delivery WHERE bot_id = bots.id), '') AS TEXT) AS delivery_mode,
@@ -83,6 +94,7 @@ type GetOwnerBotRow struct {
 	PendingUpdates   int64
 	VerifiedAt       int64
 	WebhookIsPiko    int64
+	Paused           int64
 	PublishedVersion int64
 	DeliveryState    string
 	DeliveryMode     string
@@ -101,6 +113,7 @@ func (q *Queries) GetOwnerBot(ctx context.Context, arg GetOwnerBotParams) (GetOw
 		&i.PendingUpdates,
 		&i.VerifiedAt,
 		&i.WebhookIsPiko,
+		&i.Paused,
 		&i.PublishedVersion,
 		&i.DeliveryState,
 		&i.DeliveryMode,
@@ -110,7 +123,7 @@ func (q *Queries) GetOwnerBot(ctx context.Context, arg GetOwnerBotParams) (GetOw
 }
 
 const listOwnerBots = `-- name: ListOwnerBots :many
-SELECT bots.id, bots.telegram_id, bots.name, bots.username, bots.has_webhook, bots.pending_updates, bots.verified_at, bots.webhook_is_piko,
+SELECT bots.id, bots.telegram_id, bots.name, bots.username, bots.has_webhook, bots.pending_updates, bots.verified_at, bots.webhook_is_piko, bots.paused,
 CAST(COALESCE((SELECT MAX(version) FROM bot_publications WHERE bot_id = bots.id), 0) AS INTEGER) AS published_version,
 CAST(COALESCE((SELECT state FROM bot_delivery WHERE bot_id = bots.id), 'inactive') AS TEXT) AS delivery_state,
 CAST(COALESCE((SELECT mode FROM bot_delivery WHERE bot_id = bots.id), '') AS TEXT) AS delivery_mode,
@@ -127,6 +140,7 @@ type ListOwnerBotsRow struct {
 	PendingUpdates   int64
 	VerifiedAt       int64
 	WebhookIsPiko    int64
+	Paused           int64
 	PublishedVersion int64
 	DeliveryState    string
 	DeliveryMode     string
@@ -151,6 +165,7 @@ func (q *Queries) ListOwnerBots(ctx context.Context, ownerID int64) ([]ListOwner
 			&i.PendingUpdates,
 			&i.VerifiedAt,
 			&i.WebhookIsPiko,
+			&i.Paused,
 			&i.PublishedVersion,
 			&i.DeliveryState,
 			&i.DeliveryMode,
@@ -167,4 +182,30 @@ func (q *Queries) ListOwnerBots(ctx context.Context, ownerID int64) ([]ListOwner
 		return nil, err
 	}
 	return items, nil
+}
+
+const setOwnerBotPaused = `-- name: SetOwnerBotPaused :execrows
+UPDATE bots SET paused = ?3 WHERE bots.owner_id = ?1 AND bots.id = ?2
+AND EXISTS (SELECT 1 FROM bot_delivery WHERE bot_id = ?2 AND state = 'active' AND mode = ?4)
+AND EXISTS (SELECT 1 FROM bot_publications WHERE bot_id = ?2)
+`
+
+type SetOwnerBotPausedParams struct {
+	OwnerID int64
+	ID      int64
+	Paused  int64
+	Mode    string
+}
+
+func (q *Queries) SetOwnerBotPaused(ctx context.Context, arg SetOwnerBotPausedParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setOwnerBotPaused,
+		arg.OwnerID,
+		arg.ID,
+		arg.Paused,
+		arg.Mode,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

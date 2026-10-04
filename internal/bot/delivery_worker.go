@@ -168,7 +168,7 @@ func (s *Service) stageDelivery(ctx context.Context, work dbgen.BotDelivery, u d
 	if _, err = q.GetWorkerBotCredentials(ctx, dbgen.GetWorkerBotCredentialsParams{ID: work.BotID, WorkerNonce: work.WorkerNonce}); err != nil {
 		return u, err
 	}
-	actions, err := s.transition(ctx, q, work.BotID, update)
+	actions, err := s.transition(ctx, q, work.BotID, update, u.AcceptedWhilePaused != 0)
 	if err != nil {
 		return u, err
 	}
@@ -192,7 +192,7 @@ func (s *Service) stageDelivery(ctx context.Context, work dbgen.BotDelivery, u d
 
 // transition runs inside the inbox staging transaction: progress, confirmation,
 // and acknowledgement outputs either all commit or all roll back.
-func (s *Service) transition(ctx context.Context, q *dbgen.Queries, botID int64, u telegram.Update) ([]telegram.Action, error) {
+func (s *Service) transition(ctx context.Context, q *dbgen.Queries, botID int64, u telegram.Update, acceptedWhilePaused bool) ([]telegram.Action, error) {
 	actions := []telegram.Action{}
 	var participant, chatID int64
 	var input engine.Input
@@ -219,6 +219,21 @@ func (s *Service) transition(ctx context.Context, q *dbgen.Queries, botID int64,
 	expiredState, err := q.DeleteExpiredParticipant(ctx, dbgen.DeleteExpiredParticipantParams{BotID: botID, ParticipantID: participant, Now: now})
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
+	}
+	paused, pauseErr := q.GetBotPaused(ctx, botID)
+	if pauseErr != nil {
+		return nil, pauseErr
+	}
+	if paused != 0 || acceptedWhilePaused {
+		const unavailable = "این ربات موقتاً در دسترس نیست؛ لطفاً بعداً دوباره تلاش کنید."
+		if u.Callback != nil {
+			actions[0].CallbackText = unavailable
+		} else {
+			actions = append(actions, telegram.Action{Message: &telegram.SendMessage{ChatID: chatID, Text: unavailable}})
+		}
+		// Expiry still runs above. Pause never renews inactivity or rotates the
+		// step token, so unexpired questions and review buttons can continue.
+		return actions, nil
 	}
 	var prior engine.State
 	if err == nil {

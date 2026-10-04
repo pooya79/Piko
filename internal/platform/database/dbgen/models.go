@@ -19,6 +19,7 @@ type Bot struct {
 	PendingUpdates int64
 	VerifiedAt     int64
 	WebhookIsPiko  int64
+	Paused         int64
 }
 
 type BotDelivery struct {
@@ -85,18 +86,19 @@ type BotSubmission struct {
 }
 
 type BotUpdate struct {
-	ID              int64
-	BotID           int64
-	UpdateID        int64
-	ParticipantID   int64
-	Payload         string
-	Output          sql.NullString
-	Cursor          int64
-	Complete        int64
-	Attempts        int64
-	RetryAt         int64
-	TerminalFailure int64
-	ReceivedAt      int64
+	ID                  int64
+	BotID               int64
+	UpdateID            int64
+	ParticipantID       int64
+	Payload             string
+	Output              sql.NullString
+	Cursor              int64
+	Complete            int64
+	Attempts            int64
+	RetryAt             int64
+	TerminalFailure     int64
+	ReceivedAt          int64
+	AcceptedWhilePaused int64
 }
 
 type RateLimit struct {

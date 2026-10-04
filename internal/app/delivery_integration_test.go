@@ -24,6 +24,7 @@ type telegramFake struct {
 	calls             []string
 	sent              []telegram.SendMessage
 	answers           []string
+	answerTexts       []string
 	url               string
 	sendFailures      int
 	sendStarted       chan struct{}
@@ -117,13 +118,15 @@ func (f *telegramFake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, `{"ok":true,"result":{"message_id":1}}`)
 	case "answerCallbackQuery":
 		var p struct {
-			ID string `json:"callback_query_id"`
+			ID   string `json:"callback_query_id"`
+			Text string `json:"text"`
 		}
 		if json.NewDecoder(r.Body).Decode(&p) != nil {
 			w.WriteHeader(400)
 			return
 		}
 		f.answers = append(f.answers, p.ID)
+		f.answerTexts = append(f.answerTexts, p.Text)
 		fmt.Fprint(w, `{"ok":true,"result":true}`)
 	case "deleteWebhook":
 		var p struct {

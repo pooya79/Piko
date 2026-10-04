@@ -38,6 +38,7 @@ type Bot struct {
 	DeliveryMode     DeliveryMode
 	DeliveryError    bool
 	WebhookIsPiko    bool
+	Paused           bool
 }
 
 func (b Bot) URL() string { return "/bots/" + strconv.FormatInt(b.ID, 10) }
@@ -110,6 +111,9 @@ func (s *Service) Get(ctx context.Context, id int64) (Bot, error) {
 func (s *Service) deliveryStatus(b Bot) Bot {
 	if b.DeliveryState == "active" && b.DeliveryMode != s.deliveryMode() {
 		b.DeliveryState = "mode.changed"
+	}
+	if b.DeliveryState == "active" && b.Paused {
+		b.DeliveryState = "paused"
 	}
 	return b
 }

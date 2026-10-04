@@ -11,8 +11,9 @@ import (
 )
 
 const acceptUpdate = `-- name: AcceptUpdate :execrows
-INSERT INTO bot_updates (bot_id, update_id, payload, participant_id)
-SELECT ?1, ?2, ?3, ?4 WHERE (SELECT COUNT(*) FROM bot_updates WHERE bot_id = ?1 AND complete = 0) < 1000
+INSERT INTO bot_updates (bot_id, update_id, payload, participant_id, accepted_while_paused)
+SELECT ?1, ?2, ?3, ?4, bots.paused FROM bots WHERE bots.id = ?1
+AND (SELECT COUNT(*) FROM bot_updates WHERE bot_id = ?1 AND complete = 0) < 1000
 ON CONFLICT (bot_id, update_id) DO NOTHING
 `
 
@@ -299,7 +300,7 @@ func (q *Queries) GetIngressCredentials(ctx context.Context, id int64) (GetIngre
 }
 
 const getNextUpdate = `-- name: GetNextUpdate :one
-SELECT u.id, u.bot_id, u.update_id, u.participant_id, u.payload, u.output, u.cursor, u.complete, u.attempts, u.retry_at, u.terminal_failure, u.received_at FROM bot_updates u WHERE u.id IN (SELECT ready.id FROM bot_ready_updates ready WHERE ready.bot_id = ?1) ORDER BY u.update_id LIMIT 1
+SELECT u.id, u.bot_id, u.update_id, u.participant_id, u.payload, u.output, u.cursor, u.complete, u.attempts, u.retry_at, u.terminal_failure, u.received_at, u.accepted_while_paused FROM bot_updates u WHERE u.id IN (SELECT ready.id FROM bot_ready_updates ready WHERE ready.bot_id = ?1) ORDER BY u.update_id LIMIT 1
 `
 
 func (q *Queries) GetNextUpdate(ctx context.Context, botID int64) (BotUpdate, error) {
@@ -318,6 +319,7 @@ func (q *Queries) GetNextUpdate(ctx context.Context, botID int64) (BotUpdate, er
 		&i.RetryAt,
 		&i.TerminalFailure,
 		&i.ReceivedAt,
+		&i.AcceptedWhilePaused,
 	)
 	return i, err
 }
