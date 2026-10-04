@@ -83,6 +83,7 @@ templ DetailPage(displayName, csrf string, bot Bot, warning bool) {
 
 templ detailContent(bot Bot, csrf string, warning bool) {
  @lifecycleNotice(warning)
+ <p class="piko-page-copy"><a class="piko-text-link" href={ templ.URL(bot.URL()+"/chats") }>{ locale.T(ctx,"builder.title") }</a></p>
  <div class="piko-bot-detail-heading"><span class="piko-empty-icon">@shell.Icon("robot")</span><div><h1 class="piko-page-title"><bdi dir="auto">{ bot.Name }</bdi></h1>
  if !bot.Unconnected {
  <p class="piko-page-copy"><bdi dir="ltr">{ "@" + bot.Username }</bdi></p>

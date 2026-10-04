@@ -1,0 +1,105 @@
+package builder
+
+import (
+ "context"
+ "strconv"
+ "github.com/pooya79/Piko/internal/bot"
+ "github.com/pooya79/Piko/internal/locale"
+ "github.com/pooya79/Piko/internal/web/shell"
+)
+
+func page(ctx context.Context, b bot.Bot) shell.Page {
+ return shell.Page{Title:locale.T(ctx,"builder.title"),ActiveNav:shell.BuilderNav,Breadcrumbs:[]shell.Breadcrumb{{Label:locale.T(ctx,"workspace.bots"),URL:"/bots"},{Label:b.Name,URL:b.URL()},{Label:locale.T(ctx,"builder.title"),URL:b.URL()+"/chats"}}}
+}
+
+templ IndexPage(displayName,csrf string,bots []bot.Bot) {
+ @shell.Workspace(displayName,csrf,shell.Page{Title:locale.T(ctx,"builder.title"),ActiveNav:shell.BuilderNav},indexContent(bots))
+}
+
+templ indexContent(bots []bot.Bot) {
+ <div class="piko-section-heading"><h1 class="piko-page-title">{ locale.T(ctx,"builder.title") }</h1><a class="piko-primary-action" href="/bots/new">{ locale.T(ctx,"bot.create.title") }</a></div>
+ <p class="piko-page-copy">{ locale.T(ctx,"builder.choose") }</p>
+ if len(bots)==0 {
+  <section class="piko-card piko-draft-section"><p>{ locale.T(ctx,"builder.bots.empty") }</p></section>
+ } else {
+  <div class="piko-bot-grid">
+  for _,b:=range bots {
+   <article class="piko-card piko-bot-card"><span class="piko-empty-icon">@shell.Icon("chat-circle-dots")</span><h2><bdi dir="auto">{ b.Name }</bdi></h2><a class="piko-text-link" href={ templ.URL(b.URL()+"/chats") }>{ locale.T(ctx,"builder.open") }</a></article>
+  }
+  </div>
+ }
+}
+
+templ ListPage(displayName,csrf string,b bot.Bot,chats []Chat,title,errorKey string) {
+ @shell.Workspace(displayName,csrf,page(ctx,b),listContent(csrf,b,chats,title,errorKey))
+}
+
+templ listContent(csrf string,b bot.Bot,chats []Chat,title,errorKey string) {
+ <div class="piko-section-heading"><h1 class="piko-page-title">{ locale.T(ctx,"builder.title") }</h1><a class="piko-text-link" href={ templ.URL(b.URL()) }><bdi dir="auto">{ b.Name }</bdi></a></div>
+ <p class="piko-page-copy">{ locale.T(ctx,"builder.shared") }</p>
+ <section class="piko-card piko-draft-section">
+  <h2>{ locale.T(ctx,"builder.create") }</h2>
+  <form method="post" action={ b.URL()+"/chats" } class="piko-builder-create">
+   <input type="hidden" name="csrf_token" value={ csrf }/>
+   <label class="piko-label" for="chat-title">{ locale.T(ctx,"builder.title.label") }</label>
+   <input id="chat-title" class="piko-input" name="title" dir="auto" value={ title } required maxlength="80" aria-describedby="chat-title-hint"
+   if errorKey!="" {
+ aria-invalid="true"
+ }
+   />
+   <p id="chat-title-hint" class="piko-helper">{ locale.T(ctx,"builder.title.hint") }</p>
+   if errorKey!="" {
+ <p class="piko-field-error" role="alert">{ locale.T(ctx,errorKey) }</p>
+ }
+   <button type="submit" class="piko-primary-action">{ locale.T(ctx,"builder.create") }</button>
+  </form>
+ </section>
+ if len(chats)==0 {
+  <section class="piko-card piko-draft-section mt-6"><p>{ locale.T(ctx,"builder.empty") }</p></section>
+ } else {
+  <ul class="piko-builder-list">
+  for _,c:=range chats {
+   <li class="piko-card piko-draft-section"><h2><a class="piko-text-link" href={ templ.URL(c.URL()) }><bdi dir="auto">{ c.Title }</bdi></a></h2><p class="piko-helper">{ locale.T(ctx,"builder.idle") }</p><p class="piko-helper"><time datetime={ c.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z") } data-persian-date>{ locale.Digits(c.UpdatedAt.UTC().Format("2006-01-02 15:04")) }</time></p>@deleteChat(csrf,c)</li>
+  }
+  </ul>
+ }
+}
+
+templ ChatPage(displayName,csrf string,b bot.Bot,history Conversation,revision int64) {
+ {{ c := history.Chat }}
+ {{ p := page(ctx,b); p.Title=c.Title; p.Breadcrumbs=append(p.Breadcrumbs,shell.Breadcrumb{Label:c.Title}) }}
+ @shell.Workspace(displayName,csrf,p,chatContent(csrf,b,history,revision))
+}
+
+templ chatContent(csrf string,b bot.Bot,history Conversation,revision int64) {
+ {{ c := history.Chat }}
+ <div class="piko-section-heading"><h1 class="piko-page-title"><bdi dir="auto">{ c.Title }</bdi></h1><a class="piko-text-link" href={ templ.URL(b.URL()+"/chats") }>{ locale.T(ctx,"builder.back") }</a></div>
+ <p class="piko-page-copy">{ locale.T(ctx,"builder.shared") }</p>
+ <p class="piko-helper" data-draft-revision={ strconv.FormatInt(revision,10) }>{ locale.T(ctx,"builder.revision")+" "+locale.Digits(strconv.FormatInt(revision,10)) }</p>
+ <div class="piko-builder-actions"><a class="piko-secondary-action" href={ templ.URL(b.URL()+"/draft") }>{ locale.T(ctx,"draft.title") }</a><a class="piko-secondary-action" href={ templ.URL(b.URL()+"/preview") }>{ locale.T(ctx,"preview.title") }</a></div>
+ <section class="piko-card piko-draft-section mt-6" aria-label={ locale.T(ctx,"builder.history") }>
+ if len(history.Messages)==0 {
+  <p>{ locale.T(ctx,"builder.history.empty") }</p>
+ } else {
+  <ol class="piko-builder-history">
+  for _,message:=range history.Messages {
+   <li class={ "piko-builder-message", "piko-builder-message-"+string(message.Role) }>
+    <p class="piko-helper">{ locale.T(ctx,"builder.role."+string(message.Role)) } · <time datetime={ message.CreatedAt.UTC().Format("2006-01-02T15:04:05Z") } data-persian-date>{ locale.Digits(message.CreatedAt.UTC().Format("2006-01-02 15:04")) }</time></p>
+    <p class="piko-builder-text"><bdi dir="auto">{ message.Content }</bdi></p>
+   </li>
+  }
+  </ol>
+ }
+ </section>
+ <section class="piko-card piko-draft-section mt-6">
+  <p id="builder-unavailable" class="piko-page-copy">{ locale.T(ctx,"builder.unavailable") }</p>
+  <label class="piko-label" for="builder-message">{ locale.T(ctx,"builder.message") }</label>
+  <textarea id="builder-message" class="piko-input" disabled aria-describedby="builder-unavailable"></textarea>
+  <button class="piko-primary-action" type="button" disabled>{ locale.T(ctx,"builder.send") }</button>
+ </section>
+ <section class="piko-card piko-draft-section mt-6">@deleteChat(csrf,c)</section>
+}
+
+templ deleteChat(csrf string,c Chat) {
+ <details class="piko-submission-delete"><summary>{ locale.T(ctx,"builder.delete") }</summary><p class="piko-helper">{ locale.T(ctx,"builder.delete.copy") }</p><form method="post" action={ c.URL()+"/delete" }><input type="hidden" name="csrf_token" value={ csrf }/><button class="piko-secondary-action" type="submit">{ locale.T(ctx,"builder.delete.confirm") }</button></form></details>
+}

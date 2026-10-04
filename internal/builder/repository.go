@@ -1,0 +1,71 @@
+package builder
+
+import (
+	"context"
+	"database/sql"
+	"time"
+
+	"github.com/pooya79/Piko/internal/platform/database/dbgen"
+)
+
+type Repository struct {
+	db *sql.DB
+	q  *dbgen.Queries
+}
+
+func NewRepository(db *sql.DB) *Repository {
+	return &Repository{db: db, q: dbgen.New(db)}
+}
+
+func chatFromRow(row dbgen.BuilderChat) Chat {
+	return Chat{ID: row.ID, BotID: row.BotID, Title: row.Title, CreatedAt: time.Unix(row.CreatedAt, 0), UpdatedAt: time.Unix(row.UpdatedAt, 0)}
+}
+
+func (r *Repository) create(ctx context.Context, ownerID, botID int64, title string) (Chat, error) {
+	row, err := r.q.CreateOwnerBuilderChat(ctx, dbgen.CreateOwnerBuilderChatParams{OwnerID: ownerID, BotID: botID, Title: title, CreatedAt: time.Now().Unix()})
+	return chatFromRow(row), storageError(err)
+}
+
+func (r *Repository) list(ctx context.Context, ownerID, botID int64) ([]Chat, error) {
+	rows, err := r.q.ListOwnerBuilderChats(ctx, dbgen.ListOwnerBuilderChatsParams{OwnerID: ownerID, BotID: botID})
+	if err != nil {
+		return nil, err
+	}
+	chats := make([]Chat, 0, len(rows))
+	for _, row := range rows {
+		chats = append(chats, chatFromRow(row))
+	}
+	return chats, nil
+}
+
+func messageFromRow(row dbgen.BuilderMessage) Message {
+	return Message{Sequence: row.Sequence, Role: Role(row.Role), Content: row.Content, CreatedAt: time.Unix(row.CreatedAt, 0)}
+}
+
+func loadHistory(ctx context.Context, q *dbgen.Queries, ownerID, botID, chatID int64) (Conversation, error) {
+	row, err := q.GetOwnerBuilderChat(ctx, dbgen.GetOwnerBuilderChatParams{OwnerID: ownerID, BotID: botID, ChatID: chatID})
+	if err != nil {
+		return Conversation{}, storageError(err)
+	}
+	rows, err := q.ListOwnerBuilderMessages(ctx, dbgen.ListOwnerBuilderMessagesParams{OwnerID: ownerID, BotID: botID, ChatID: chatID})
+	if err != nil {
+		return Conversation{}, err
+	}
+	history := Conversation{Chat: chatFromRow(row), Messages: make([]Message, 0, len(rows))}
+	for _, row := range rows {
+		history.Messages = append(history.Messages, messageFromRow(row))
+	}
+	return history, nil
+}
+
+func appendMessage(ctx context.Context, q *dbgen.Queries, ownerID, botID, chatID int64, role Role, content string) (Message, error) {
+	now := time.Now().Unix()
+	row, err := q.AppendOwnerBuilderMessage(ctx, dbgen.AppendOwnerBuilderMessageParams{OwnerID: ownerID, BotID: botID, ChatID: chatID, Role: string(role), Content: content, CreatedAt: now})
+	if err != nil {
+		return Message{}, storageError(err)
+	}
+	if err := q.TouchOwnerBuilderChat(ctx, dbgen.TouchOwnerBuilderChatParams{OwnerID: ownerID, BotID: botID, ChatID: chatID, UpdatedAt: now}); err != nil {
+		return Message{}, err
+	}
+	return messageFromRow(row), nil
+}

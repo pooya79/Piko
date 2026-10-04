@@ -51,7 +51,11 @@ templ sidebar(displayName, csrf string, page Page) {
   <nav aria-label={ locale.T(ctx, "workspace.navigation") }>
    <p class="piko-sidebar-label">{ locale.T(ctx, "workspace.title") }</p>
    @navigationLink(locale.T(ctx, "dashboard.title"), "house", "/dashboard", page.ActiveNav == DashboardNav)
-   @ComingSoon(locale.T(ctx, "workspace.chat"), "chat-circle-dots", "piko-nav-item")
+   if page.BuilderURL != "" {
+    @navigationLink(locale.T(ctx, "workspace.chat"), "chat-circle-dots", page.BuilderURL, page.ActiveNav == BuilderNav)
+   } else {
+    @ComingSoon(locale.T(ctx, "workspace.chat"), "chat-circle-dots", "piko-nav-item")
+   }
    if page.BotsURL != "" {
     @navigationLink(locale.T(ctx, "workspace.bots"), "squares-four", page.BotsURL, page.ActiveNav == BotsNav)
    } else {

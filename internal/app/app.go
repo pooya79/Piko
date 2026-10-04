@@ -14,6 +14,7 @@ import (
 	"github.com/pooya79/Piko/internal/auth"
 	"github.com/pooya79/Piko/internal/bot"
 	"github.com/pooya79/Piko/internal/bot/telegram"
+	"github.com/pooya79/Piko/internal/builder"
 	"github.com/pooya79/Piko/internal/dashboard"
 	"github.com/pooya79/Piko/internal/locale"
 	"github.com/pooya79/Piko/internal/platform/database"
@@ -145,6 +146,7 @@ func (a *App) Run(ctx context.Context) error {
 // buildRouter loads sessions before CSRF checks so the latter can choose session-bound tokens.
 func buildRouter(db *sql.DB, mw webx.Middleware, limiter *webx.RateLimiter, ah *auth.Handler, bots *bot.Service) http.Handler {
 	bh := bot.NewHandler(bots, mw.Log)
+	builderHandler := builder.NewHandler(builder.NewService(builder.NewRepository(db), bots), bots, mw.Log)
 	r := chi.NewRouter()
 	// The inner recovery sees the account locale; the outer one also covers
 	// failures while loading the request locale or session.
@@ -206,6 +208,11 @@ func buildRouter(db *sql.DB, mw webx.Middleware, limiter *webx.RateLimiter, ah *
 		})
 		r.Get("/account", ah.Profile)
 		r.Get("/dashboard", dashboard.NewHandler(bots))
+		r.Get("/builder", builderHandler.Index)
+		r.Get("/bots/{botID}/chats", builderHandler.List)
+		r.Post("/bots/{botID}/chats", builderHandler.Create)
+		r.Get("/bots/{botID}/chats/{chatID}", builderHandler.Detail)
+		r.Post("/bots/{botID}/chats/{chatID}/delete", builderHandler.Delete)
 		r.Get("/bots", bh.List)
 		r.Get("/bots/new", bh.CreateForm)
 		r.With(limiter.MiddlewareStrict("bot-create", 10, time.Minute)).Post("/bots/new", bh.Create)

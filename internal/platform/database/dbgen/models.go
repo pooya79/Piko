@@ -102,6 +102,22 @@ type BotUpdate struct {
 	AcceptedWhilePaused int64
 }
 
+type BuilderChat struct {
+	ID        int64
+	BotID     int64
+	Title     string
+	CreatedAt int64
+	UpdatedAt int64
+}
+
+type BuilderMessage struct {
+	ChatID    int64
+	Sequence  int64
+	Role      string
+	Content   string
+	CreatedAt int64
+}
+
 type RateLimit struct {
 	Key       string
 	Count     int64

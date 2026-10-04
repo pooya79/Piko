@@ -307,6 +307,8 @@ func TestUnconnectedUpgradePreservesPopulatedBotsAndLifecycleStates(t *testing.T
 
 func TestUnconnectedRollbackRefusesToDiscardWorkAndRestoresForeignKeys(t *testing.T) {
 	a, b := unconnectedFixture(t)
+	// Exercise the Bot-table rebuild, independently of later migrations.
+	rollbackToMigration(t, a.db, "000011_unconnected_bots")
 	if got := b.post("/bots/new", url.Values{"name": {"کار محفوظ"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}

@@ -134,7 +134,7 @@ func (s *Service) deliveryStatus(b Bot) Bot {
 	return b
 }
 func Navigation(bots []Bot) shell.Page {
-	p := shell.Page{BotsURL: "/bots", CreateBotURL: "/bots/new"}
+	p := shell.Page{BotsURL: "/bots", CreateBotURL: "/bots/new", BuilderURL: "/builder"}
 	for i, b := range bots {
 		if i == 5 {
 			break

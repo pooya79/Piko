@@ -16,6 +16,7 @@ type Page struct {
 	// come from owner-authorized feature data; the shell supplies no demo data.
 	BotsURL      string
 	CreateBotURL string
+	BuilderURL   string
 	RecentBots   []BotLink
 }
 
@@ -31,6 +32,7 @@ type NavSection string
 const (
 	DashboardNav NavSection = ""
 	BotsNav      NavSection = "bots"
+	BuilderNav   NavSection = "builder"
 )
 
 // BotLink contains only navigation identity, never inferred status or metrics.
@@ -50,6 +52,7 @@ type Breadcrumb struct {
 func (p Page) withDefaults(ctx context.Context) Page {
 	if nav, ok := ctx.Value(navigationKey{}).(Page); ok && p.BotsURL == "" {
 		p.BotsURL, p.CreateBotURL, p.RecentBots = nav.BotsURL, nav.CreateBotURL, nav.RecentBots
+		p.BuilderURL = nav.BuilderURL
 	}
 	if p.Title == "" {
 		p.Title = locale.T(ctx, "dashboard.title")
