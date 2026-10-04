@@ -32,13 +32,9 @@ func testBotService(t *testing.T, db *sql.DB) *bot.Service {
 
 func TestBotMigrationPreservesExistingAccountAndSession(t *testing.T) {
 	db, path := testsupport.MigratedSQLite(t, t.Context())
-	// Roll back Submissions, delivery, publication, Draft and Bot storage in this disposable file to represent
+	// Roll back later migrations in this disposable file to represent
 	// an installed pre-Bot schema; registration still uses its existing HTTP seam.
-	for range 5 {
-		if err := database.Migrate(t.Context(), db, true); err != nil {
-			t.Fatal(err)
-		}
-	}
+	rollbackToMigration(t, db, "000003_persian_only")
 	router, _ := accountTestRouter(t, db)
 	b := newAccountBrowser(t, router)
 	b.send(http.MethodGet, "/register", nil)

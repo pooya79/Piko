@@ -8,21 +8,23 @@ import (
  "github.com/pooya79/Piko/internal/web/shell"
 )
 
-templ DraftPage(displayName, csrf string, b Bot, d flow.Definition, saved, notice bool, message string, editor draftEditor) {
- @shell.Workspace(displayName, csrf, flowPage(ctx, b, "draft.title"), draftContent(csrf,b,d,saved,notice,message,editor))
+templ DraftPage(displayName, csrf string, b Bot, d flow.Definition, revision int64, saved, notice bool, message string, editor draftEditor) {
+ @shell.Workspace(displayName, csrf, flowPage(ctx, b, "draft.title"), draftContent(csrf,b,d,revision,saved,notice,message,editor))
 }
 
-templ draftContent(csrf string, b Bot, d flow.Definition, saved, notice bool, message string, editor draftEditor) {
+templ draftContent(csrf string, b Bot, d flow.Definition, revision int64, saved, notice bool, message string, editor draftEditor) {
  <div class="piko-section-heading"><div><p class="piko-draft-eyebrow">{ locale.T(ctx,"draft.badge") }</p><h1 class="piko-page-title">{ locale.T(ctx,"draft.title") }</h1></div><a class="piko-text-link" href={ templ.URL(b.URL()) }><bdi dir="auto">{ b.Name }</bdi></a></div>
  <p class="piko-page-copy">{ locale.T(ctx,"composition.copy") }</p>
+ <p class="piko-helper">{ locale.T(ctx,"draft.revision") } <bdi dir="ltr">{ strconv.FormatInt(revision,10) }</bdi></p>
  if notice && saved {
  <p class="piko-draft-notice" role="status">{ locale.T(ctx,"draft.saved") }</p>
  }
  if message != "" {
- <p id="draft-error" class="piko-field-error piko-bot-error" role="alert">{ message }</p>
+ <p id="draft-error" class="piko-field-error piko-bot-error" role="alert">{ message } <a class="piko-text-link" href={ templ.URL(b.URL()+"/draft") }>{ locale.T(ctx,"draft.reload") }</a></p>
  }
  <form class="piko-draft-form" method="post" action={ templ.URL(b.URL()+"/draft") }>
   <input type="hidden" name="csrf_token" value={ csrf }/>
+  <input type="hidden" name="draft_revision" value={ strconv.FormatInt(revision,10) }/>
   <input type="hidden" name="welcome_id" value={ d.Welcome.ID }/>
   <input type="hidden" name="menu_id" value={ d.Menu.ID }/>
   <section class="piko-card piko-draft-section" aria-labelledby="welcome-heading"><h2 id="welcome-heading">{ locale.T(ctx,"draft.welcome.title") }</h2><label class="piko-label" for="welcome">{ locale.T(ctx,"draft.welcome.label") }</label><textarea class="piko-input piko-draft-textarea" id="welcome" name="welcome" dir="auto" required maxlength="2000">{ d.Welcome.Text }</textarea><label class="piko-label" for="menu-prompt">{ locale.T(ctx,"draft.menu.label") }</label><textarea class="piko-input piko-draft-textarea" id="menu-prompt" name="menu_prompt" dir="auto" required maxlength="2000">{ d.Menu.Text }</textarea></section>

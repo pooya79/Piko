@@ -17,13 +17,13 @@ func (h *Handler) PreviewLanding(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	_, saved, err := h.service.LoadDraft(r.Context(), b.ID)
+	snapshot, err := h.service.LoadDraft(r.Context(), b.ID)
 	if err != nil {
 		h.draftError(w, r, err)
 		return
 	}
 	u, _ := auth.UserFromContext(r.Context())
-	h.render(w, r, 200, PreviewLandingPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, saved))
+	h.render(w, r, 200, PreviewLandingPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, snapshot.Revision > 0))
 }
 
 func (h *Handler) StartPreview(w http.ResponseWriter, r *http.Request) {

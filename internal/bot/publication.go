@@ -13,13 +13,14 @@ import (
 )
 
 func (s *Service) Publish(ctx context.Context, botID int64) error {
-	d, saved, err := s.LoadDraft(ctx, botID)
+	snapshot, err := s.LoadDraft(ctx, botID)
 	if err != nil {
 		return err
 	}
-	if !saved {
+	if snapshot.Revision == 0 {
 		return ErrNoDraft
 	}
+	d := snapshot.Definition
 	if err := d.Validate(); err != nil {
 		return err
 	}

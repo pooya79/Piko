@@ -40,11 +40,13 @@ func (h *Handler) Draft(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	d, saved, err := h.service.LoadDraft(r.Context(), b.ID)
+	snapshot, err := h.service.LoadDraft(r.Context(), b.ID)
 	if err != nil {
 		h.draftError(w, r, err)
 		return
 	}
+	d, revision := snapshot.Definition, snapshot.Revision
+	saved := revision > 0
 	if !saved {
 		d = emptyDraft()
 	}
@@ -52,12 +54,12 @@ func (h *Handler) Draft(w http.ResponseWriter, r *http.Request) {
 		if _, ok := templateDefinition(name); ok {
 			saved = false
 			if err := addTemplate(&d, name); err != nil {
-				h.draftPage(w, r, 422, b, d, false, locale.T(r.Context(), "draft.error.choices"))
+				h.draftPage(w, r, 422, b, d, revision, false, locale.T(r.Context(), "draft.error.choices"))
 				return
 			}
 		}
 	}
-	h.draftPage(w, r, 200, b, d, saved, "")
+	h.draftPage(w, r, 200, b, d, revision, saved, "")
 }
 
 func (h *Handler) SaveDraft(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +68,12 @@ func (h *Handler) SaveDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := r.ParseForm(); err != nil {
-		h.draftPage(w, r, 422, b, emptyDraft(), false, locale.T(r.Context(), "draft.error.definition"))
+		h.draftPage(w, r, 422, b, emptyDraft(), 0, false, locale.T(r.Context(), "draft.error.definition"))
+		return
+	}
+	revision, revisionErr := strconv.ParseInt(r.PostForm.Get("draft_revision"), 10, 64)
+	if len(r.PostForm["draft_revision"]) != 1 || revisionErr != nil || revision < 0 {
+		h.draftPage(w, r, 422, b, emptyDraft(), 0, false, locale.T(r.Context(), "draft.error.revision"))
 		return
 	}
 	d, err := parseDraft(r.PostForm)
@@ -90,18 +97,22 @@ func (h *Handler) SaveDraft(w http.ResponseWriter, r *http.Request) {
 			editor, editErr := editDraft(&d, action, questionType)
 			err = editErr
 			if err == nil {
-				h.draftPage(w, r, 200, b, d, false, "", editor)
+				h.draftPage(w, r, 200, b, d, revision, false, "", editor)
 				return
 			}
 		}
 	}
 	if err == nil {
-		err = h.service.SaveDraft(r.Context(), b.ID, d)
+		_, err = h.service.SaveDraft(r.Context(), b.ID, revision, d)
 	}
 	if err != nil {
+		if errors.Is(err, ErrStaleDraft) {
+			h.draftPage(w, r, 409, b, d, revision, false, locale.T(r.Context(), "draft.error.conflict"))
+			return
+		}
 		var invalid *flow.Invalid
 		if errors.As(err, &invalid) {
-			h.draftPage(w, r, 422, b, d, false, locale.T(r.Context(), invalid.Key))
+			h.draftPage(w, r, 422, b, d, revision, false, locale.T(r.Context(), invalid.Key))
 			return
 		}
 		h.draftError(w, r, err)
@@ -241,7 +252,7 @@ func parseDraft(v url.Values) (flow.Definition, error) {
 	return d, parseErr
 }
 
-func (h *Handler) draftPage(w http.ResponseWriter, r *http.Request, status int, b Bot, d flow.Definition, saved bool, message string, editors ...draftEditor) {
+func (h *Handler) draftPage(w http.ResponseWriter, r *http.Request, status int, b Bot, d flow.Definition, revision int64, saved bool, message string, editors ...draftEditor) {
 	// HTML submits Forms in menu order, including action indexes.
 	forms := make([]flow.Form, 0, len(d.Forms))
 	for _, c := range d.Menu.Choices {
@@ -270,7 +281,7 @@ func (h *Handler) draftPage(w http.ResponseWriter, r *http.Request, status int, 
 			}
 		}
 	}
-	h.render(w, r, status, DraftPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, d, saved, r.URL.Query().Get("saved") == "1", message, editor))
+	h.render(w, r, status, DraftPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, d, revision, saved, r.URL.Query().Get("saved") == "1", message, editor))
 }
 
 func (h *Handler) draftError(w http.ResponseWriter, r *http.Request, err error) {

@@ -2,6 +2,9 @@ package bot
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
 	"strconv"
 	"strings"
 
@@ -9,6 +12,7 @@ import (
 	"github.com/pooya79/Piko/internal/bot/templates/booking"
 	"github.com/pooya79/Piko/internal/bot/templates/inquiry"
 	"github.com/pooya79/Piko/internal/bot/templates/registration"
+	"github.com/pooya79/Piko/internal/platform/database/dbgen"
 )
 
 // Draft edits preserve identities while labels, ordering and questions change.
@@ -222,29 +226,63 @@ func formIndex(d flow.Definition, id string) int {
 	return -1
 }
 
-func (s *Service) LoadDraft(ctx context.Context, botID int64) (flow.Definition, bool, error) {
+// Draft is a validated saved snapshot. Revision zero means no Draft has been saved.
+type Draft struct {
+	Definition flow.Definition
+	Revision   int64
+}
+
+var ErrStaleDraft = errors.New("Draft has changed since it was loaded")
+
+func (s *Service) LoadDraft(ctx context.Context, botID int64) (Draft, error) {
 	if _, err := s.Get(ctx, botID); err != nil {
-		return flow.Definition{}, false, err
+		return Draft{}, err
 	}
 	ownerID, err := owner(ctx)
 	if err != nil {
-		return flow.Definition{}, false, err
+		return Draft{}, err
 	}
 	return s.repo.loadDraft(ctx, ownerID, botID)
 }
 
-func (s *Service) SaveDraft(ctx context.Context, botID int64, d flow.Definition) error {
-	if _, err := s.Get(ctx, botID); err != nil {
-		return err
-	}
-	if err := d.Validate(); err != nil {
-		return err
-	}
+// SaveDraft applies one candidate atomically against the revision its caller read.
+// Manual edits, future Builder results and Undo must all use this boundary.
+func (s *Service) SaveDraft(ctx context.Context, botID, expectedRevision int64, d flow.Definition) (int64, error) {
 	ownerID, err := owner(ctx)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return s.repo.saveDraft(ctx, ownerID, botID, d)
+	tx, err := s.repo.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := s.repo.q.WithTx(tx)
+	// The configured immediate transaction serializes ownership and first saves.
+	if _, err := q.GetOwnerBot(ctx, dbgen.GetOwnerBotParams{OwnerID: ownerID, ID: botID}); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ErrNotFound
+		}
+		return 0, err
+	}
+	if err := d.Validate(); err != nil {
+		return 0, err
+	}
+	data, err := json.Marshal(d)
+	if err != nil {
+		return 0, err
+	}
+	revision, err := q.SaveOwnerDraft(ctx, dbgen.SaveOwnerDraftParams{OwnerID: ownerID, BotID: botID, Definition: string(data), ExpectedRevision: expectedRevision})
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, ErrStaleDraft
+	}
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return revision, nil
 }
 
 func numberBound(q flow.Question, minimum bool) string {

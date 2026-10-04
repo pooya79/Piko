@@ -84,14 +84,14 @@ func TestRegistrationTelegramReviewsEditsAndStoresExactAnswersOncePerAttempt(t *
 			t.Fatalf("other owner accessed %s: %d", path, got.Code)
 		}
 	}
-	if got := other.post("/bots/1/draft", registrationDraft()); got.Code != 404 {
+	if got := other.postDraft(t, "/bots/1/draft", registrationDraft()); got.Code != 404 {
 		t.Fatal("cross-owner Registration save")
 	}
 }
 
 func TestRegistrationConfigurationRejectsInvalidOptionsAndBoundsWithoutChangingDraft(t *testing.T) {
 	_, b := draftFixture(t)
-	if got := b.post("/bots/1/draft", registrationDraft()); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", registrationDraft()); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	for _, tc := range []struct {
@@ -115,7 +115,7 @@ func TestRegistrationConfigurationRejectsInvalidOptionsAndBoundsWithoutChangingD
 		t.Run(tc.name, func(t *testing.T) {
 			v := registrationDraft()
 			tc.change(v)
-			if got := b.post("/bots/1/draft", v); got.Code != 422 {
+			if got := b.postDraft(t, "/bots/1/draft", v); got.Code != 422 {
 				t.Fatalf("invalid settings accepted: %d", got.Code)
 			}
 		})
@@ -131,7 +131,7 @@ func TestRegistrationConfigurationRejectsInvalidOptionsAndBoundsWithoutChangingD
 func TestTypedQuestionsAreTemplateAgnosticAndAllowOptionalChoiceAndSignedNumber(t *testing.T) {
 	_, b := draftFixture(t)
 	definition := `{"version":2,"welcome":{"id":"hello","type":"message","text":"سلام"},"menu":{"id":"tasks","type":"menu","text":"منو","choices":[{"id":"custom","label":"دلخواه","target":"application"}]},"messages":[],"forms":[{"id":"application","review":"مرور پاسخ","acknowledgement":"دریافت شد","questions":[{"id":"category","label":"گروه","prompt":"گزینه دلخواه","type":"single_choice","required":false,"options":["الف","ب"]},{"id":"amount","label":"عدد","prompt":"عدد دلخواه","type":"number","required":true,"number":{"min":"-2.5","max":"0"}}]}]}`
-	if got := b.post("/bots/1/draft", url.Values{"definition": {definition}}); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", url.Values{"definition": {definition}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	path := b.post("/bots/1/preview", url.Values{}).Header().Get("Location")
@@ -150,7 +150,7 @@ func TestTypedQuestionsAreTemplateAgnosticAndAllowOptionalChoiceAndSignedNumber(
 	}
 	// The same approved question types validate without a Template identity.
 	for _, bad := range []string{strings.Replace(definition, `"options":["الف","ب"]`, `"options":["الف","الف"]`, 1), strings.Replace(definition, `"min":"-2.5"`, `"min":"1"`, 1), strings.Replace(definition, `"type":"single_choice"`, `"type":"short_text"`, 1)} {
-		if got := b.post("/bots/1/draft", url.Values{"definition": {bad}}); got.Code != 422 {
+		if got := b.postDraft(t, "/bots/1/draft", url.Values{"definition": {bad}}); got.Code != 422 {
 			t.Fatal("invalid structured question accepted")
 		}
 	}
@@ -158,7 +158,7 @@ func TestTypedQuestionsAreTemplateAgnosticAndAllowOptionalChoiceAndSignedNumber(
 
 func TestRegistrationPreviewValidatesChoicesAndExactNumbersAndEditsSummary(t *testing.T) {
 	_, b := draftFixture(t)
-	if got := b.post("/bots/1/draft", registrationDraft()); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", registrationDraft()); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	path := b.post("/bots/1/preview", url.Values{}).Header().Get("Location")
@@ -209,7 +209,7 @@ func TestRegistrationConfigurationSavesChoicesAndExactBounds(t *testing.T) {
 	if page := b.send("GET", "/bots/1/draft?template=registration", nil); page.Code != 200 || !strings.Contains(page.Body.String(), "قالب ثبت\u200cنام") {
 		t.Fatal("Registration settings unavailable")
 	}
-	if got := b.post("/bots/1/draft", registrationDraft()); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", registrationDraft()); got.Code != 303 {
 		t.Fatalf("save Registration: %d", got.Code)
 	}
 	page := b.send("GET", "/bots/1/draft", nil)

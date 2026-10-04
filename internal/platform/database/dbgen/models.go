@@ -40,6 +40,7 @@ type BotDraft struct {
 	BotID      int64
 	Definition string
 	UpdatedAt  int64
+	Revision   int64
 }
 
 type BotParticipant struct {

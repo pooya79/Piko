@@ -437,7 +437,7 @@ func TestTemporaryFailurePreservesParticipantOrderAndLetsOthersContinue(t *testi
 		t.Fatal("temporary failure stopped another Participant")
 	}
 	edited := strings.ReplaceAll(structuredDraft, "Hello", "New welcome")
-	if got := b.post("/bots/1/draft", url.Values{"definition": {edited}}); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", url.Values{"definition": {edited}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	if got := b.post("/bots/1/publish", url.Values{}); got.Code != 303 {
@@ -545,7 +545,7 @@ func deliveryFixtureClock(t *testing.T, now func() time.Time) (*App, *accountBro
 	if got := b.post("/bots/connect", url.Values{"token": {testBotToken}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	if got := b.post("/bots/1/draft", url.Values{"definition": {structuredDraft}}); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", url.Values{"definition": {structuredDraft}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	if got := b.post("/bots/1/publish", url.Values{}); got.Code != 303 {
@@ -586,7 +586,7 @@ func TestPublishedEditsAndObsoleteCallbacksLeaveParticipantVersionIntact(t *test
 	sent := waitSent(t, f, 2)
 	button := sent[1].Markup.Buttons[0][0].Data
 	edited := strings.ReplaceAll(strings.ReplaceAll(structuredDraft, "Hello", "New welcome"), "Open 9 to 5", "New hours")
-	if got := b.post("/bots/1/draft", url.Values{"definition": {edited}}); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", url.Values{"definition": {edited}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	if got := b.post("/bots/1/publish", url.Values{}); got.Code != 303 {

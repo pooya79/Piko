@@ -89,15 +89,13 @@ func TestBotPauseSurvivesRestartAndKeepsOriginalInteractionVersion(t *testing.T)
 	updated.Set("welcome", "سلام تازه")
 	updated.Set("acknowledgement", "دریافت تازه")
 	updated["question_prompt"][1] = "تماس تازه؟"
-	for _, p := range []string{"draft", "publish"} {
-		v := url.Values{}
-		if p == "draft" {
-			v = updated
-		}
-		if got := d.b.post("/bots/1/"+p, v); got.Code != 303 {
-			t.Fatal(got.Code)
-		}
+	if got := d.b.postDraft(t, "/bots/1/draft", updated); got.Code != 303 {
+		t.Fatal(got.Code)
 	}
+	if got := d.b.post("/bots/1/publish", url.Values{}); got.Code != 303 {
+		t.Fatal(got.Code)
+	}
+
 	stop()
 	restarted, err := newWithTelegram(t.Context(), d.a.cfg, telegram.NewClient(d.f.url, http.DefaultClient))
 	if err != nil {
@@ -353,9 +351,7 @@ func TestBotPausedPollingKeepsReceivingAndResumesPublishedFlow(t *testing.T) {
 
 func TestBotPauseMigrationPreservesExistingOwnerAndPublishedData(t *testing.T) {
 	d := newInquiryDriver(t)
-	if err := database.Migrate(t.Context(), d.a.db, true); err != nil {
-		t.Fatal(err)
-	}
+	rollbackToMigration(t, d.a.db, "000008_inquiry_submissions")
 	if err := database.Migrate(t.Context(), d.a.db, false); err != nil {
 		t.Fatal(err)
 	}

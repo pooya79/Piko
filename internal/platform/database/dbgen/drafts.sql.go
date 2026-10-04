@@ -10,7 +10,7 @@ import (
 )
 
 const getOwnerDraft = `-- name: GetOwnerDraft :one
-SELECT definition FROM bot_drafts
+SELECT definition, revision FROM bot_drafts
 JOIN bots ON bots.id = bot_drafts.bot_id
 WHERE bots.owner_id = ?1 AND bot_drafts.bot_id = ?2
 `
@@ -20,29 +20,44 @@ type GetOwnerDraftParams struct {
 	BotID   int64
 }
 
-func (q *Queries) GetOwnerDraft(ctx context.Context, arg GetOwnerDraftParams) (string, error) {
-	row := q.db.QueryRowContext(ctx, getOwnerDraft, arg.OwnerID, arg.BotID)
-	var definition string
-	err := row.Scan(&definition)
-	return definition, err
+type GetOwnerDraftRow struct {
+	Definition string
+	Revision   int64
 }
 
-const saveOwnerDraft = `-- name: SaveOwnerDraft :execrows
-INSERT INTO bot_drafts (bot_id, definition, updated_at)
-SELECT id, ?3, unixepoch() FROM bots WHERE owner_id = ?1 AND id = ?2
-ON CONFLICT (bot_id) DO UPDATE SET definition = excluded.definition, updated_at = excluded.updated_at
+func (q *Queries) GetOwnerDraft(ctx context.Context, arg GetOwnerDraftParams) (GetOwnerDraftRow, error) {
+	row := q.db.QueryRowContext(ctx, getOwnerDraft, arg.OwnerID, arg.BotID)
+	var i GetOwnerDraftRow
+	err := row.Scan(&i.Definition, &i.Revision)
+	return i, err
+}
+
+const saveOwnerDraft = `-- name: SaveOwnerDraft :one
+INSERT INTO bot_drafts (bot_id, definition, updated_at, revision)
+SELECT b.id, ?1, unixepoch(), 1 FROM bots b
+LEFT JOIN bot_drafts d ON d.bot_id = b.id
+WHERE b.owner_id = ?2 AND b.id = ?3 AND COALESCE(d.revision, 0) = ?4
+AND ?4 >= 0 AND ?4 < 9223372036854775807
+ON CONFLICT (bot_id) DO UPDATE SET definition = excluded.definition,
+updated_at = excluded.updated_at, revision = bot_drafts.revision + 1
+RETURNING revision
 `
 
 type SaveOwnerDraftParams struct {
-	OwnerID    int64
-	ID         int64
-	Definition string
+	Definition       string
+	OwnerID          int64
+	BotID            int64
+	ExpectedRevision int64
 }
 
 func (q *Queries) SaveOwnerDraft(ctx context.Context, arg SaveOwnerDraftParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, saveOwnerDraft, arg.OwnerID, arg.ID, arg.Definition)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
+	row := q.db.QueryRowContext(ctx, saveOwnerDraft,
+		arg.Definition,
+		arg.OwnerID,
+		arg.BotID,
+		arg.ExpectedRevision,
+	)
+	var revision int64
+	err := row.Scan(&revision)
+	return revision, err
 }

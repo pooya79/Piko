@@ -51,11 +51,11 @@ func newFormDriver(t *testing.T, draft url.Values) *formDriver {
 
 func configureFormDriver(t *testing.T, a *App, b *accountBrowser, f *telegramFake, draft url.Values) *formDriver {
 	t.Helper()
-	for _, p := range []string{"draft", "publish", "activate"} {
+	if got := b.postDraft(t, "/bots/1/draft", draft); got.Code != 303 {
+		t.Fatalf("draft: %d", got.Code)
+	}
+	for _, p := range []string{"publish", "activate"} {
 		values := url.Values{}
-		if p == "draft" {
-			values = draft
-		}
 		if p == "activate" {
 			values.Set("operate", "yes")
 		}
@@ -125,7 +125,7 @@ func TestInquiryRestartContinueAndVersionContinuity(t *testing.T) {
 	updated := inquiryDraft()
 	updated["question_prompt"][1] = "پرسش تازه"
 	updated.Set("acknowledgement", "دریافت نسخه تازه")
-	if got := d.b.post("/bots/1/draft", updated); got.Code != 303 {
+	if got := d.b.postDraft(t, "/bots/1/draft", updated); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	if got := d.b.post("/bots/1/publish", url.Values{}); got.Code != 303 {
@@ -318,7 +318,7 @@ func TestInquiryLongAnswersFitTelegramAndRemainCompleteInSubmission(t *testing.T
 	d := newInquiryDriver(t)
 	values := inquiryDraft()
 	values["question_label"][2] = strings.Repeat("😀", 80)
-	if got := d.b.post("/bots/1/draft", values); got.Code != 303 {
+	if got := d.b.postDraft(t, "/bots/1/draft", values); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	if got := d.b.post("/bots/1/publish", url.Values{}); got.Code != 303 {
@@ -348,7 +348,7 @@ func TestInquiryLongAnswersFitTelegramAndRemainCompleteInSubmission(t *testing.T
 
 func TestInquiryPreviewQuestionValidationAndRequiredSkip(t *testing.T) {
 	_, b := draftFixture(t)
-	if got := b.post("/bots/1/draft", inquiryDraft()); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", inquiryDraft()); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	path := b.post("/bots/1/preview", url.Values{}).Header().Get("Location")
@@ -392,7 +392,7 @@ func TestInquiryConfigurationValidationPreservesDraftAndRequiresCSRF(t *testing.
 	if got := b.send("GET", "/bots/1/draft?template=inquiry", nil); got.Code != 200 || !strings.Contains(got.Body.String(), "قالب درخواست") {
 		t.Fatal("default Inquiry configuration unavailable")
 	}
-	if got := b.post("/bots/1/draft", inquiryDraft()); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", inquiryDraft()); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	for _, tc := range []struct {
@@ -408,7 +408,7 @@ func TestInquiryConfigurationValidationPreservesDraftAndRequiresCSRF(t *testing.
 		t.Run(tc.name, func(t *testing.T) {
 			v := inquiryDraft()
 			tc.change(v)
-			if got := b.post("/bots/1/draft", v); got.Code != 422 {
+			if got := b.postDraft(t, "/bots/1/draft", v); got.Code != 422 {
 				t.Fatal(got.Code)
 			}
 		})
@@ -422,14 +422,14 @@ func TestInquiryConfigurationValidationPreservesDraftAndRequiresCSRF(t *testing.
 	other := newAccountBrowser(t, a.server.Handler)
 	other.send("GET", "/register", nil)
 	other.post("/register", registerValues("inquiry-other@example.test", "Other", "OwnerPassword123"))
-	if got := other.post("/bots/1/draft", inquiryDraft()); got.Code != 404 {
+	if got := other.postDraft(t, "/bots/1/draft", inquiryDraft()); got.Code != 404 {
 		t.Fatal("Inquiry save bypassed ownership")
 	}
 }
 
 func TestInquiryConfirmationCreatesOneSubmissionPerAttempt(t *testing.T) {
 	a, b, f := deliveryFixture(t)
-	if got := b.post("/bots/1/draft", inquiryDraft()); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", inquiryDraft()); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	if got := b.post("/bots/1/publish", url.Values{}); got.Code != 303 {
@@ -515,7 +515,7 @@ func TestInquiryConfirmationCreatesOneSubmissionPerAttempt(t *testing.T) {
 
 func TestInquiryPreviewCollectsValidatesEditsAndConfirmsWithoutRealSubmissions(t *testing.T) {
 	_, b := draftFixture(t)
-	if got := b.post("/bots/1/draft", inquiryDraft()); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", inquiryDraft()); got.Code != 303 {
 		t.Fatalf("save Inquiry: %d", got.Code)
 	}
 	path := b.post("/bots/1/preview", url.Values{}).Header().Get("Location")

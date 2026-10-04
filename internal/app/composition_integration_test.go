@@ -36,7 +36,7 @@ func combinedDraft() url.Values {
 
 func TestCombinedFormsSettingsRoundTripAndMenuRouting(t *testing.T) {
 	_, b := draftFixture(t)
-	if got := b.post("/bots/1/draft", combinedDraft()); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", combinedDraft()); got.Code != 303 {
 		t.Fatalf("combined save: %d", got.Code)
 	}
 	page := b.send("GET", "/bots/1/draft", nil)
@@ -133,7 +133,7 @@ func TestCombinedFormsCatalogAndQuestionControlsPreserveIndependentSettings(t *t
 	edit := func(action string) {
 		t.Helper()
 		v.Set("edit", action)
-		got := b.post("/bots/1/draft", v)
+		got := b.postDraft(t, "/bots/1/draft", v)
 		if got.Code != 200 {
 			t.Fatalf("edit %s: %d", action, got.Code)
 		}
@@ -173,7 +173,7 @@ func TestCombinedFormsCatalogAndQuestionControlsPreserveIndependentSettings(t *t
 	if got := b.post("/bots/1/preview", url.Values{}); got.Code != 409 {
 		t.Fatal("editing silently saved Draft")
 	}
-	if got := b.post("/bots/1/draft", v); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", v); got.Code != 303 {
 		t.Fatalf("save rendered settings: %d", got.Code)
 	}
 	loaded := renderedDraft(t, b.send("GET", "/bots/1/draft", nil).Body.String())
@@ -196,7 +196,7 @@ func TestCombinedFormsCatalogAndQuestionControlsPreserveIndependentSettings(t *t
 
 func TestCombinedFormsRejectMalformedSettingsAndDefinitionsWithoutReplacingDraft(t *testing.T) {
 	a, b := draftFixture(t)
-	if got := b.post("/bots/1/draft", combinedDraft()); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", combinedDraft()); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	for _, tc := range []struct {
@@ -225,7 +225,7 @@ func TestCombinedFormsRejectMalformedSettingsAndDefinitionsWithoutReplacingDraft
 		t.Run(tc.name, func(t *testing.T) {
 			v := combinedDraft()
 			tc.change(v)
-			if got := b.post("/bots/1/draft", v); got.Code != 422 {
+			if got := b.postDraft(t, "/bots/1/draft", v); got.Code != 422 {
 				t.Fatal(got.Code)
 			}
 		})
@@ -248,7 +248,7 @@ func TestCombinedFormsRejectMalformedSettingsAndDefinitionsWithoutReplacingDraft
 	}
 	bad := combinedDraft()
 	bad.Set("edit", "add:inquiry")
-	if got := other.post("/bots/1/draft", bad); got.Code != 404 {
+	if got := other.postDraft(t, "/bots/1/draft", bad); got.Code != 404 {
 		t.Fatal("cross-owner edit")
 	}
 	if got := b.post("/bots/1/publish", url.Values{}); got.Code != 303 {
@@ -263,7 +263,7 @@ func TestCombinedFormsAllValidatorsRunInIsolatedPreview(t *testing.T) {
 	v["text_max"][2] = "5"
 	v["date_min"][5] = "1405/1/1"
 	v["date_max"][5] = "1405/12/29"
-	if got := b.post("/bots/1/draft", v); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", v); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	for _, tc := range []struct {
@@ -302,14 +302,14 @@ func TestCombinedFormsTelegramCompletesEachRouteAndPinsReorderedQuestionsAcrossP
 	// The Inquiry Form is second in the rendered menu. Reorder it and relabel
 	// a question in a later version while the live Participant is answering it.
 	changed.Set("edit", "question:up:1:2")
-	got := d.b.post("/bots/1/draft", changed)
+	got := d.b.postDraft(t, "/bots/1/draft", changed)
 	if got.Code != 200 {
 		t.Fatal(got.Code)
 	}
 	changed = renderedDraft(t, got.Body.String())
 	changed["question_prompt"][1] = "نام تازه؟"
 	changed["question_label"][1] = "نام تازه"
-	if got := d.b.post("/bots/1/draft", changed); got.Code != 303 {
+	if got := d.b.postDraft(t, "/bots/1/draft", changed); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	if got := d.b.post("/bots/1/publish", url.Values{}); got.Code != 303 {
@@ -373,7 +373,7 @@ func TestCombinedFormsDraftAndPreviewStayIsolatedFromLive(t *testing.T) {
 	old := d.b.post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	changed := combinedDraft()
 	changed["question_prompt"][0] = "نام پیش\u200cنویس تازه؟"
-	if got := d.b.post("/bots/1/draft", changed); got.Code != 303 {
+	if got := d.b.postDraft(t, "/bots/1/draft", changed); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	fresh := d.b.post("/bots/1/preview", url.Values{}).Header().Get("Location")
@@ -407,24 +407,24 @@ func TestCombinedFormsDraftAndPreviewStayIsolatedFromLive(t *testing.T) {
 
 func TestCombinedFormsEnforceEditorBoundsAndRetainMessageOptions(t *testing.T) {
 	_, b := draftFixture(t)
-	if got := b.post("/bots/1/draft", combinedDraft()); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", combinedDraft()); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	v := renderedDraft(t, b.send("GET", "/bots/1/draft", nil).Body.String())
 	for len(v["menu_order"]) < 6 {
 		v.Set("edit", "add:message")
-		got := b.post("/bots/1/draft", v)
+		got := b.postDraft(t, "/bots/1/draft", v)
 		if got.Code != 200 {
 			t.Fatal(got.Code)
 		}
 		v = renderedDraft(t, got.Body.String())
 	}
 	v.Set("edit", "add:booking")
-	if got := b.post("/bots/1/draft", v); got.Code != 422 {
+	if got := b.postDraft(t, "/bots/1/draft", v); got.Code != 422 {
 		t.Fatal("seventh menu option accepted")
 	}
 	v.Del("edit")
-	if got := b.post("/bots/1/draft", v); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", v); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	v = renderedDraft(t, b.send("GET", "/bots/1/draft", nil).Body.String())
@@ -434,20 +434,20 @@ func TestCombinedFormsEnforceEditorBoundsAndRetainMessageOptions(t *testing.T) {
 	for len(v["question_id"]) < 17 { // 12 Booking + 3 Inquiry + 2 Registration
 		v.Set("add_type_0", "short_text")
 		v.Set("edit", "question:add:0")
-		got := b.post("/bots/1/draft", v)
+		got := b.postDraft(t, "/bots/1/draft", v)
 		if got.Code != 200 {
 			t.Fatal(got.Code)
 		}
 		v = renderedDraft(t, got.Body.String())
 	}
 	v.Set("edit", "question:add:0")
-	if got := b.post("/bots/1/draft", v); got.Code != 422 {
+	if got := b.postDraft(t, "/bots/1/draft", v); got.Code != 422 {
 		t.Fatal("thirteenth Question accepted")
 	}
 	v.Set("edit", "question:remove:0:0")
 	// Removing all questions is allowed while editing, but cannot be saved.
 	for range 12 {
-		got := b.post("/bots/1/draft", v)
+		got := b.postDraft(t, "/bots/1/draft", v)
 		if got.Code != 200 {
 			t.Fatal(got.Code)
 		}
@@ -455,7 +455,7 @@ func TestCombinedFormsEnforceEditorBoundsAndRetainMessageOptions(t *testing.T) {
 		v.Set("edit", "question:remove:0:0")
 	}
 	v.Del("edit")
-	if got := b.post("/bots/1/draft", v); got.Code != 422 {
+	if got := b.postDraft(t, "/bots/1/draft", v); got.Code != 422 {
 		t.Fatal("empty Form saved")
 	}
 	if page := b.send("GET", "/bots/1/draft", nil); !strings.Contains(page.Body.String(), "تاریخ؟") {
@@ -465,7 +465,7 @@ func TestCombinedFormsEnforceEditorBoundsAndRetainMessageOptions(t *testing.T) {
 
 func TestCombinedFormsInvalidTextLimitPreservesQuestionsForCorrection(t *testing.T) {
 	_, b := draftFixture(t)
-	if got := b.post("/bots/1/draft", combinedDraft()); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", combinedDraft()); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	for _, raw := range []string{"0", "-1", "abc", "999999999999999999999999"} {
@@ -473,7 +473,7 @@ func TestCombinedFormsInvalidTextLimitPreservesQuestionsForCorrection(t *testing
 		originalIDs := append([]string(nil), v["question_id"]...)
 		v["text_max"][3] = raw
 		v.Set("edit", "add:message")
-		got := b.post("/bots/1/draft", v)
+		got := b.postDraft(t, "/bots/1/draft", v)
 		if got.Code != 422 {
 			t.Fatalf("invalid %q: %d", raw, got.Code)
 		}
@@ -485,7 +485,7 @@ func TestCombinedFormsInvalidTextLimitPreservesQuestionsForCorrection(t *testing
 			t.Fatalf("lost invalid field %q", raw)
 		}
 		corrected["text_max"][3] = "5"
-		if got := b.post("/bots/1/draft", corrected); got.Code != 303 {
+		if got := b.postDraft(t, "/bots/1/draft", corrected); got.Code != 303 {
 			t.Fatal("corrected settings save", got.Code)
 		}
 		loaded := renderedDraft(t, b.send("GET", "/bots/1/draft", nil).Body.String())

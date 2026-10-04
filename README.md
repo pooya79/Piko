@@ -118,6 +118,14 @@ Bot cards and detail pages show the **saved polling or webhook mode**, rather th
 
 No new migration is required beyond the existing forward migrations. Existing databases and credentials remain intact. Polling regression tests and desktop/mobile screenshots are in `docs/qa/issue-12`. These automated checks use migrated temporary SQLite and fake Telegram, with no live Telegram account.
 
+## Saving Draft revisions
+
+The manual editor at `/bots/{id}/draft` loads the saved Draft and its revision together. Every save requires that loaded revision; successful saves advance it, including saves with identical content. Unsaved Bots use revision zero, and their first save creates revision one. If another editor saves first, Piko returns a conflict with Persian feedback, retains the submitted content for inspection, and leaves the newer saved Draft intact. Reload the latest Draft before editing and saving again. Unsaved catalog changes and validation feedback keep the editor's original revision; they cannot silently adopt a newer Draft.
+
+The shared Bot service validates and saves one candidate against an expected revision in an immediate owner-authorized transaction. Future Builder edits and guarded Undo must use this same boundary. Draft saving does not publish or activate Telegram. Preview retains its validated snapshot, and publication continues to publish only a validated saved snapshot.
+
+Apply forward migration `000010_draft_revisions` to the existing SQLite file before starting this version. Existing Drafts begin at revision one without changing their definitions, owners, timestamps, or any retained account, session, Bot, Preview, publication, Interaction, or Submission data. Stop the server before rollback: rolling back only `000010` removes revision metadata while retaining Draft definitions and the other tables. Reapplying it initializes revision metadata again; use the matching older application during rollback and reload any open editor after upgrading. Preserve existing databases and encryption keys. Regression and responsive browser evidence is in `docs/qa/issue-21`.
+
 ## Collecting Inquiry Submissions
 
 Choose **Inquiry Template** at `/bots/{id}/draft` to configure a name (short text), contact (phone number), and request (long text). Each question has an editable answer label, prompt, and required/optional setting. Customize the welcome/menu, Form button, review, and acknowledgement messages. Save, Preview, and explicitly publish before starting new live attempts. Registration and Booking request Templates are also available; arbitrary question addition/reordering belongs to later tickets.

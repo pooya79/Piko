@@ -20,7 +20,7 @@ func TestInteractionStartAgainAbandonsAnswersAndSelectsNewestPublication(t *test
 	updated := inquiryDraft()
 	updated.Set("welcome", "سلام نسخه تازه")
 	updated["question_prompt"][0] = "نام تازه؟"
-	if got := d.b.post("/bots/1/draft", updated); got.Code != 303 {
+	if got := d.b.postDraft(t, "/bots/1/draft", updated); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	if got := d.b.post("/bots/1/publish", url.Values{}); got.Code != 303 {
@@ -223,7 +223,7 @@ func TestInteractionStartingFromOlderMenuRefreshesLatestPublicationBeforeCollect
 	updated.Set("form_choice_id", "updated-inquiry")
 	updated.Set("form_label", "درخواست تازه")
 	updated["question_prompt"][0] = "نام در نسخه تازه؟"
-	if got := d.b.post("/bots/1/draft", updated); got.Code != 303 {
+	if got := d.b.postDraft(t, "/bots/1/draft", updated); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	if got := d.b.post("/bots/1/publish", url.Values{}); got.Code != 303 {

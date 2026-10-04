@@ -85,7 +85,7 @@ func TestBookingTelegramEditsDatesAndStoresOneRequestPerAttempt(t *testing.T) {
 			t.Fatalf("other owner accessed %s: %d", path, got.Code)
 		}
 	}
-	if got := other.post("/bots/1/draft", bookingDraft()); got.Code != 404 {
+	if got := other.postDraft(t, "/bots/1/draft", bookingDraft()); got.Code != 404 {
 		t.Fatal("cross-owner Booking save")
 	}
 }
@@ -100,7 +100,7 @@ func TestBookingRetainsDateQuestionAndAnswersAcrossPublicationAndRestart(t *test
 	changed["question_prompt"][1] = "تاریخ تازه؟"
 	changed["question_label"][1] = "تاریخ تازه"
 	changed.Set("acknowledgement", "درخواست تازه دریافت شد")
-	if got := d.b.post("/bots/1/draft", changed); got.Code != 303 {
+	if got := d.b.postDraft(t, "/bots/1/draft", changed); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	if got := d.b.post("/bots/1/publish", url.Values{}); got.Code != 303 {
@@ -140,7 +140,7 @@ func TestDateQuestionsValidateRealJalaliBoundariesAndNormalizeDigitsInPreview(t 
 	_, b := draftFixture(t)
 	// An arbitrary Form ID proves date behavior belongs to the shared runtime.
 	definition := `{"version":2,"welcome":{"id":"hello","type":"message","text":"سلام"},"menu":{"id":"tasks","type":"menu","text":"منو","choices":[{"id":"custom","label":"دلخواه","target":"request"}]},"messages":[],"forms":[{"id":"request","review":"مرور پاسخ","acknowledgement":"دریافت شد","questions":[{"id":"preferred","label":"تاریخ","prompt":"روز دلخواه؟","type":"date","required":true}]}]}`
-	if got := b.post("/bots/1/draft", url.Values{"definition": {definition}}); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", url.Values{"definition": {definition}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	path := b.post("/bots/1/preview", url.Values{}).Header().Get("Location")
@@ -189,7 +189,7 @@ func TestBookingConfigurationSavesCustomQuestionsAndRequestAcknowledgement(t *te
 			t.Fatalf("Booking defaults missing %q: %d", want, page.Code)
 		}
 	}
-	if got := b.post("/bots/1/draft", bookingDraft()); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", bookingDraft()); got.Code != 303 {
 		t.Fatalf("save Booking: %d", got.Code)
 	}
 	page = b.send("GET", "/bots/1/draft", nil)
@@ -200,7 +200,7 @@ func TestBookingConfigurationSavesCustomQuestionsAndRequestAcknowledgement(t *te
 	}
 	bad := bookingDraft()
 	bad["question_required"][1] = "maybe"
-	if got := b.post("/bots/1/draft", bad); got.Code != 422 {
+	if got := b.postDraft(t, "/bots/1/draft", bad); got.Code != 422 {
 		t.Fatal("invalid required setting accepted")
 	}
 	if got := b.send("POST", "/bots/1/draft", bookingDraft()); got.Code != 403 {
@@ -212,7 +212,7 @@ func TestBookingPreviewReviewsEditsSkipsAndConfirmsWithoutRealSubmission(t *test
 	_, b := draftFixture(t)
 	v := bookingDraft()
 	v["question_required"][1] = "no"
-	if got := b.post("/bots/1/draft", v); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", v); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	path := b.post("/bots/1/preview", url.Values{}).Header().Get("Location")

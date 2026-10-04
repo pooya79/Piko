@@ -12,7 +12,7 @@ func TestOwnerPublishesSavedDraftWithoutActivatingDelivery(t *testing.T) {
 	if got := b.post("/bots/1/publish", url.Values{}); got.Code != 422 {
 		t.Fatalf("missing Draft: %d", got.Code)
 	}
-	if got := b.post("/bots/1/draft", url.Values{"definition": {structuredDraft}}); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", url.Values{"definition": {structuredDraft}}); got.Code != 303 {
 		t.Fatalf("save: %d", got.Code)
 	}
 	if got := b.post("/bots/1/publish", url.Values{}); got.Code != 303 {
@@ -26,7 +26,7 @@ func TestOwnerPublishesSavedDraftWithoutActivatingDelivery(t *testing.T) {
 
 func TestPublicationValidatesStoredDraftAndKeepsExistingVersion(t *testing.T) {
 	a, b := draftFixture(t)
-	if got := b.post("/bots/1/draft", url.Values{"definition": {structuredDraft}}); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", url.Values{"definition": {structuredDraft}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	if got := b.post("/bots/1/publish", url.Values{}); got.Code != 303 {

@@ -23,13 +23,14 @@ type Preview struct {
 }
 
 func (s *Service) StartPreview(ctx context.Context, botID int64) (Preview, error) {
-	d, saved, err := s.LoadDraft(ctx, botID)
+	snapshot, err := s.LoadDraft(ctx, botID)
 	if err != nil {
 		return Preview{}, err
 	}
-	if !saved {
+	if snapshot.Revision == 0 {
 		return Preview{}, ErrNoDraft
 	}
+	d := snapshot.Definition
 	state, err := preview.Start(d)
 	if err != nil {
 		return Preview{}, err

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/pooya79/Piko/internal/platform/database"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"sync/atomic"
@@ -39,6 +40,19 @@ func draftFixture(t *testing.T) (*App, *accountBrowser) {
 	return a, b
 }
 
+// postDraft models a manual editor loaded before submitting a candidate.
+// Explicit revisions preserve older editors for conflict and validation journeys.
+func (b *accountBrowser) postDraft(t *testing.T, path string, values url.Values) *httptest.ResponseRecorder {
+	t.Helper()
+	if _, supplied := values["draft_revision"]; !supplied {
+		page := b.send(http.MethodGet, path, nil)
+		if page.Code == http.StatusOK {
+			values.Set("draft_revision", renderedDraft(t, page.Body.String()).Get("draft_revision"))
+		}
+	}
+	return b.post(path, values)
+}
+
 func welcomeDraft() url.Values {
 	return url.Values{"welcome": {"سلام <دوست>"}, "menu_prompt": {"چه چیزی می\u200cخواهی؟"}, "choice_label": {"ساعت کار", "Contact"}, "choice_message": {"شنبه تا پنجشنبه، ۹ تا ۱۷", "Call 02112345678"}}
 }
@@ -48,7 +62,7 @@ func TestOwnerSavesAndLoadsWelcomeMenuDraft(t *testing.T) {
 	if got := b.send(http.MethodGet, "/bots/1/draft", nil); got.Code != 200 {
 		t.Fatalf("configure: %d", got.Code)
 	}
-	if got := b.post("/bots/1/draft", welcomeDraft()); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", welcomeDraft()); got.Code != 303 {
 		t.Fatalf("save: %d", got.Code)
 	}
 	if err := a.db.Close(); err != nil {
@@ -73,7 +87,7 @@ func TestOwnerSavesAndLoadsWelcomeMenuDraft(t *testing.T) {
 
 func TestPreviewRunsConfiguredMenuAndRestartsOnlyTestState(t *testing.T) {
 	_, b := draftFixture(t)
-	if got := b.post("/bots/1/draft", welcomeDraft()); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", welcomeDraft()); got.Code != 303 {
 		t.Fatalf("save: %d", got.Code)
 	}
 	started := b.post("/bots/1/preview", url.Values{})
@@ -113,7 +127,7 @@ func TestPreviewRunsConfiguredMenuAndRestartsOnlyTestState(t *testing.T) {
 
 func TestInvalidDraftDefinitionsPreserveSavedConfiguration(t *testing.T) {
 	_, b := draftFixture(t)
-	if got := b.post("/bots/1/draft", welcomeDraft()); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", welcomeDraft()); got.Code != 303 {
 		t.Fatal("initial save failed")
 	}
 	for _, tc := range []struct{ name, definition string }{
@@ -129,7 +143,7 @@ func TestInvalidDraftDefinitionsPreserveSavedConfiguration(t *testing.T) {
 		{"malformed JSON", `{"version":1`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := b.post("/bots/1/draft", url.Values{"definition": {tc.definition}})
+			got := b.postDraft(t, "/bots/1/draft", url.Values{"definition": {tc.definition}})
 			if got.Code != 422 || !strings.Contains(got.Body.String(), `role="alert"`) {
 				t.Fatalf("invalid definition: %d", got.Code)
 			}
@@ -162,7 +176,7 @@ func TestDraftSettingsValidateChoicesAndTextBounds(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			values := welcomeDraft()
 			tc.change(values)
-			got := b.post("/bots/1/draft", values)
+			got := b.postDraft(t, "/bots/1/draft", values)
 			if got.Code != 422 || !strings.Contains(got.Body.String(), `role="alert"`) {
 				t.Fatalf("settings validation: %d", got.Code)
 			}
@@ -173,7 +187,7 @@ func TestDraftSettingsValidateChoicesAndTextBounds(t *testing.T) {
 	values["choice_label"][0] = strings.Repeat("س", 80)
 	values["choice_label"] = append(values["choice_label"], "")
 	values["choice_message"] = append(values["choice_message"], "")
-	if got := b.post("/bots/1/draft", values); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", values); got.Code != 303 {
 		t.Fatalf("valid bounds and unused fields: %d", got.Code)
 	}
 }
@@ -184,7 +198,7 @@ func TestDraftTextBoundsRemainReadableAfterJSONEscaping(t *testing.T) {
 	for range 6 {
 		values["choice_message"] = append(values["choice_message"], strings.Repeat(">", 2000))
 	}
-	if got := b.post("/bots/1/draft", values); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", values); got.Code != 303 {
 		t.Fatalf("valid text save: %d", got.Code)
 	}
 	if got := b.send(http.MethodGet, "/bots/1/draft", nil); got.Code != 200 || !strings.Contains(got.Body.String(), strings.Repeat("&lt;", 2000)) {
@@ -197,7 +211,7 @@ func TestDraftTextBoundsRemainReadableAfterJSONEscaping(t *testing.T) {
 
 func TestStructuredDraftRunsThroughSamePreviewEngine(t *testing.T) {
 	_, b := draftFixture(t)
-	if got := b.post("/bots/1/draft", url.Values{"definition": {structuredDraft}}); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", url.Values{"definition": {structuredDraft}}); got.Code != 303 {
 		t.Fatalf("structured save: %d", got.Code)
 	}
 	started := b.post("/bots/1/preview", url.Values{})
@@ -212,7 +226,7 @@ func TestStructuredDraftRunsThroughSamePreviewEngine(t *testing.T) {
 
 func TestPreviewInstancesAndDraftSnapshotsStayIsolatedAcrossRestart(t *testing.T) {
 	a, b := draftFixture(t)
-	if got := b.post("/bots/1/draft", welcomeDraft()); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", welcomeDraft()); got.Code != 303 {
 		t.Fatal("save failed")
 	}
 	first := b.post("/bots/1/preview", url.Values{}).Header().Get("Location")
@@ -226,7 +240,7 @@ func TestPreviewInstancesAndDraftSnapshotsStayIsolatedAcrossRestart(t *testing.T
 	updated := welcomeDraft()
 	updated.Set("welcome", "پیام تازه")
 	updated["choice_message"][1] = "پاسخ تازه"
-	if got := b.post("/bots/1/draft", updated); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", updated); got.Code != 303 {
 		t.Fatal("edit failed")
 	}
 	if err := a.db.Close(); err != nil {
@@ -258,7 +272,7 @@ func TestPreviewInstancesAndDraftSnapshotsStayIsolatedAcrossRestart(t *testing.T
 
 func TestDraftAndPreviewRequireOwnerAuthenticationCSRFAndPOST(t *testing.T) {
 	a, b := draftFixture(t)
-	if got := b.post("/bots/1/draft", welcomeDraft()); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", welcomeDraft()); got.Code != 303 {
 		t.Fatal("save failed")
 	}
 	path := b.post("/bots/1/preview", url.Values{}).Header().Get("Location")
@@ -312,7 +326,7 @@ func TestDraftAndPreviewRequireOwnerAuthenticationCSRFAndPOST(t *testing.T) {
 
 func TestPreviewRejectsInvalidAndStaleChoicesWithoutChangingState(t *testing.T) {
 	_, b := draftFixture(t)
-	b.post("/bots/1/draft", welcomeDraft())
+	b.postDraft(t, "/bots/1/draft", welcomeDraft())
 	path := b.post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	if got := b.post(path+"/choose", url.Values{"choice": {"unknown"}, "revision": {"1"}}); got.Code != 422 {
 		t.Fatalf("invalid choice: %d", got.Code)
@@ -333,7 +347,7 @@ func TestPreviewRejectsInvalidAndStaleChoicesWithoutChangingState(t *testing.T) 
 
 func TestConcurrentPreviewChoicesAcceptOnlyOneRevision(t *testing.T) {
 	_, b := draftFixture(t)
-	b.post("/bots/1/draft", welcomeDraft())
+	b.postDraft(t, "/bots/1/draft", welcomeDraft())
 	path := b.post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	start := make(chan struct{})
 	statuses := make(chan int, 2)
@@ -360,7 +374,7 @@ func TestPreviewRequiresSavedDraftAndExpiresWithoutChangingDraft(t *testing.T) {
 	if got := b.post("/bots/1/preview", url.Values{}); got.Code != 409 {
 		t.Fatalf("unsaved Preview: %d", got.Code)
 	}
-	b.post("/bots/1/draft", welcomeDraft())
+	b.postDraft(t, "/bots/1/draft", welcomeDraft())
 	path := b.post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	// Advance time at the storage boundary; assertions use the HTTP contract.
 	if _, err := a.db.Exec("UPDATE bot_previews SET expires_at=0"); err != nil {
@@ -382,13 +396,13 @@ func TestPreviewRequiresSavedDraftAndExpiresWithoutChangingDraft(t *testing.T) {
 
 func TestDraftAndPreviewStorageFailuresPreserveSavedState(t *testing.T) {
 	a, b := draftFixture(t)
-	b.post("/bots/1/draft", welcomeDraft())
+	b.postDraft(t, "/bots/1/draft", welcomeDraft())
 	path := b.post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	for _, tc := range []struct {
 		table, path string
 		values      url.Values
 	}{
-		{"bot_drafts", "/bots/1/draft", url.Values{"definition": {structuredDraft}}},
+		{"bot_drafts", "/bots/1/draft", url.Values{"definition": {structuredDraft}, "draft_revision": {"1"}}},
 		{"bot_previews", path + "/choose", url.Values{"choice": {"2"}, "revision": {"1"}}},
 	} {
 		if _, err := a.db.Exec("CREATE TRIGGER fail_update BEFORE UPDATE ON " + tc.table + " BEGIN SELECT RAISE(ABORT, 'private-configuration'); END"); err != nil {
@@ -412,11 +426,7 @@ func TestDraftAndPreviewStorageFailuresPreserveSavedState(t *testing.T) {
 
 func TestDraftMigrationPreservesExistingBotAndOwnerSession(t *testing.T) {
 	a, b := draftFixture(t)
-	for range 4 {
-		if err := database.Migrate(t.Context(), a.db, true); err != nil {
-			t.Fatal(err)
-		}
-	}
+	rollbackToMigration(t, a.db, "000004_bots")
 	var bots, sessions int
 	if err := a.db.QueryRow("SELECT count(*) FROM bots").Scan(&bots); err != nil || bots != 1 {
 		t.Fatal("rollback lost existing Bot")
@@ -427,7 +437,7 @@ func TestDraftMigrationPreservesExistingBotAndOwnerSession(t *testing.T) {
 	if err := database.Migrate(t.Context(), a.db, false); err != nil {
 		t.Fatal(err)
 	}
-	if got := b.post("/bots/1/draft", welcomeDraft()); got.Code != 303 {
+	if got := b.postDraft(t, "/bots/1/draft", welcomeDraft()); got.Code != 303 {
 		t.Fatalf("forward migration: %d", got.Code)
 	}
 	if err := database.Migrate(t.Context(), a.db, false); err != nil {
