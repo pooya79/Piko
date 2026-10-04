@@ -38,6 +38,9 @@ func LoadConfig() (Config, error) {
 	}
 	var err error
 	cfg.Builder = builder.Config{APIKey: os.Getenv("OPENROUTER_API_KEY"), BaseURL: env("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"), Model: env("OPENROUTER_MODEL", "openai/gpt-6-luna"), DailyRequests: 200, MaxCalls: 20, RunTimeout: 8 * time.Minute}
+	// Only the explicit literal true enables content. Invalid/absent values
+	// fail closed without making optional monitoring an application dependency.
+	cfg.Builder.Langfuse = builder.TraceConfig{BaseURL: os.Getenv("LANGFUSE_BASE_URL"), PublicKey: os.Getenv("LANGFUSE_PUBLIC_KEY"), SecretKey: os.Getenv("LANGFUSE_SECRET_KEY"), CaptureContent: os.Getenv("LANGFUSE_CAPTURE_CONTENT") == "true"}
 	for _, setting := range []struct {
 		key    string
 		target *int64

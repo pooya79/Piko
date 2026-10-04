@@ -2,14 +2,18 @@ package builder
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/shopspring/decimal"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type runContextKey struct{}
@@ -32,12 +36,13 @@ func (t *accountingTransport) RoundTrip(req *http.Request) (*http.Response, erro
 	if err != nil {
 		return nil, err
 	}
+	recordTraceUsage(req.Context(), seq, Usage{})
 	response, err := t.base.RoundTrip(req)
 	if err != nil {
 		return nil, err
 	}
 	if strings.HasPrefix(response.Header.Get("Content-Type"), "text/event-stream") {
-		response.Body = &accountingStream{ReadCloser: response.Body, service: s, run: run, sequence: seq}
+		response.Body = &accountingStream{ReadCloser: response.Body, service: s, run: run, sequence: seq, ctx: req.Context()}
 		return response, nil
 	}
 	// Bound non-streamed provider error data before parsing.
@@ -50,6 +55,7 @@ func (t *accountingTransport) RoundTrip(req *http.Request) (*http.Response, erro
 		return nil, errors.New("builder provider response too large")
 	}
 	u := reportedUsage(body)
+	recordTraceUsage(req.Context(), seq, u)
 	if err := s.accountCall(run, seq, u); err != nil {
 		return nil, errors.New("builder accounting unavailable")
 	}
@@ -96,6 +102,7 @@ type accountingStream struct {
 	pending  []byte
 	bytes    int
 	usage    Usage
+	ctx      context.Context
 }
 
 func (s *accountingStream) Read(p []byte) (int, error) {
@@ -134,6 +141,39 @@ func (s *accountingStream) Read(p []byte) (int, error) {
 		if e := s.service.accountCall(s.run, s.sequence, s.usage); e != nil {
 			return 0, errors.New("builder accounting unavailable")
 		}
+		recordTraceUsage(s.ctx, s.sequence, s.usage)
 	}
 	return n, err
+}
+
+// Record only provider-reported metrics on the active native Genkit model span.
+// SDK-generated defaults cannot turn missing accounting into reported zero.
+func recordTraceUsage(ctx context.Context, sequence int64, usage Usage) {
+	span := trace.SpanFromContext(ctx)
+	span.SetAttributes(attribute.String("piko.call.sequence", strconv.FormatInt(sequence, 10)))
+	for _, metric := range []struct {
+		name     string
+		reported bool
+	}{
+		{"input_tokens", usage.Input.Valid}, {"output_tokens", usage.Output.Valid}, {"total_tokens", usage.Total.Valid}, {"cost", usage.Cost.Valid},
+	} {
+		span.SetAttributes(attribute.String("langfuse.observation.metadata.provider_"+metric.name+"_reported", strconv.FormatBool(metric.reported)))
+	}
+	tokens := map[string]int64{}
+	if usage.Input.Valid {
+		tokens["input"] = usage.Input.Int64
+	}
+	if usage.Output.Valid {
+		tokens["output"] = usage.Output.Int64
+	}
+	if usage.Total.Valid {
+		tokens["total"] = usage.Total.Int64
+	}
+	if len(tokens) > 0 {
+		encoded, _ := json.Marshal(tokens)
+		span.SetAttributes(attribute.String("langfuse.observation.usage_details", string(encoded)))
+	}
+	if usage.Cost.Valid {
+		span.SetAttributes(attribute.String("langfuse.observation.cost_details", `{"total":`+usage.Cost.String+`}`))
+	}
 }

@@ -14,6 +14,7 @@ type Config struct {
 	DailyRequests int64
 	MaxCalls      int64
 	RunTimeout    time.Duration
+	Langfuse      TraceConfig
 }
 
 func (c Config) defaults() Config {

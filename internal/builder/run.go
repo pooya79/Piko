@@ -15,6 +15,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/logger"
+	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/compat_oai/openrouter"
 	"github.com/openai/openai-go/option"
@@ -24,6 +25,8 @@ import (
 	"github.com/pooya79/Piko/internal/platform/database"
 	"github.com/pooya79/Piko/internal/platform/database/dbgen"
 	"github.com/shopspring/decimal"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 var (
@@ -324,6 +327,9 @@ func (s *Service) execute(work context.Context, run admittedRun) {
 	ctx, cancel := context.WithCancel(work)
 	defer cancel()
 	ctx = context.WithValue(ctx, runContextKey{}, run)
+	ctx = context.WithValue(ctx, observationContextKey{}, s.observability)
+	ctx, runSpan := tracing.Tracer().Start(ctx, "Builder run")
+	defer runSpan.End()
 	ctx = logger.WithContext(ctx, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	leaseDone := make(chan struct{})
 	// Lease renewal reads its own snapshot while execution updates run memory.
@@ -344,7 +350,7 @@ func (s *Service) execute(work context.Context, run admittedRun) {
 		} else if s.work.Err() != nil {
 			outcome = runOutcome{status: RunInterrupted}
 		}
-		if err := s.finish(run, outcome); err != nil {
+		if err := s.finish(run, &outcome); err != nil {
 			// A reply write can fail after paid work completed. Roll back success,
 			// then save an honest failed outcome without the unsaved model content.
 			failed := runOutcome{status: RunFailed}
@@ -353,9 +359,14 @@ func (s *Service) execute(work context.Context, run admittedRun) {
 			}
 			// Do not retry the failing summary write in the recovery transaction.
 			run.summary = chatSummary{}
-			if err := s.finish(run, failed); err != nil {
+			if err := s.finish(run, &failed); err != nil {
 				slog.Error("Builder outcome storage unavailable", "run_id", run.id)
 			}
+			outcome = failed
+		}
+		runSpan.SetAttributes(attribute.String("piko.run.status", string(outcome.status)))
+		if outcome.status != RunSucceeded {
+			runSpan.SetStatus(codes.Error, "Builder run did not succeed")
 		}
 	}()
 	base, err := flow.Decode(run.draft)
@@ -407,7 +418,9 @@ func (s *Service) execute(work context.Context, run admittedRun) {
 	outcome = runOutcome{status: RunSucceeded, reply: response.Text(), candidate: candidate.staged}
 }
 
-func (s *Service) finish(run admittedRun, outcome runOutcome) error {
+// Return the committed outcome through outcome so the run span describes the
+// actual terminal/commit boundary, including stale revisions and accepted Stop.
+func (s *Service) finish(run admittedRun, outcome *runOutcome) error {
 	ctx, cancel := context.WithTimeout(s.storageContext, 5*time.Second)
 	defer cancel()
 	return database.RetryWrite(ctx, s.repo.db, func(conn *sql.Conn) error {
@@ -423,12 +436,20 @@ func (s *Service) finish(run admittedRun, outcome runOutcome) error {
 		s.commitMu.Lock()
 		defer s.commitMu.Unlock()
 		if s.work.Err() != nil {
-			outcome = runOutcome{status: RunInterrupted}
+			*outcome = runOutcome{status: RunInterrupted}
 		} else if !time.Now().Before(run.deadline) {
-			outcome = runOutcome{status: RunTimeout}
+			*outcome = runOutcome{status: RunTimeout}
 		}
 		q := dbgen.New(tx)
 		if _, err := q.GetActiveOwnerBuilderRun(ctx, dbgen.GetActiveOwnerBuilderRunParams{RunID: run.id, OwnerID: run.ownerID, Now: time.Now().UnixMilli()}); errors.Is(err, sql.ErrNoRows) {
+			// A prior Stop, recovery or deletion already owns the terminal state.
+			*outcome = runOutcome{status: RunInterrupted}
+			row, err := q.GetOwnerBuilderRun(ctx, dbgen.GetOwnerBuilderRunParams{RunID: run.id, OwnerID: run.ownerID, BotID: run.botID, ChatID: run.chatID})
+			if err == nil && row.Status != string(RunRunning) {
+				outcome.status = visibleStatus(row.Status, row.Result)
+			} else if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return err
+			}
 			return nil
 		} else if err != nil {
 			return err
@@ -445,7 +466,7 @@ func (s *Service) finish(run admittedRun, outcome runOutcome) error {
 			owned := auth.WithUser(ctx, auth.User{ID: run.ownerID})
 			revision, err := s.bots.SaveDraftTx(owned, tx, run.botID, run.revision, *outcome.candidate)
 			if errors.Is(err, bot.ErrStaleDraft) {
-				outcome = runOutcome{status: RunFailed, result: "conflict"}
+				*outcome = runOutcome{status: RunFailed, result: "conflict"}
 			} else if err != nil {
 				return err
 			} else {
@@ -569,16 +590,24 @@ func (s *Service) Stop(grace time.Duration) {
 	if grace <= 0 {
 		grace = 10 * time.Second
 	}
+	s.shutdownDeadline = time.Now().Add(grace)
 	s.storageTimer = time.AfterFunc(grace, s.cancelStorage)
 }
 func (s *Service) Wait() {
 	s.runs.Wait()
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.storageTimer != nil {
 		s.storageTimer.Stop()
 	}
 	s.cancelStorage()
+	deadline := s.shutdownDeadline
+	s.mu.Unlock()
+	if s.observability != nil {
+		if deadline.IsZero() || time.Until(deadline) > time.Second {
+			deadline = time.Now().Add(time.Second)
+		}
+		s.observability.close(deadline)
+	}
 }
 
 func (u Usage) TotalText() string {

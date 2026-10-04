@@ -21,11 +21,16 @@ import (
 
 func builderFixture(t *testing.T, config builder.Config, provider http.HandlerFunc) (*App, *accountBrowser) {
 	t.Helper()
+	return builderFixtureWithLogLevel(t, config, "error", provider)
+}
+
+func builderFixtureWithLogLevel(t *testing.T, config builder.Config, logLevel string, provider http.HandlerFunc) (*App, *accountBrowser) {
+	t.Helper()
 	_, path := testsupport.MigratedSQLite(t, t.Context())
 	fake := httptest.NewServer(streamingBuilderProvider(provider))
 	t.Cleanup(fake.Close)
 	config.APIKey, config.BaseURL = "test-server-key", fake.URL+"/v1"
-	cfg := Config{DatabasePath: path, HTTPAddr: "127.0.0.1:0", SessionSecret: "builder-test-secret-at-least-32-characters", BotEncryptionKey: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=", LogLevel: "error", ShutdownPeriod: time.Second, Builder: config}
+	cfg := Config{DatabasePath: path, HTTPAddr: "127.0.0.1:0", SessionSecret: "builder-test-secret-at-least-32-characters", BotEncryptionKey: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=", LogLevel: logLevel, ShutdownPeriod: time.Second, Builder: config}
 	a, err := New(t.Context(), cfg)
 	if err != nil {
 		t.Fatal(err)

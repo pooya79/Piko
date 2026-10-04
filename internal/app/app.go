@@ -95,6 +95,7 @@ func newWithTelegramClock(ctx context.Context, cfg Config, api *telegram.Client,
 		_ = db.Close()
 		return nil, err
 	}
+	builderService.ConfigureTracing(log, cfg.SessionSecret, cfg.BotEncryptionKey)
 	router := buildRouter(db, mw, limiter, authHandler, botService, builderService)
 	server := &http.Server{Addr: cfg.HTTPAddr, Handler: router, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}
 	requestCtx, cancelRequests := context.WithCancel(context.Background())

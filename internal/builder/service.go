@@ -73,22 +73,24 @@ func (c Chat) URL() string {
 }
 
 type Service struct {
-	repo           *Repository
-	bots           *bot.Service
-	config         Config
-	genkit         *genkit.Genkit
-	tools          []ai.ToolRef
-	now            func() time.Time
-	mu             sync.Mutex
-	commitMu       sync.Mutex
-	stopping       bool
-	work           context.Context
-	cancel         context.CancelFunc
-	runs           sync.WaitGroup
-	storageContext context.Context
-	cancelStorage  context.CancelFunc
-	storageTimer   *time.Timer
-	live           map[int64]*liveRun
+	repo             *Repository
+	bots             *bot.Service
+	config           Config
+	genkit           *genkit.Genkit
+	observability    *observability
+	shutdownDeadline time.Time
+	tools            []ai.ToolRef
+	now              func() time.Time
+	mu               sync.Mutex
+	commitMu         sync.Mutex
+	stopping         bool
+	work             context.Context
+	cancel           context.CancelFunc
+	runs             sync.WaitGroup
+	storageContext   context.Context
+	cancelStorage    context.CancelFunc
+	storageTimer     *time.Timer
+	live             map[int64]*liveRun
 }
 
 func NewService(repo *Repository, bots *bot.Service) *Service {
