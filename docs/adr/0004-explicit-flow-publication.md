@@ -4,4 +4,8 @@ Owners configure and test bot behavior as drafts, then explicitly publish a flow
 
 Initial testing uses an interactive Piko preview backed by the same flow engine with isolated test data. A restricted live Telegram testing mode is deferred, avoiding a separate pre-publication participant-access system in the first milestone.
 
+The chat-first Builder experience adds an explicit owner-operated Deploy action that validates and publishes the Draft, then activates Telegram delivery. Without Telegram credentials, this action prompts the owner to connect the Bot. Publication and activation remain distinct outcomes: if activation fails after publication, Piko shows the published-but-inactive state and allows activation to be retried. Builder agent edits only change the Draft and never publish or activate delivery automatically.
+
+Deploy preserves the Bot's existing pause choice; a paused Bot remains paused after publication and delivery activation. Resume stays a separate explicit owner action. When compatible delivery is already active, deployment need not reactivate it merely to publish a new Flow.
+
 Published flow versions are immutable for the lifetime of their interactions: an unfinished interaction completes against the version it started, while new interactions use the latest published version. Progress survives server restarts and expires after 24 hours of inactivity; pausing a bot retains progress until that normal expiry. Keeping old versions is a deliberate storage cost to avoid changing questions or interpreting answers differently halfway through an interaction.

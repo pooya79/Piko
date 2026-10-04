@@ -13,12 +13,20 @@ The signed-in user's overview of their bots, conversations, and recent activity.
 _Avoid_: Home, account page
 
 **Bot**:
-A Telegram bot connected to Piko and operated on behalf of its Bot owner.
+A Telegram bot configuration managed in Piko on behalf of its Bot owner. It can be built before connecting a Telegram identity and credentials.
 _Avoid_: Builder agent, chatbot
 
 **Bot owner**:
-The Piko user who connects and manages a Bot.
+The Piko user who creates and manages a Bot, including its Telegram connection.
 _Avoid_: Bot user, conversation participant
+
+**Unconnected Bot**:
+A Bot that has not yet been connected to a Telegram identity and can be built and previewed inside Piko.
+_Avoid_: Disconnected Bot
+
+**Disconnected Bot**:
+A previously connected Bot whose Telegram credentials have been removed while its identity and retained data remain in Piko.
+_Avoid_: Unconnected Bot, deleted Bot
 
 **Participant**:
 A person interacting with a Bot in Telegram.
@@ -41,7 +49,7 @@ An arrangement of Blocks that defines a Bot's behavior and the paths an interact
 _Avoid_: Template, agent
 
 **Draft**:
-A Bot's proposed Flow configuration that has not been published for live interactions.
+A Bot's single editable Flow configuration whose changes have not been published for live interactions. Its Builder chats work on the same Draft.
 _Avoid_: Published flow
 
 **Preview**:
@@ -51,6 +59,10 @@ _Avoid_: Live Telegram conversation, submission inbox
 **Published flow**:
 A Flow configuration approved by the Bot owner for live interactions.
 _Avoid_: Draft
+
+**Deployment**:
+A Bot owner's explicit action to publish a Draft and activate the Bot's Telegram delivery.
+_Avoid_: Draft save, Telegram connection
 
 **Interaction**:
 A Participant's attempt to complete a Form, including their unfinished answers and progress.
@@ -65,8 +77,16 @@ A ready-made Flow that a Bot owner can configure for a particular use case.
 _Avoid_: Block
 
 **Builder agent**:
-The planned AI agent that turns a Bot owner's request into a Flow assembled from approved Blocks.
+An AI assistant that creates and updates Drafts from a Bot owner's requests using approved Blocks. The Bot owner decides when its changes become live in Telegram.
 _Avoid_: Bot, chatbot, AI reply block
+
+**Builder chat**:
+A Bot owner's saved conversation with the Builder agent about one Bot. A Bot can have multiple Builder chats, each with its own conversation memory.
+_Avoid_: Participant conversation, Telegram chat
+
+**Builder run**:
+The Builder agent's work on one request in a Builder chat, which may produce a reply and Draft changes. It continues when the owner leaves or closes the chat, unless the owner stops it.
+_Avoid_: Participant interaction, Telegram delivery
 
 **Inquiry**:
 A request containing contact details and a message for a business to review.
