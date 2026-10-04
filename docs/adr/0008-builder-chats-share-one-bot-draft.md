@@ -2,6 +2,8 @@
 
 A Bot has one Draft and can have multiple persistent Builder chats. Each chat uses only its own conversation history and the current Bot Draft, rather than inheriting another chat's messages or maintaining a separate deployable Draft. This supports separate discussions without creating competing versions for the owner to select at deployment, accepting the need to coordinate edits to shared state.
 
+ADR 0012 extends the conversation model with Piko chats that exist before a Bot. After successful creation, the original Piko chat becomes a Builder chat for that one Bot and retains its own earlier history; it cannot be retargeted to another Bot. The shared Draft and per-chat memory rules continue to apply after this transition.
+
 Chat history survives refresh, logout, and server restarts. An owner can delete a Builder chat without deleting the Bot or reverting its Draft changes; deleting local chat history does not request removal of previously exported history from Langfuse.
 
 Full messages remain available for display. Model context uses a summary of older messages, recent messages, and the current Draft; summaries remain private to their originating Builder chat.
