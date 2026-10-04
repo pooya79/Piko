@@ -257,8 +257,7 @@ func (s *Service) SaveDraft(ctx context.Context, botID, expectedRevision int64, 
 		return 0, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	q := s.repo.q.WithTx(tx)
-	revision, err := saveDraft(ctx, q, ownerID, botID, expectedRevision, d)
+	revision, err := saveDraft(ctx, s.repo.q.WithTx(tx), ownerID, botID, expectedRevision, d)
 	if err != nil {
 		return 0, err
 	}
@@ -266,6 +265,16 @@ func (s *Service) SaveDraft(ctx context.Context, botID, expectedRevision int64, 
 		return 0, err
 	}
 	return revision, nil
+}
+
+// SaveDraftTx shares the manual-save boundary with Builder's atomic run outcome.
+// The caller owns an immediate transaction on the application's SQLite file.
+func (s *Service) SaveDraftTx(ctx context.Context, tx *sql.Tx, botID, expectedRevision int64, d flow.Definition) (int64, error) {
+	ownerID, err := owner(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return saveDraft(ctx, s.repo.q.WithTx(tx), ownerID, botID, expectedRevision, d)
 }
 
 // Creation and subsequent edits share the same ownership, validation and

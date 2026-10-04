@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/pooya79/Piko/internal/auth"
 	"github.com/pooya79/Piko/internal/bot"
@@ -37,8 +38,8 @@ type Message struct {
 
 func (m Message) FeedbackKey() string {
 	if m.Role == ResultRole {
-		for _, status := range []RunStatus{RunFailed, RunTimeout, RunInterrupted} {
-			if m.Content == status.LocaleKey() {
+		for _, key := range []string{RunFailed.LocaleKey(), RunTimeout.LocaleKey(), RunInterrupted.LocaleKey(), "builder.run.saved", "builder.run.conflict", "builder.run.invalid", "builder.run.call.limit"} {
+			if m.Content == key {
 				return m.Content
 			}
 		}
@@ -76,6 +77,7 @@ type Service struct {
 	bots           *bot.Service
 	config         Config
 	genkit         *genkit.Genkit
+	tools          []ai.ToolRef
 	now            func() time.Time
 	mu             sync.Mutex
 	commitMu       sync.Mutex

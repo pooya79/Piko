@@ -194,9 +194,7 @@ func TestBuilderBackgroundMigrationRetainsSavedOutcomeHistoryAndDraft(t *testing
 	a.stopRequests()
 	a.builder.Wait()
 	// Exercise a populated pre-000014 database, then apply the forward upgrade.
-	if err := database.Migrate(t.Context(), a.db, true); err != nil {
-		t.Fatal(err)
-	}
+	rollbackToMigration(t, a.db, "000013_builder_runs")
 	if err := database.Migrate(t.Context(), a.db, false); err != nil {
 		t.Fatal(err)
 	}

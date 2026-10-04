@@ -128,19 +128,23 @@ type BuilderMessage struct {
 }
 
 type BuilderRun struct {
-	ID              int64
-	OwnerID         int64
-	BotID           sql.NullInt64
-	ChatID          sql.NullInt64
-	Day             string
-	Model           string
-	DraftRevision   int64
-	Status          string
-	CreatedAt       int64
-	LeaseUntil      int64
-	FinishedAt      sql.NullInt64
-	ModelCalls      int64
-	RequestSequence sql.NullInt64
+	ID               int64
+	OwnerID          int64
+	BotID            sql.NullInt64
+	ChatID           sql.NullInt64
+	Day              string
+	Model            string
+	DraftRevision    int64
+	Status           string
+	CreatedAt        int64
+	LeaseUntil       int64
+	FinishedAt       sql.NullInt64
+	ModelCalls       int64
+	RequestSequence  sql.NullInt64
+	Result           string
+	BeforeDefinition sql.NullString
+	AfterDefinition  sql.NullString
+	AfterRevision    sql.NullInt64
 }
 
 type RateLimit struct {

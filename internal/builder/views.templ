@@ -104,8 +104,15 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
  </section>
  <section class="piko-card piko-draft-section mt-6" aria-label={ locale.T(ctx,"builder.runs") }>
  for _,run:=range history.Runs {
-  <div class="piko-builder-run" data-run-id={ strconv.FormatInt(run.ID,10) } data-run-status={ string(run.Status) }>
-   <p role="status">{ locale.T(ctx,run.Status.LocaleKey()) }</p>
+  <div class="piko-builder-run" data-run-id={ strconv.FormatInt(run.ID,10) } data-run-status={ string(run.Status) } data-run-result={ run.Result } data-before-revision={ strconv.FormatInt(run.BeforeRevision,10) }
+  if run.AfterRevision.Valid {
+   data-after-revision={ strconv.FormatInt(run.AfterRevision.Int64,10) }
+  }
+  >
+   <p role="status">{ locale.T(ctx,run.FeedbackKey()) }</p>
+   if run.AfterRevision.Valid {
+    <p class="piko-helper">{ locale.T(ctx,"builder.revision.change")+" " }<bdi dir="ltr">{ locale.Digits(strconv.FormatInt(run.BeforeRevision,10)+" → "+strconv.FormatInt(run.AfterRevision.Int64,10)) }</bdi></p>
+   }
    <p class="piko-helper">{ locale.T(ctx,"builder.calls")+" "+locale.Digits(strconv.FormatInt(run.Calls,10)) }</p>
    @usage(run.Usage)
    if view.Enabled && run.ID == latest.ID && run.CanRetry {
@@ -126,7 +133,7 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
  <p class="piko-field-error" role="alert">{ locale.T(ctx,view.FeedbackKey) }</p>
  }
  if view.Enabled {
-  <p class="piko-page-copy" id="builder-capabilities">{ locale.T(ctx,"builder.conversation.only") }</p>
+  <p class="piko-page-copy" id="builder-capabilities">{ locale.T(ctx,"builder.capabilities") }</p>
   <form method="post" action={ c.URL()+"/messages" }>
    <input type="hidden" name="csrf_token" value={ csrf }/>
    <label class="piko-label" for="builder-message">{ locale.T(ctx,"builder.message") }</label>

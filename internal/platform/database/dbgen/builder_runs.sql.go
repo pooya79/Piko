@@ -77,7 +77,7 @@ INSERT INTO builder_runs (owner_id,bot_id,chat_id,day,model,draft_revision,statu
 SELECT b.owner_id,b.id,c.id,?1,?2,?3,'running',?4,?5,?6
 FROM builder_chats c JOIN bots b ON b.id=c.bot_id
 WHERE b.owner_id=?7 AND b.id=?8 AND c.id=?9
-RETURNING id, owner_id, bot_id, chat_id, day, model, draft_revision, status, created_at, lease_until, finished_at, model_calls, request_sequence
+RETURNING id, owner_id, bot_id, chat_id, day, model, draft_revision, status, created_at, lease_until, finished_at, model_calls, request_sequence, result, before_definition, after_definition, after_revision
 `
 
 type AdmitOwnerBuilderRunParams struct {
@@ -119,6 +119,10 @@ func (q *Queries) AdmitOwnerBuilderRun(ctx context.Context, arg AdmitOwnerBuilde
 		&i.FinishedAt,
 		&i.ModelCalls,
 		&i.RequestSequence,
+		&i.Result,
+		&i.BeforeDefinition,
+		&i.AfterDefinition,
+		&i.AfterRevision,
 	)
 	return i, err
 }
@@ -140,25 +144,34 @@ func (q *Queries) CountOwnerBuilderDay(ctx context.Context, arg CountOwnerBuilde
 }
 
 const finishOwnerBuilderRun = `-- name: FinishOwnerBuilderRun :execrows
-UPDATE builder_runs SET status=?1,finished_at=?2
-WHERE builder_runs.id=?3 AND builder_runs.owner_id=?4 AND status='running'
-AND lease_until > ?5
+UPDATE builder_runs SET status=?1,finished_at=?2,result=?3,
+before_definition=?4,after_definition=?5,after_revision=?6
+WHERE builder_runs.id=?7 AND builder_runs.owner_id=?8 AND status='running'
+AND lease_until > ?9
 AND EXISTS (SELECT 1 FROM builder_chats c JOIN bots b ON b.id=c.bot_id
     WHERE c.id=builder_runs.chat_id AND b.id=builder_runs.bot_id AND b.owner_id=builder_runs.owner_id)
 `
 
 type FinishOwnerBuilderRunParams struct {
-	Status     string
-	FinishedAt sql.NullInt64
-	RunID      int64
-	OwnerID    int64
-	Now        int64
+	Status           string
+	FinishedAt       sql.NullInt64
+	Result           string
+	BeforeDefinition sql.NullString
+	AfterDefinition  sql.NullString
+	AfterRevision    sql.NullInt64
+	RunID            int64
+	OwnerID          int64
+	Now              int64
 }
 
 func (q *Queries) FinishOwnerBuilderRun(ctx context.Context, arg FinishOwnerBuilderRunParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, finishOwnerBuilderRun,
 		arg.Status,
 		arg.FinishedAt,
+		arg.Result,
+		arg.BeforeDefinition,
+		arg.AfterDefinition,
+		arg.AfterRevision,
 		arg.RunID,
 		arg.OwnerID,
 		arg.Now,
@@ -167,6 +180,43 @@ func (q *Queries) FinishOwnerBuilderRun(ctx context.Context, arg FinishOwnerBuil
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const getActiveOwnerBuilderRun = `-- name: GetActiveOwnerBuilderRun :one
+SELECT r.id, r.owner_id, r.bot_id, r.chat_id, r.day, r.model, r.draft_revision, r.status, r.created_at, r.lease_until, r.finished_at, r.model_calls, r.request_sequence, r.result, r.before_definition, r.after_definition, r.after_revision FROM builder_runs r JOIN builder_chats c ON c.id=r.chat_id JOIN bots b ON b.id=c.bot_id
+WHERE r.id=?1 AND r.owner_id=?2 AND b.owner_id=?2
+AND b.id=r.bot_id AND r.status='running' AND r.lease_until > ?3
+`
+
+type GetActiveOwnerBuilderRunParams struct {
+	RunID   int64
+	OwnerID int64
+	Now     int64
+}
+
+func (q *Queries) GetActiveOwnerBuilderRun(ctx context.Context, arg GetActiveOwnerBuilderRunParams) (BuilderRun, error) {
+	row := q.db.QueryRowContext(ctx, getActiveOwnerBuilderRun, arg.RunID, arg.OwnerID, arg.Now)
+	var i BuilderRun
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.BotID,
+		&i.ChatID,
+		&i.Day,
+		&i.Model,
+		&i.DraftRevision,
+		&i.Status,
+		&i.CreatedAt,
+		&i.LeaseUntil,
+		&i.FinishedAt,
+		&i.ModelCalls,
+		&i.RequestSequence,
+		&i.Result,
+		&i.BeforeDefinition,
+		&i.AfterDefinition,
+		&i.AfterRevision,
+	)
+	return i, err
 }
 
 const getLatestOwnerBuilderRunStatus = `-- name: GetLatestOwnerBuilderRunStatus :one
@@ -334,7 +384,7 @@ func (q *Queries) ListOwnerBuilderDayCalls(ctx context.Context, arg ListOwnerBui
 }
 
 const listOwnerBuilderRuns = `-- name: ListOwnerBuilderRuns :many
-SELECT r.id, r.owner_id, r.bot_id, r.chat_id, r.day, r.model, r.draft_revision, r.status, r.created_at, r.lease_until, r.finished_at, r.model_calls, r.request_sequence FROM builder_runs r JOIN bots b ON b.id=r.bot_id
+SELECT r.id, r.owner_id, r.bot_id, r.chat_id, r.day, r.model, r.draft_revision, r.status, r.created_at, r.lease_until, r.finished_at, r.model_calls, r.request_sequence, r.result, r.before_definition, r.after_definition, r.after_revision FROM builder_runs r JOIN bots b ON b.id=r.bot_id
 WHERE r.owner_id=?1 AND b.owner_id=?1 AND b.id=?2 AND r.chat_id=?3
 ORDER BY r.id
 `
@@ -368,6 +418,10 @@ func (q *Queries) ListOwnerBuilderRuns(ctx context.Context, arg ListOwnerBuilder
 			&i.FinishedAt,
 			&i.ModelCalls,
 			&i.RequestSequence,
+			&i.Result,
+			&i.BeforeDefinition,
+			&i.AfterDefinition,
+			&i.AfterRevision,
 		); err != nil {
 			return nil, err
 		}
