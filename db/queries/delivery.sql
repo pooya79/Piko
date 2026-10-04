@@ -15,18 +15,20 @@ WHERE owner_id = ?1 AND id = ?2;
 
 -- name: BeginOwnerActivation :execrows
 UPDATE bot_delivery SET state = 'activating', mode = ?3, activation_nonce = ?4, activation_until = unixepoch()+30
-WHERE bot_id = ?2 AND EXISTS (SELECT 1 FROM bots WHERE id = ?2 AND owner_id = ?1)
-AND activation_until < unixepoch() AND worker_until < unixepoch();
+WHERE bot_id = ?2 AND EXISTS (SELECT 1 FROM bots WHERE bots.id = ?2 AND bots.owner_id = ?1)
+AND activation_until < unixepoch() AND worker_until < unixepoch()
+AND encrypted_secret = sqlc.arg(expected_secret)
+AND EXISTS (SELECT 1 FROM bots WHERE bots.id = ?2 AND length(bots.encrypted_token) > 0 AND bots.encrypted_token = sqlc.arg(expected_token));
 
 -- name: FinishOwnerActivation :execrows
 UPDATE bot_delivery SET state = ?3, activation_until = 0
 WHERE bot_id = ?2 AND activation_nonce = ?4
-AND EXISTS (SELECT 1 FROM bots WHERE id = ?2 AND owner_id = ?1);
+AND EXISTS (SELECT 1 FROM bots WHERE bots.id = ?2 AND bots.owner_id = ?1);
 
 -- name: GetIngressCredentials :one
 SELECT b.owner_id, b.telegram_id, d.encrypted_secret
 FROM bots b JOIN bot_delivery d ON d.bot_id = b.id
-WHERE b.id = ?1 AND d.mode = 'webhook' AND d.state IN ('activating','active','error');
+WHERE b.id = ?1 AND d.mode = 'webhook' AND d.state IN ('activating','active','error') AND length(b.encrypted_token) > 0;
 
 -- name: HasAcceptedUpdate :one
 SELECT EXISTS (SELECT 1 FROM bot_updates WHERE bot_id = ?1 AND update_id = ?2);
@@ -34,6 +36,8 @@ SELECT EXISTS (SELECT 1 FROM bot_updates WHERE bot_id = ?1 AND update_id = ?2);
 -- name: AcceptUpdate :execrows
 INSERT INTO bot_updates (bot_id, update_id, payload, participant_id, accepted_while_paused)
 SELECT ?1, ?2, ?3, ?4, bots.paused FROM bots WHERE bots.id = ?1
+AND length(bots.encrypted_token) > 0
+AND EXISTS (SELECT 1 FROM bot_delivery WHERE bot_id = ?1 AND state IN ('activating','active','error'))
 AND (SELECT COUNT(*) FROM bot_updates WHERE bot_id = ?1 AND complete = 0) < 1000
 ON CONFLICT (bot_id, update_id) DO NOTHING;
 
@@ -59,7 +63,7 @@ UPDATE bot_delivery SET worker_until = 0, worker_nonce = '', retry_at = ?3, work
 WHERE bot_id = ?1 AND worker_nonce = ?2;
 
 -- name: RenewDeliveryWork :execrows
-UPDATE bot_delivery SET worker_until = unixepoch()+60 WHERE bot_id = ?1 AND worker_nonce = ?2 AND worker_until >= unixepoch();
+UPDATE bot_delivery SET worker_until = unixepoch()+60 WHERE bot_id = ?1 AND worker_nonce = ?2 AND worker_until >= unixepoch() AND state = 'active';
 
 -- name: GetParticipant :one
 SELECT p.*, v.definition FROM bot_participants p JOIN bot_publications v ON v.id = p.publication_id
@@ -93,10 +97,29 @@ UPDATE bot_updates SET attempts = MIN(attempts+1, 10), retry_at = ?3 WHERE id = 
 UPDATE bot_updates SET complete = 1, terminal_failure = 1 WHERE id = ?1 AND bot_id = ?2;
 
 -- name: AdvancePollingOffset :execrows
-UPDATE bot_delivery SET polling_offset = ?3 WHERE bot_id = ?1 AND worker_nonce = ?2 AND worker_until >= unixepoch();
+UPDATE bot_delivery SET polling_offset = ?3 WHERE bot_id = ?1 AND worker_nonce = ?2 AND worker_until >= unixepoch() AND state = 'active';
 
 -- name: DeleteExpiredParticipants :execrows
 DELETE FROM bot_participants WHERE expires_at <= sqlc.arg(now);
 
 -- name: CompactCompletedUpdateOutput :execrows
 UPDATE bot_updates SET output = NULL WHERE complete = 1 AND output IS NOT NULL AND received_at < unixepoch()-86400;
+
+-- name: BeginOwnerLifecycle :execrows
+UPDATE bot_delivery SET state = 'inactive', activation_nonce = ?3, activation_until = unixepoch()+90
+WHERE bot_id = ?2 AND activation_until < unixepoch()
+AND EXISTS (SELECT 1 FROM bots WHERE bots.id = ?2 AND bots.owner_id = ?1
+AND (CAST(sqlc.arg(expected_disconnected) AS INTEGER) = -1 OR (length(bots.encrypted_token) = 0) = CAST(sqlc.arg(expected_disconnected) AS INTEGER)));
+
+-- name: FinishOwnerLifecycle :execrows
+UPDATE bot_delivery SET activation_until = 0, encrypted_secret = ?4, worker_error = 0, retry_at = 0
+WHERE bot_id = ?2 AND activation_nonce = ?3
+AND EXISTS (SELECT 1 FROM bots WHERE bots.id = ?2 AND bots.owner_id = ?1);
+
+-- name: SetOwnerCredentials :execrows
+UPDATE bots SET encrypted_token = ?3, name = ?4, username = ?5,
+has_webhook = ?6, pending_updates = ?7, webhook_is_piko = ?8, verified_at = unixepoch()
+WHERE id = ?2 AND owner_id = ?1;
+
+-- name: DeleteOwnerBot :execrows
+DELETE FROM bots WHERE owner_id = ?1 AND id = ?2;

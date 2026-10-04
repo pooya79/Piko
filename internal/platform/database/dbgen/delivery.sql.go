@@ -13,6 +13,8 @@ import (
 const acceptUpdate = `-- name: AcceptUpdate :execrows
 INSERT INTO bot_updates (bot_id, update_id, payload, participant_id, accepted_while_paused)
 SELECT ?1, ?2, ?3, ?4, bots.paused FROM bots WHERE bots.id = ?1
+AND length(bots.encrypted_token) > 0
+AND EXISTS (SELECT 1 FROM bot_delivery WHERE bot_id = ?1 AND state IN ('activating','active','error'))
 AND (SELECT COUNT(*) FROM bot_updates WHERE bot_id = ?1 AND complete = 0) < 1000
 ON CONFLICT (bot_id, update_id) DO NOTHING
 `
@@ -38,7 +40,7 @@ func (q *Queries) AcceptUpdate(ctx context.Context, arg AcceptUpdateParams) (int
 }
 
 const advancePollingOffset = `-- name: AdvancePollingOffset :execrows
-UPDATE bot_delivery SET polling_offset = ?3 WHERE bot_id = ?1 AND worker_nonce = ?2 AND worker_until >= unixepoch()
+UPDATE bot_delivery SET polling_offset = ?3 WHERE bot_id = ?1 AND worker_nonce = ?2 AND worker_until >= unixepoch() AND state = 'active'
 `
 
 type AdvancePollingOffsetParams struct {
@@ -81,8 +83,10 @@ func (q *Queries) AdvanceUpdateOutput(ctx context.Context, arg AdvanceUpdateOutp
 
 const beginOwnerActivation = `-- name: BeginOwnerActivation :execrows
 UPDATE bot_delivery SET state = 'activating', mode = ?3, activation_nonce = ?4, activation_until = unixepoch()+30
-WHERE bot_id = ?2 AND EXISTS (SELECT 1 FROM bots WHERE id = ?2 AND owner_id = ?1)
+WHERE bot_id = ?2 AND EXISTS (SELECT 1 FROM bots WHERE bots.id = ?2 AND bots.owner_id = ?1)
 AND activation_until < unixepoch() AND worker_until < unixepoch()
+AND encrypted_secret = ?5
+AND EXISTS (SELECT 1 FROM bots WHERE bots.id = ?2 AND length(bots.encrypted_token) > 0 AND bots.encrypted_token = ?6)
 `
 
 type BeginOwnerActivationParams struct {
@@ -90,6 +94,8 @@ type BeginOwnerActivationParams struct {
 	BotID           int64
 	Mode            string
 	ActivationNonce string
+	ExpectedSecret  []byte
+	ExpectedToken   []byte
 }
 
 func (q *Queries) BeginOwnerActivation(ctx context.Context, arg BeginOwnerActivationParams) (int64, error) {
@@ -98,6 +104,35 @@ func (q *Queries) BeginOwnerActivation(ctx context.Context, arg BeginOwnerActiva
 		arg.BotID,
 		arg.Mode,
 		arg.ActivationNonce,
+		arg.ExpectedSecret,
+		arg.ExpectedToken,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const beginOwnerLifecycle = `-- name: BeginOwnerLifecycle :execrows
+UPDATE bot_delivery SET state = 'inactive', activation_nonce = ?3, activation_until = unixepoch()+90
+WHERE bot_id = ?2 AND activation_until < unixepoch()
+AND EXISTS (SELECT 1 FROM bots WHERE bots.id = ?2 AND bots.owner_id = ?1
+AND (CAST(?4 AS INTEGER) = -1 OR (length(bots.encrypted_token) = 0) = CAST(?4 AS INTEGER)))
+`
+
+type BeginOwnerLifecycleParams struct {
+	OwnerID              int64
+	BotID                int64
+	ActivationNonce      string
+	ExpectedDisconnected int64
+}
+
+func (q *Queries) BeginOwnerLifecycle(ctx context.Context, arg BeginOwnerLifecycleParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, beginOwnerLifecycle,
+		arg.OwnerID,
+		arg.BotID,
+		arg.ActivationNonce,
+		arg.ExpectedDisconnected,
 	)
 	if err != nil {
 		return 0, err
@@ -197,6 +232,23 @@ func (q *Queries) DeleteExpiredParticipants(ctx context.Context, now int64) (int
 	return result.RowsAffected()
 }
 
+const deleteOwnerBot = `-- name: DeleteOwnerBot :execrows
+DELETE FROM bots WHERE owner_id = ?1 AND id = ?2
+`
+
+type DeleteOwnerBotParams struct {
+	OwnerID int64
+	ID      int64
+}
+
+func (q *Queries) DeleteOwnerBot(ctx context.Context, arg DeleteOwnerBotParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteOwnerBot, arg.OwnerID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const ensureOwnerDelivery = `-- name: EnsureOwnerDelivery :execrows
 INSERT INTO bot_delivery (bot_id, encrypted_secret)
 SELECT id, ?3 FROM bots WHERE owner_id = ?1 AND id = ?2
@@ -234,7 +286,7 @@ func (q *Queries) FailUndeliverableUpdate(ctx context.Context, arg FailUndeliver
 const finishOwnerActivation = `-- name: FinishOwnerActivation :execrows
 UPDATE bot_delivery SET state = ?3, activation_until = 0
 WHERE bot_id = ?2 AND activation_nonce = ?4
-AND EXISTS (SELECT 1 FROM bots WHERE id = ?2 AND owner_id = ?1)
+AND EXISTS (SELECT 1 FROM bots WHERE bots.id = ?2 AND bots.owner_id = ?1)
 `
 
 type FinishOwnerActivationParams struct {
@@ -250,6 +302,32 @@ func (q *Queries) FinishOwnerActivation(ctx context.Context, arg FinishOwnerActi
 		arg.BotID,
 		arg.State,
 		arg.ActivationNonce,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const finishOwnerLifecycle = `-- name: FinishOwnerLifecycle :execrows
+UPDATE bot_delivery SET activation_until = 0, encrypted_secret = ?4, worker_error = 0, retry_at = 0
+WHERE bot_id = ?2 AND activation_nonce = ?3
+AND EXISTS (SELECT 1 FROM bots WHERE bots.id = ?2 AND bots.owner_id = ?1)
+`
+
+type FinishOwnerLifecycleParams struct {
+	OwnerID         int64
+	BotID           int64
+	ActivationNonce string
+	EncryptedSecret []byte
+}
+
+func (q *Queries) FinishOwnerLifecycle(ctx context.Context, arg FinishOwnerLifecycleParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, finishOwnerLifecycle,
+		arg.OwnerID,
+		arg.BotID,
+		arg.ActivationNonce,
+		arg.EncryptedSecret,
 	)
 	if err != nil {
 		return 0, err
@@ -283,7 +361,7 @@ func (q *Queries) GetBotDelivery(ctx context.Context, botID int64) (BotDelivery,
 const getIngressCredentials = `-- name: GetIngressCredentials :one
 SELECT b.owner_id, b.telegram_id, d.encrypted_secret
 FROM bots b JOIN bot_delivery d ON d.bot_id = b.id
-WHERE b.id = ?1 AND d.mode = 'webhook' AND d.state IN ('activating','active','error')
+WHERE b.id = ?1 AND d.mode = 'webhook' AND d.state IN ('activating','active','error') AND length(b.encrypted_token) > 0
 `
 
 type GetIngressCredentialsRow struct {
@@ -496,7 +574,7 @@ func (q *Queries) ReleaseDeliveryWork(ctx context.Context, arg ReleaseDeliveryWo
 }
 
 const renewDeliveryWork = `-- name: RenewDeliveryWork :execrows
-UPDATE bot_delivery SET worker_until = unixepoch()+60 WHERE bot_id = ?1 AND worker_nonce = ?2 AND worker_until >= unixepoch()
+UPDATE bot_delivery SET worker_until = unixepoch()+60 WHERE bot_id = ?1 AND worker_nonce = ?2 AND worker_until >= unixepoch() AND state = 'active'
 `
 
 type RenewDeliveryWorkParams struct {
@@ -543,6 +621,40 @@ func (q *Queries) SaveParticipant(ctx context.Context, arg SaveParticipantParams
 		arg.ExpiresAt,
 	)
 	return err
+}
+
+const setOwnerCredentials = `-- name: SetOwnerCredentials :execrows
+UPDATE bots SET encrypted_token = ?3, name = ?4, username = ?5,
+has_webhook = ?6, pending_updates = ?7, webhook_is_piko = ?8, verified_at = unixepoch()
+WHERE id = ?2 AND owner_id = ?1
+`
+
+type SetOwnerCredentialsParams struct {
+	OwnerID        int64
+	ID             int64
+	EncryptedToken []byte
+	Name           string
+	Username       string
+	HasWebhook     int64
+	PendingUpdates int64
+	WebhookIsPiko  int64
+}
+
+func (q *Queries) SetOwnerCredentials(ctx context.Context, arg SetOwnerCredentialsParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setOwnerCredentials,
+		arg.OwnerID,
+		arg.ID,
+		arg.EncryptedToken,
+		arg.Name,
+		arg.Username,
+		arg.HasWebhook,
+		arg.PendingUpdates,
+		arg.WebhookIsPiko,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const stageUpdateOutput = `-- name: StageUpdateOutput :execrows

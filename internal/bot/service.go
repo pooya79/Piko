@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pooya79/Piko/internal/auth"
@@ -39,6 +40,7 @@ type Bot struct {
 	DeliveryError    bool
 	WebhookIsPiko    bool
 	Paused           bool
+	Disconnected     bool
 }
 
 func (b Bot) URL() string { return "/bots/" + strconv.FormatInt(b.ID, 10) }
@@ -49,6 +51,8 @@ type Service struct {
 	credentials credentials
 	publicURL   string
 	now         func() time.Time
+	workerMu    sync.Mutex
+	workers     map[int64]context.CancelFunc
 }
 
 func NewService(repo *Repository, api *telegram.Client, key []byte, now func() time.Time) (*Service, error) {
@@ -56,7 +60,7 @@ func NewService(repo *Repository, api *telegram.Client, key []byte, now func() t
 	if err != nil {
 		return nil, err
 	}
-	return &Service{repo: repo, telegram: api, credentials: c, now: now}, nil
+	return &Service{repo: repo, telegram: api, credentials: c, now: now, workers: make(map[int64]context.CancelFunc)}, nil
 }
 func owner(ctx context.Context) (int64, error) {
 	u, ok := auth.UserFromContext(ctx)
@@ -109,6 +113,11 @@ func (s *Service) Get(ctx context.Context, id int64) (Bot, error) {
 // owner to activate again. Keep the stored mode visible without claiming work
 // that this server's workers cannot receive.
 func (s *Service) deliveryStatus(b Bot) Bot {
+	if b.Disconnected {
+		b.DeliveryState = "disconnected"
+		b.DeliveryError = false
+		return b
+	}
 	if b.DeliveryState == "active" && b.DeliveryMode != s.deliveryMode() {
 		b.DeliveryState = "mode.changed"
 	}

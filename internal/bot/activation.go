@@ -21,11 +21,10 @@ const deliverySaveTimeout = 3 * time.Second
 var ErrActivationBusy = errors.New("activation in progress")
 
 type Activation struct {
-	Bot                       Bot
-	Conflict                  string
-	Pending                   int64
-	Polling                   bool
-	hasWebhook, webhookIsPiko bool
+	Bot      Bot
+	Conflict string
+	Pending  int64
+	Polling  bool
 }
 
 func ValidateDeliveryConfig(environment, endpoint string) error {
@@ -88,6 +87,9 @@ func (s *Service) InspectActivation(ctx context.Context, botID int64) (Activatio
 	if err != nil {
 		return Activation{}, err
 	}
+	if b.Disconnected {
+		return Activation{}, ErrDisconnected
+	}
 	if b.PublishedVersion == 0 {
 		return Activation{}, ErrNoDraft
 	}
@@ -99,7 +101,7 @@ func (s *Service) InspectActivation(ctx context.Context, botID int64) (Activatio
 	if err != nil {
 		return Activation{}, err
 	}
-	a := Activation{Bot: b, Pending: observed.PendingUpdates, Polling: s.publicURL == "", hasWebhook: observed.HasWebhook, webhookIsPiko: observed.URL == s.endpoint(botID) && s.publicURL != ""}
+	a := Activation{Bot: b, Pending: observed.PendingUpdates, Polling: s.publicURL == ""}
 	if observed.URL != "" && observed.URL != s.endpoint(botID) {
 		hash := sha256.Sum256([]byte(observed.URL))
 		a.Conflict = base64.RawURLEncoding.EncodeToString(hash[:])
@@ -107,27 +109,21 @@ func (s *Service) InspectActivation(ctx context.Context, botID int64) (Activatio
 	return a, nil
 }
 func (s *Service) Activate(ctx context.Context, botID int64, confirmation string) (Activation, error) {
-	a, err := s.InspectActivation(ctx, botID)
+	b, err := s.Get(ctx, botID)
 	if err != nil {
-		return a, err
+		return Activation{}, err
+	}
+	if b.Disconnected {
+		return Activation{}, ErrDisconnected
+	}
+	if b.PublishedVersion == 0 {
+		return Activation{}, ErrNoDraft
 	}
 	row, token, err := s.ownerToken(ctx, botID)
 	if err != nil {
-		return a, err
+		return Activation{}, err
 	}
-	has, isPiko := int64(0), int64(0)
-	if a.hasWebhook {
-		has = 1
-	}
-	if a.webhookIsPiko {
-		isPiko = 1
-	}
-	if err = s.repo.q.ObserveOwnerDelivery(ctx, dbgen.ObserveOwnerDeliveryParams{OwnerID: row.OwnerID, ID: botID, HasWebhook: has, PendingUpdates: a.Pending, WebhookIsPiko: isPiko}); err != nil {
-		return a, err
-	}
-	if a.Conflict != "" && a.Conflict != confirmation {
-		return a, ErrWebhookConflict
-	}
+	a := Activation{Bot: b}
 	secret, err := nonce()
 	if err != nil {
 		return a, err
@@ -148,11 +144,21 @@ func (s *Service) Activate(ctx context.Context, botID int64, confirmation string
 	if err != nil {
 		return a, err
 	}
+	// Capture credentials before the fresh inspection, then compare their
+	// encrypted snapshots atomically when claiming activation. A lifecycle change
+	// during either network/SQL reads makes this activation stale.
+	a, err = s.InspectActivation(ctx, botID)
+	if err != nil {
+		return a, err
+	}
+	if a.Conflict != "" && a.Conflict != confirmation {
+		return a, ErrWebhookConflict
+	}
 	claim, err := nonce()
 	if err != nil {
 		return a, err
 	}
-	n, err := s.repo.q.BeginOwnerActivation(ctx, dbgen.BeginOwnerActivationParams{OwnerID: row.OwnerID, BotID: botID, Mode: string(s.deliveryMode()), ActivationNonce: claim})
+	n, err := s.repo.q.BeginOwnerActivation(ctx, dbgen.BeginOwnerActivationParams{OwnerID: row.OwnerID, BotID: botID, Mode: string(s.deliveryMode()), ActivationNonce: claim, ExpectedToken: row.EncryptedToken, ExpectedSecret: delivery.EncryptedSecret})
 	if err != nil {
 		return a, err
 	}
@@ -171,7 +177,13 @@ func (s *Service) Activate(ctx context.Context, botID int64, confirmation string
 	// Persist uncertain results even when the browser request has disconnected.
 	finishCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), deliverySaveTimeout)
 	defer cancel()
-	n, saveErr := s.repo.q.FinishOwnerActivation(finishCtx, dbgen.FinishOwnerActivationParams{OwnerID: row.OwnerID, BotID: botID, State: state, ActivationNonce: claim})
+	tx, saveErr := s.repo.db.BeginTx(finishCtx, nil)
+	if saveErr != nil {
+		return a, saveErr
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := dbgen.New(tx)
+	n, saveErr = q.FinishOwnerActivation(finishCtx, dbgen.FinishOwnerActivationParams{OwnerID: row.OwnerID, BotID: botID, State: state, ActivationNonce: claim})
 	if saveErr != nil {
 		return a, saveErr
 	}
@@ -183,9 +195,12 @@ func (s *Service) Activate(ctx context.Context, botID int64, confirmation string
 		if a.Polling {
 			hasWebhook = 0
 		}
-		if saveErr := s.repo.q.ObserveOwnerDelivery(finishCtx, dbgen.ObserveOwnerDeliveryParams{OwnerID: row.OwnerID, ID: botID, HasWebhook: hasWebhook, PendingUpdates: a.Pending, WebhookIsPiko: hasWebhook}); saveErr != nil {
+		if saveErr := q.ObserveOwnerDelivery(finishCtx, dbgen.ObserveOwnerDeliveryParams{OwnerID: row.OwnerID, ID: botID, HasWebhook: hasWebhook, PendingUpdates: a.Pending, WebhookIsPiko: hasWebhook}); saveErr != nil {
 			return a, saveErr
 		}
+	}
+	if saveErr := tx.Commit(); saveErr != nil {
+		return a, saveErr
 	}
 	return a, err
 }

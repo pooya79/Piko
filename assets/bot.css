@@ -77,3 +77,13 @@
 .piko-submission-delete > summary { @apply cursor-pointer text-sm font-semibold text-error; }
 .piko-submission-delete form { @apply mt-3 space-y-3; }
 .piko-submission-delete button { @apply border-error text-error; }
+
+.piko-lifecycle { @apply mt-8; }
+.piko-lifecycle > h2 { @apply text-lg font-bold; }
+.piko-lifecycle .piko-connect-grid { @apply mt-4; }
+.piko-lifecycle h3 { @apply mb-3 font-bold; }
+.piko-lifecycle-delete { @apply mt-6 border-t border-base-300 pt-5; }
+.piko-lifecycle-delete summary { @apply cursor-pointer font-semibold text-error; }
+.piko-lifecycle-delete summary:focus-visible { outline:2px solid var(--color-primary); outline-offset:3px; }
+.piko-lifecycle-delete .piko-helper { @apply mt-3; }
+.piko-lifecycle-delete button { @apply border-error text-error; white-space:normal; }

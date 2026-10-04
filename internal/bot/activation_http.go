@@ -53,6 +53,8 @@ func (h *Handler) activationPage(w http.ResponseWriter, r *http.Request, status 
 }
 func (h *Handler) activationError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case errors.Is(err, ErrDisconnected):
+		web.RenderError(w, r, 409, "lifecycle.state.error")
 	case errors.Is(err, ErrNoDraft):
 		web.RenderError(w, r, 422, "activate.publish")
 	case errors.Is(err, ErrActivationBusy):

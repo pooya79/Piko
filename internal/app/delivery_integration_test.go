@@ -41,6 +41,12 @@ type telegramFake struct {
 	holdPoll          bool
 	pollStarted       chan struct{}
 	pollCancelled     chan struct{}
+	identityID        int64
+	apiStatus         int
+	tokens            []string
+	holdInspection    bool
+	inspectionStarted chan struct{}
+	releaseInspection chan struct{}
 }
 
 func (f *telegramFake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -48,6 +54,12 @@ func (f *telegramFake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer f.mu.Unlock()
 	method := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
 	f.calls = append(f.calls, method)
+	parts := strings.Split(r.URL.Path, "/")
+	f.tokens = append(f.tokens, strings.TrimPrefix(parts[1], "bot"))
+	if f.apiStatus != 0 {
+		w.WriteHeader(f.apiStatus)
+		return
+	}
 	if method == "getMe" || method == "getWebhookInfo" {
 		var params map[string]any
 		if json.NewDecoder(r.Body).Decode(&params) != nil || params == nil {
@@ -57,8 +69,23 @@ func (f *telegramFake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	switch method {
 	case "getMe":
-		fmt.Fprint(w, `{"ok":true,"result":{"id":123456,"is_bot":true,"first_name":"Live Bot","username":"live_bot"}}`)
+		id := f.identityID
+		if id == 0 {
+			id = 123456
+		}
+		fmt.Fprintf(w, `{"ok":true,"result":{"id":%d,"is_bot":true,"first_name":"Live Bot","username":"live_bot"}}`, id)
 	case "getWebhookInfo":
+		if f.holdInspection {
+			f.holdInspection = false
+			started, release := f.inspectionStarted, f.releaseInspection
+			f.mu.Unlock()
+			close(started)
+			select {
+			case <-release:
+			case <-r.Context().Done():
+			}
+			f.mu.Lock()
+		}
 		fmt.Fprintf(w, `{"ok":true,"result":{"url":%q,"pending_update_count":7}}`, f.webhook)
 	case "setWebhook":
 		var p struct {

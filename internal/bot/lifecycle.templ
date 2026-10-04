@@ -1,0 +1,51 @@
+package bot
+
+import "github.com/pooya79/Piko/internal/locale"
+
+templ lifecycleNotice(warning bool) {
+ if warning {
+  <p class="piko-bot-warning" role="alert">{ locale.T(ctx,"lifecycle.cleanup.warning") }</p>
+ }
+}
+
+templ lifecycleControls(bot Bot, csrf string) {
+ <section class="piko-lifecycle" aria-labelledby="lifecycle-title">
+  <h2 id="lifecycle-title">{ locale.T(ctx,"lifecycle.title") }</h2>
+  <div class="piko-connect-grid">
+   <section class="piko-card piko-token-card">
+    if bot.Disconnected {
+     <h3>{ locale.T(ctx,"lifecycle.reconnect.title") }</h3><p class="piko-helper">{ locale.T(ctx,"lifecycle.reconnect.copy") }</p>
+     @lifecycleToken(bot.URL()+"/reconnect", csrf, "lifecycle.reconnect.submit")
+    } else {
+     <h3>{ locale.T(ctx,"lifecycle.replace.title") }</h3><p class="piko-helper">{ locale.T(ctx,"lifecycle.replace.copy") }</p>
+     @lifecycleToken(bot.URL()+"/replace-token", csrf, "lifecycle.replace.submit")
+    }
+   </section>
+   <section class="piko-card piko-token-card">
+    if !bot.Disconnected {
+     <h3>{ locale.T(ctx,"lifecycle.disconnect.title") }</h3><p class="piko-helper">{ locale.T(ctx,"lifecycle.disconnect.copy") }</p>
+     <form method="post" action={ templ.URL(bot.URL()+"/disconnect") }><input type="hidden" name="csrf_token" value={ csrf }/><button class="piko-secondary-action" type="submit">{ locale.T(ctx,"lifecycle.disconnect.submit") }</button></form>
+    }
+    <details class="piko-lifecycle-delete">
+     <summary>{ locale.T(ctx,"lifecycle.delete.title") }</summary>
+     <p class="piko-helper">{ locale.T(ctx,"lifecycle.delete.copy") }</p>
+     <form method="post" action={ templ.URL(bot.URL()+"/delete") }>
+      <input type="hidden" name="csrf_token" value={ csrf }/>
+      <label class="piko-activation-confirm"><input type="checkbox" name="confirm_delete" value="yes" required/><span>{ locale.T(ctx,"lifecycle.delete.check") }</span></label>
+      <button class="piko-secondary-action" type="submit">{ locale.T(ctx,"lifecycle.delete.submit") }</button>
+     </form>
+    </details>
+   </section>
+  </div>
+ </section>
+}
+
+templ lifecycleToken(action, csrf, submitKey string) {
+ <form method="post" action={ templ.URL(action) } autocomplete="off">
+  <input type="hidden" name="csrf_token" value={ csrf }/>
+  <label class="piko-label" for="lifecycle-token">{ locale.T(ctx,"bot.token.label") }</label>
+  <input id="lifecycle-token" name="token" class="piko-input" type="password" dir="ltr" autocomplete="new-password" autocapitalize="none" spellcheck="false" required maxlength="160" aria-describedby="lifecycle-token-hint"/>
+  <p id="lifecycle-token-hint" class="piko-helper">{ locale.T(ctx,"bot.guide.secret") }</p>
+  <button class="piko-primary-action" type="submit">{ locale.T(ctx,submitKey) }</button>
+ </form>
+}

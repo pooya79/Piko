@@ -30,7 +30,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u, _ := auth.UserFromContext(r.Context())
-	h.render(w, r, 200, ListPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), bots))
+	h.render(w, r, 200, ListPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), bots, r.URL.Query().Get("cleanup") == "unavailable"))
 }
 func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "botID"), 10, 64)
@@ -48,7 +48,7 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u, _ := auth.UserFromContext(r.Context())
-	h.render(w, r, 200, DetailPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b))
+	h.render(w, r, 200, DetailPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, r.URL.Query().Get("cleanup") == "unavailable"))
 }
 func (h *Handler) ConnectForm(w http.ResponseWriter, r *http.Request) {
 	h.connection(w, r, 200, "", false)

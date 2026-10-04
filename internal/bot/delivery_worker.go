@@ -34,8 +34,10 @@ func (s *Service) deliveryLoop(ctx context.Context) {
 		if err != nil {
 			return
 		}
+		s.workerMu.Lock()
 		work, err := s.repo.q.ClaimDeliveryWork(ctx, dbgen.ClaimDeliveryWorkParams{WorkerNonce: claim, Mode: string(s.deliveryMode())})
 		if err != nil {
+			s.workerMu.Unlock()
 			select {
 			case <-ctx.Done():
 				return
@@ -45,6 +47,8 @@ func (s *Service) deliveryLoop(ctx context.Context) {
 		}
 		// Every operation is bounded below the lease duration, including SQLite waits.
 		workCtx, cancel := context.WithTimeout(ctx, 40*time.Second)
+		s.workers[work.BotID] = cancel
+		s.workerMu.Unlock()
 		retry, failed := s.processDelivery(workCtx, work)
 		cancel()
 		if ctx.Err() != nil {
@@ -52,9 +56,12 @@ func (s *Service) deliveryLoop(ctx context.Context) {
 			// so a clean restart need not wait for a synthetic transport backoff.
 			retry, failed = 0, work.WorkerError
 		}
+		s.workerMu.Lock()
 		releaseCtx, releaseCancel := context.WithTimeout(context.WithoutCancel(ctx), deliverySaveTimeout)
 		_, _ = s.repo.q.ReleaseDeliveryWork(releaseCtx, dbgen.ReleaseDeliveryWorkParams{BotID: work.BotID, WorkerNonce: claim, RetryAt: retry, WorkerError: failed})
 		releaseCancel()
+		delete(s.workers, work.BotID)
+		s.workerMu.Unlock()
 	}
 }
 
