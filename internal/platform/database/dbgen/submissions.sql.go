@@ -34,6 +34,26 @@ func (q *Queries) CreateSubmission(ctx context.Context, arg CreateSubmissionPara
 	return err
 }
 
+const deleteOwnerSubmission = `-- name: DeleteOwnerSubmission :execrows
+DELETE FROM bot_submissions
+WHERE bot_submissions.bot_id = ?1 AND bot_submissions.id = ?2
+AND EXISTS (SELECT 1 FROM bots WHERE bots.id = bot_submissions.bot_id AND bots.owner_id = ?3)
+`
+
+type DeleteOwnerSubmissionParams struct {
+	BotID   int64
+	ID      int64
+	OwnerID int64
+}
+
+func (q *Queries) DeleteOwnerSubmission(ctx context.Context, arg DeleteOwnerSubmissionParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteOwnerSubmission, arg.BotID, arg.ID, arg.OwnerID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getOwnerSubmission = `-- name: GetOwnerSubmission :one
 SELECT s.id, s.bot_id, s.participant_id, s.publication_id, s.attempt_id, s.answers, s.created_at, v.version FROM bot_submissions s
 JOIN bots b ON b.id = s.bot_id JOIN bot_publications v ON v.id = s.publication_id

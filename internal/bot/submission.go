@@ -17,6 +17,24 @@ type Submission struct {
 	Answers                    []engine.Answer
 }
 
+func (s *Service) DeleteSubmission(ctx context.Context, botID, id int64) error {
+	ownerID, err := owner(ctx)
+	if err != nil {
+		return err
+	}
+	if _, err := s.Get(ctx, botID); err != nil {
+		return err
+	}
+	n, err := s.repo.q.DeleteOwnerSubmission(ctx, dbgen.DeleteOwnerSubmissionParams{OwnerID: ownerID, BotID: botID, ID: id})
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (s Submission) Summary() string {
 	for _, a := range s.Answers {
 		if a.Value == "" {

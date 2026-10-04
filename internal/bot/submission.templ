@@ -7,21 +7,21 @@ import (
 )
 
 templ SubmissionsPage(displayName,csrf string,b Bot,items []Submission,next int64) {
- @shell.Workspace(displayName,csrf,flowPage(ctx,b,"submission.title"),submissionsContent(b,items,next))
+ @shell.Workspace(displayName,csrf,flowPage(ctx,b,"submission.title"),submissionsContent(csrf,b,items,next))
 }
 
 templ submissionMeta(s Submission) {
  <dl class="piko-bot-details"><div><dt>{ locale.T(ctx,"submission.participant") }</dt><dd><bdi dir="ltr">{ strconv.FormatInt(s.ParticipantID,10) }</bdi></dd></div><div><dt>{ locale.T(ctx,"submission.version") }</dt><dd>{ locale.Digits(strconv.FormatInt(s.Version,10)) }</dd></div><div><dt>{ locale.T(ctx,"submission.received") }</dt><dd><time datetime={ s.CreatedAt.UTC().Format("2006-01-02T15:04:05Z") } data-persian-date>{ locale.Digits(s.CreatedAt.UTC().Format("2006-01-02 15:04")) }</time></dd></div></dl>
 }
 
-templ submissionsContent(b Bot,items []Submission,next int64) {
+templ submissionsContent(csrf string,b Bot,items []Submission,next int64) {
  <div class="piko-section-heading"><h1 class="piko-page-title">{ locale.T(ctx,"submission.title") }</h1><a class="piko-text-link" href={ templ.URL(b.URL()) }><bdi dir="auto">{ b.Name }</bdi></a></div><p class="piko-page-copy">{ locale.T(ctx,"submission.copy") }</p>
  if len(items)==0 {
  <section class="piko-card piko-draft-section"><p>{ locale.T(ctx,"submission.empty") }</p></section>
  } else {
  <div class="piko-submission-list">
  for _,s:=range items {
- <article class="piko-card piko-draft-section" data-submission-id={ strconv.FormatInt(s.ID,10) }><h2>{ locale.T(ctx,"submission.detail")+" "+locale.Digits(strconv.FormatInt(s.ID,10)) }</h2><p class="piko-submission-summary"><bdi dir="auto">{ s.Summary() }</bdi></p>@submissionMeta(s)<a class="piko-text-link" href={ templ.URL(b.URL()+"/submissions/"+strconv.FormatInt(s.ID,10)) }>{ locale.T(ctx,"submission.open") }</a></article>
+ <article class="piko-card piko-draft-section" data-submission-id={ strconv.FormatInt(s.ID,10) }><h2>{ locale.T(ctx,"submission.detail")+" "+locale.Digits(strconv.FormatInt(s.ID,10)) }</h2><p class="piko-submission-summary"><bdi dir="auto">{ s.Summary() }</bdi></p>@submissionMeta(s)<a class="piko-text-link" href={ templ.URL(b.URL()+"/submissions/"+strconv.FormatInt(s.ID,10)) }>{ locale.T(ctx,"submission.open") }</a>@submissionDelete(csrf,b,s)</article>
  }
  </div>
  }
@@ -31,10 +31,10 @@ templ submissionsContent(b Bot,items []Submission,next int64) {
 }
 
 templ SubmissionPage(displayName,csrf string,b Bot,s Submission) {
- @shell.Workspace(displayName,csrf,flowPage(ctx,b,"submission.detail"),submissionContent(b,s))
+ @shell.Workspace(displayName,csrf,flowPage(ctx,b,"submission.detail"),submissionContent(csrf,b,s))
 }
 
-templ submissionContent(b Bot,s Submission) {
+templ submissionContent(csrf string,b Bot,s Submission) {
  <div class="piko-section-heading"><h1 class="piko-page-title">{ locale.T(ctx,"submission.detail")+" "+locale.Digits(strconv.FormatInt(s.ID,10)) }</h1><a class="piko-text-link" href={ templ.URL(b.URL()+"/submissions") }>{ locale.T(ctx,"submission.back") }</a></div>
  <section class="piko-card piko-draft-section">@submissionMeta(s)</section>
  <section class="piko-card piko-draft-section"><dl class="piko-submission-answers">
@@ -52,4 +52,17 @@ templ submissionContent(b Bot,s Submission) {
  </div>
  }
  </dl></section>
+ <section class="piko-card piko-draft-section mt-6">@submissionDelete(csrf,b,s)</section>
+}
+
+
+templ submissionDelete(csrf string,b Bot,s Submission) {
+ <details class="piko-submission-delete">
+ <summary>{ locale.T(ctx,"submission.delete")+" "+locale.Digits(strconv.FormatInt(s.ID,10)) }</summary>
+ <form method="post" action={ b.URL()+"/submissions/"+strconv.FormatInt(s.ID,10)+"/delete" }>
+ <input type="hidden" name="csrf_token" value={ csrf }/>
+ <p class="piko-helper">{ locale.T(ctx,"submission.delete.copy") }</p>
+ <button type="submit" class="piko-secondary-action">{ locale.T(ctx,"submission.delete.confirm") }</button>
+ </form>
+ </details>
 }

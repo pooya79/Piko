@@ -73,3 +73,7 @@
 .piko-submission-summary { overflow-wrap: anywhere; }
 .piko-draft-section:has(.piko-submission-answers) { @apply mt-6; }
 }
+
+.piko-submission-delete > summary { @apply cursor-pointer text-sm font-semibold text-error; }
+.piko-submission-delete form { @apply mt-3 space-y-3; }
+.piko-submission-delete button { @apply border-error text-error; }
