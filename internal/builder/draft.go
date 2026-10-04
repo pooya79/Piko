@@ -3,12 +3,14 @@ package builder
 import (
 	"context"
 	"errors"
-	"reflect"
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/pooya79/Piko/internal/bot/flow"
+	"github.com/pooya79/Piko/internal/bot/templates/booking"
+	"github.com/pooya79/Piko/internal/bot/templates/inquiry"
+	"github.com/pooya79/Piko/internal/bot/templates/registration"
 )
 
 type candidateContextKey struct{}
@@ -23,7 +25,7 @@ type draftCandidate struct {
 }
 
 type draftInput struct {
-	Definition string `json:"definition" jsonschema:"description=Complete Flow JSON including unchanged existing Forms; no executable or unsupported fields"`
+	Definition string `json:"definition" jsonschema:"description=Complete Flow JSON using approved message/menu Blocks and sequential Forms/Questions; no executable or unsupported fields"`
 }
 
 type validationResult struct {
@@ -35,6 +37,11 @@ type validationResult struct {
 type draftSnapshot struct {
 	Definition flow.Definition `json:"definition"`
 	Revision   int64           `json:"revision"`
+}
+
+type draftTemplate struct {
+	Name       string          `json:"name"`
+	Definition flow.Definition `json:"definition"`
 }
 
 // Genkit executes tool requests concurrently. Require one per model response
@@ -58,7 +65,7 @@ func candidateFromContext(ctx context.Context) (*draftCandidate, error) {
 	return c, nil
 }
 
-func validateCandidate(base flow.Definition, data string) (flow.Definition, string) {
+func validateCandidate(data string) (flow.Definition, string) {
 	d, err := flow.Decode(data)
 	if err != nil {
 		var invalid *flow.Invalid
@@ -67,15 +74,20 @@ func validateCandidate(base flow.Definition, data string) (flow.Definition, stri
 		}
 		return d, "draft.error.definition"
 	}
-	// This slice edits message/menu Blocks only. Full immutable Forms must survive,
-	// including their references (enforced by the shared Flow validator).
-	if len(d.Forms) != len(base.Forms) || (len(d.Forms) != 0 && !reflect.DeepEqual(d.Forms, base.Forms)) {
-		return d, "builder.error.forms.preserve"
-	}
 	return d, ""
 }
 
 func (s *Service) draftTools() []ai.ToolRef {
+	templates := genkit.DefineTool(s.genkit, "read_templates", "Read approved Inquiry, Registration and Booking request starter Flows. Customize with supported Questions; Registration does not guarantee acceptance/capacity and Booking request does not promise a reservation. This tool does not stage or save.", func(ctx *ai.ToolContext, _ struct{}) ([]draftTemplate, error) {
+		if _, err := candidateFromContext(ctx); err != nil {
+			return nil, err
+		}
+		return []draftTemplate{
+			{Name: "inquiry", Definition: inquiry.Default().Definition()},
+			{Name: "registration", Definition: registration.Default().Definition()},
+			{Name: "booking", Definition: booking.Default().Definition()},
+		}, nil
+	})
 	read := genkit.DefineTool(s.genkit, "read_draft", "Read this run's owner-authorized shared Draft snapshot and original revision. Manual edits may advance it; stale results will be rejected.", func(ctx *ai.ToolContext, _ struct{}) (draftSnapshot, error) {
 		var out draftSnapshot
 		c, err := candidateFromContext(ctx)
@@ -89,20 +101,27 @@ func (s *Service) draftTools() []ai.ToolRef {
 		out.Definition, out.Revision = c.base, run.revision
 		return out, nil
 	})
-	validate := genkit.DefineTool(s.genkit, "validate_draft", "Validate complete candidate Flow JSON using Piko's approved schema and limits. Preserve existing Forms. This tool does not stage or save.", func(ctx *ai.ToolContext, input draftInput) (validationResult, error) {
+	validate := genkit.DefineTool(s.genkit, "validate_draft", "Validate complete candidate Flow JSON using Piko's approved schema and limits. Forms support short_text, long_text, phone, number, single_choice and Jalali date Questions. This tool does not stage or save.", func(ctx *ai.ToolContext, input draftInput) (validationResult, error) {
 		c, err := candidateFromContext(ctx)
 		if err != nil {
 			return validationResult{}, err
 		}
-		_, key := validateCandidate(c.base, input.Definition)
+		_, key := validateCandidate(input.Definition)
+		if key != "" {
+			// A failed repair cannot fall back to a previously staged proposal.
+			// A later successful prepare must supply the entire repaired Flow.
+			c.mu.Lock()
+			c.staged, c.invalid = nil, true
+			c.mu.Unlock()
+		}
 		return validationResult{Valid: key == "", Error: key}, nil
 	})
-	prepare := genkit.DefineTool(s.genkit, "prepare_draft", "Validate and stage a complete message/menu Flow replacement, preserving existing Forms. May add, edit, remove message destinations. Call once per model response. Nothing is saved yet; only a successful final reply permits one atomic revision-guarded save.", func(ctx *ai.ToolContext, input draftInput) (validationResult, error) {
+	prepare := genkit.DefineTool(s.genkit, "prepare_draft", "Validate and stage a complete Flow replacement. May add, edit, remove or reorder approved message/menu destinations, Forms and Questions. Call once per model response. Nothing is saved yet; only a successful final reply permits one atomic revision-guarded save.", func(ctx *ai.ToolContext, input draftInput) (validationResult, error) {
 		c, err := candidateFromContext(ctx)
 		if err != nil {
 			return validationResult{}, err
 		}
-		d, key := validateCandidate(c.base, input.Definition)
+		d, key := validateCandidate(input.Definition)
 		c.mu.Lock()
 		defer c.mu.Unlock()
 		c.staged, c.invalid = nil, key != ""
@@ -111,5 +130,5 @@ func (s *Service) draftTools() []ai.ToolRef {
 		}
 		return validationResult{Valid: key == "", Staged: key == "", Error: key}, nil
 	})
-	return []ai.ToolRef{read, validate, prepare}
+	return []ai.ToolRef{read, templates, validate, prepare}
 }

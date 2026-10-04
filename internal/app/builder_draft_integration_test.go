@@ -34,7 +34,7 @@ func TestBuilderStaleCandidatePreservesManualSaveAndReportsConflict(t *testing.T
 	var calls atomic.Int64
 	_, b := builderFixture(t, builder.Config{}, func(w http.ResponseWriter, r *http.Request) {
 		if calls.Add(1) == 1 {
-			builderToolReply(w, "prepare_draft", map[string]string{"definition": structuredDraft})
+			builderToolReply(w, "prepare_draft", map[string]string{"definition": builderFormDraft})
 			return
 		}
 		close(started)
@@ -85,7 +85,6 @@ func TestBuilderInvalidCandidatesCannotChangeDraft(t *testing.T) {
 		{"label limit", strings.Replace(structuredDraft, `"label":"Hours"`, `"label":"`+strings.Repeat("x", 81)+`"`, 1)},
 		{"definition size", structuredDraft + strings.Repeat(" ", 128<<10)},
 		{"trailing data", structuredDraft + `{}`},
-		{"removed existing Form", structuredDraft},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var calls atomic.Int64
@@ -96,11 +95,6 @@ func TestBuilderInvalidCandidatesCannotChangeDraft(t *testing.T) {
 					builderTextReply(w)
 				}
 			})
-			if tc.name == "removed existing Form" {
-				if got := b.post("/bots/1/draft", draftAtRevision(inquiryDraft(), "1")); got.Code != 303 {
-					t.Fatal(got.Code)
-				}
-			}
 			before := renderedDraft(t, b.send("GET", "/bots/1/draft", nil).Body.String())
 			if got := b.post("/bots/1/chats/1/messages", url.Values{"message": {"درخواست نامعتبر"}}); got.Code != 303 {
 				t.Fatal(got.Code)
@@ -126,7 +120,7 @@ func TestBuilderStagedCandidateRollsBackOnFailureAndBudgetExhaustion(t *testing.
 			}
 			a, b := builderFixture(t, config, func(w http.ResponseWriter, r *http.Request) {
 				if calls.Add(1) == 1 {
-					builderToolReply(w, "prepare_draft", map[string]string{"definition": structuredDraft})
+					builderToolReply(w, "prepare_draft", map[string]string{"definition": builderFormDraft})
 				} else if fault == "provider" {
 					w.WriteHeader(500)
 				} else if fault == "tool" {
@@ -182,7 +176,7 @@ func TestBuilderShutdownPreventsStagedDraftCommit(t *testing.T) {
 	a, b := builderFixture(t, builder.Config{}, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(io.Discard, r.Body)
 		if calls.Add(1) == 1 {
-			builderToolReply(w, "prepare_draft", map[string]string{"definition": structuredDraft})
+			builderToolReply(w, "prepare_draft", map[string]string{"definition": builderFormDraft})
 			return
 		}
 		close(started)
