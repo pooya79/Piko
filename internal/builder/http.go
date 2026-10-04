@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/a-h/templ"
 	"github.com/go-chi/chi/v5"
@@ -114,6 +115,30 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 	h.detail(w, r, b, id, 200, "", "")
 }
 
+// Status only observes existing work; reconnecting never goes through admission.
+func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
+	b, ok := h.requestedBot(w, r)
+	if !ok {
+		return
+	}
+	id, err := chatID(r)
+	if err != nil {
+		h.failed(w, r, err)
+		return
+	}
+	run, err := h.service.Status(r.Context(), b.ID, id)
+	if err != nil {
+		h.failed(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	_ = json.NewEncoder(w).Encode(struct {
+		ID     int64     `json:"id"`
+		Status RunStatus `json:"status"`
+	}{run.ID, run.Status})
+}
+
 func (h *Handler) detail(w http.ResponseWriter, r *http.Request, b bot.Bot, id int64, status int, message, key string) {
 	history, err := h.service.History(r.Context(), b.ID, id)
 	if err != nil {
@@ -150,7 +175,31 @@ func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
 	}
 	message := r.PostForm.Get("message")
 	err = h.service.Send(r.Context(), b.ID, id, message)
+	h.sent(w, r, b, id, message, err)
+}
+
+func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {
+	b, ok := h.requestedBot(w, r)
+	if !ok {
+		return
+	}
+	id, err := chatID(r)
+	if err != nil {
+		h.failed(w, r, err)
+		return
+	}
+	runID, err := strconv.ParseInt(chi.URLParam(r, "runID"), 10, 64)
+	if err != nil || runID <= 0 {
+		h.failed(w, r, bot.ErrNotFound)
+		return
+	}
+	h.sent(w, r, b, id, "", h.service.Retry(r.Context(), b.ID, id, runID))
+}
+
+func (h *Handler) sent(w http.ResponseWriter, r *http.Request, b bot.Bot, id int64, message string, err error) {
 	switch {
+	case errors.Is(err, ErrRetry):
+		h.detail(w, r, b, id, 409, "", "builder.retry.unavailable")
 	case errors.Is(err, ErrMessage):
 		h.detail(w, r, b, id, 422, message, "builder.message.error")
 	case errors.Is(err, ErrBusy):

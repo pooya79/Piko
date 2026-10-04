@@ -73,6 +73,11 @@ templ ChatPage(displayName,csrf string,b bot.Bot,history Conversation,view ChatV
 
 templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
  {{ c := history.Chat }}
+ {{ latest := history.LatestRun() }}
+ if latest.Status == RunRunning {
+  <span hidden data-builder-status-url={ c.URL()+"/status" } data-builder-run-id={ strconv.FormatInt(latest.ID,10) }></span>
+  <script src="/static/builder-status.js" defer></script>
+ }
  <div class="piko-section-heading"><h1 class="piko-page-title"><bdi dir="auto">{ c.Title }</bdi></h1><a class="piko-text-link" href={ templ.URL(b.URL()+"/chats") }>{ locale.T(ctx,"builder.back") }</a></div>
  <p class="piko-page-copy">{ locale.T(ctx,"builder.shared") }</p>
  <p class="piko-helper" data-draft-revision={ strconv.FormatInt(view.Revision,10) }>{ locale.T(ctx,"builder.revision")+" "+locale.Digits(strconv.FormatInt(view.Revision,10)) }</p>
@@ -103,6 +108,13 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
    <p role="status">{ locale.T(ctx,run.Status.LocaleKey()) }</p>
    <p class="piko-helper">{ locale.T(ctx,"builder.calls")+" "+locale.Digits(strconv.FormatInt(run.Calls,10)) }</p>
    @usage(run.Usage)
+   if view.Enabled && run.ID == latest.ID && run.CanRetry {
+    <p class="piko-helper">{ locale.T(ctx,"builder.retry.copy") }</p>
+    <form method="post" action={ c.URL()+"/runs/"+strconv.FormatInt(run.ID,10)+"/retry" }>
+     <input type="hidden" name="csrf_token" value={ csrf }/>
+     <button class="piko-primary-action" type="submit">{ locale.T(ctx,"builder.retry") }</button>
+    </form>
+   }
   </div>
  }
  <p class="piko-helper" data-admitted={ strconv.FormatInt(view.Allowance.Admitted,10) }>{ locale.T(ctx,"builder.allowance")+" "+locale.Digits(strconv.FormatInt(view.Allowance.Admitted,10)+" / "+strconv.FormatInt(view.Allowance.Limit,10)) }</p>
@@ -118,8 +130,8 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
   <form method="post" action={ c.URL()+"/messages" }>
    <input type="hidden" name="csrf_token" value={ csrf }/>
    <label class="piko-label" for="builder-message">{ locale.T(ctx,"builder.message") }</label>
-   <textarea id="builder-message" name="message" class="piko-input piko-builder-composer" maxlength="32768" required aria-describedby="builder-capabilities">{ view.Message }</textarea>
-   <button class="piko-primary-action" type="submit">{ locale.T(ctx,"builder.send") }</button>
+   <textarea id="builder-message" name="message" class="piko-input piko-builder-composer" maxlength="32768" required aria-describedby="builder-capabilities" disabled?={ latest.Status == RunRunning }>{ view.Message }</textarea>
+   <button class="piko-primary-action" type="submit" disabled?={ latest.Status == RunRunning }>{ locale.T(ctx,"builder.send") }</button>
   </form>
   <a class="piko-text-link" href={ templ.URL(c.URL()) }>{ locale.T(ctx,"builder.refresh") }</a>
  } else {

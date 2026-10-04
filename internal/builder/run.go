@@ -27,6 +27,7 @@ var (
 	ErrBusy        = errors.New("bot already has an active Builder run")
 	ErrDailyLimit  = errors.New("daily Builder allowance exhausted")
 	ErrCallLimit   = errors.New("builder model call limit exhausted")
+	ErrRetry       = errors.New("builder request is no longer available for retry")
 )
 
 type Usage struct {
@@ -91,10 +92,11 @@ func (outcome runOutcome) message() (Role, string) {
 }
 
 type Run struct {
-	ID     int64
-	Status RunStatus
-	Calls  int64
-	Usage  Usage
+	ID       int64
+	Status   RunStatus
+	Calls    int64
+	Usage    Usage
+	CanRetry bool
 }
 
 type Allowance struct {
@@ -113,7 +115,7 @@ func loadRuns(ctx context.Context, q *dbgen.Queries, ownerID, botID, chatID int6
 		if err != nil {
 			return nil, err
 		}
-		runs = append(runs, Run{ID: r.ID, Status: RunStatus(r.Status), Calls: r.ModelCalls, Usage: sumUsage(calls)})
+		runs = append(runs, Run{ID: r.ID, Status: RunStatus(r.Status), Calls: r.ModelCalls, Usage: sumUsage(calls), CanRetry: r.Status == string(RunInterrupted) && r.RequestSequence.Valid})
 	}
 	return runs, nil
 }
@@ -159,12 +161,25 @@ type admittedRun struct {
 }
 
 func (s *Service) Send(ctx context.Context, botID, chatID int64, message string) error {
+	return s.send(ctx, botID, chatID, message, 0)
+}
+
+// Retry resolves the saved request inside admission's transaction, so a stale
+// button cannot replay it after another run has already been admitted.
+func (s *Service) Retry(ctx context.Context, botID, chatID, runID int64) error {
+	if runID <= 0 {
+		return ErrRetry
+	}
+	return s.send(ctx, botID, chatID, "", runID)
+}
+
+func (s *Service) send(ctx context.Context, botID, chatID int64, message string, retryID int64) error {
 	ownerID, err := owner(ctx)
 	if err != nil {
 		return err
 	}
 	message = strings.TrimSpace(message)
-	if !validMessage(message) {
+	if retryID == 0 && !validMessage(message) {
 		return ErrMessage
 	}
 	ctx, cancel := context.WithCancel(ctx)
@@ -193,6 +208,15 @@ func (s *Service) Send(ctx context.Context, botID, chatID int64, message string)
 		if err != nil {
 			return err
 		}
+		if retryID != 0 {
+			message, err = q.GetOwnerInterruptedBuilderRequest(ctx, dbgen.GetOwnerInterruptedBuilderRequestParams{OwnerID: ownerID, BotID: botID, ChatID: chatID, RunID: retryID})
+			if errors.Is(err, sql.ErrNoRows) {
+				return ErrRetry
+			}
+			if err != nil {
+				return err
+			}
+		}
 		if s.stopping || s.work.Err() != nil || !s.Enabled() {
 			return ErrUnavailable
 		}
@@ -216,11 +240,11 @@ func (s *Service) Send(ctx context.Context, botID, chatID int64, message string)
 		if err != nil {
 			return storageError(err)
 		}
-		r, err = q.AdmitOwnerBuilderRun(ctx, dbgen.AdmitOwnerBuilderRunParams{OwnerID: ownerID, BotID: botID, ChatID: chatID, Day: day, Model: s.config.Model, DraftRevision: draft.Revision, CreatedAt: now.Unix(), LeaseUntil: time.Now().Add(runLease).UnixMilli()})
+		m, err = appendMessage(ctx, q, ownerID, botID, chatID, OwnerRole, message)
 		if err != nil {
 			return err
 		}
-		m, err = appendMessage(ctx, q, ownerID, botID, chatID, OwnerRole, message)
+		r, err = q.AdmitOwnerBuilderRun(ctx, dbgen.AdmitOwnerBuilderRunParams{OwnerID: ownerID, BotID: botID, ChatID: chatID, Day: day, Model: s.config.Model, DraftRevision: draft.Revision, CreatedAt: now.Unix(), LeaseUntil: time.Now().Add(runLease).UnixMilli(), RequestSequence: sql.NullInt64{Int64: m.Sequence, Valid: true}})
 		if err != nil {
 			return err
 		}
@@ -296,7 +320,6 @@ func (s *Service) execute(run admittedRun) {
 }
 
 func (s *Service) finish(run admittedRun, outcome runOutcome) error {
-	role, content := outcome.message()
 	ctx, cancel := context.WithTimeout(s.storageContext, 5*time.Second)
 	defer cancel()
 	return database.RetryWrite(ctx, s.repo.db, func(conn *sql.Conn) error {
@@ -305,20 +328,32 @@ func (s *Service) finish(run admittedRun, outcome runOutcome) error {
 			return err
 		}
 		defer func() { _ = tx.Rollback() }()
+		// Acquire the immediate transaction before this lock: waiting for SQLite
+		// must not delay cancellation. Stop and future per-run cancellation share
+		// this boundary with terminal state, reply and future Draft application.
+		// Cancellation accepted first prevents success; a committed success stays.
+		s.commitMu.Lock()
+		defer s.commitMu.Unlock()
+		if s.work.Err() != nil {
+			outcome = runOutcome{status: RunInterrupted}
+		} else if !time.Now().Before(run.deadline) {
+			outcome = runOutcome{status: RunTimeout}
+		}
+		role, content := outcome.message()
 		q := dbgen.New(tx)
-		n, err := q.FinishOwnerBuilderRun(ctx, dbgen.FinishOwnerBuilderRunParams{RunID: run.id, OwnerID: run.ownerID, Status: string(outcome.status), FinishedAt: sql.NullInt64{Int64: s.now().Unix(), Valid: true}})
+		n, err := q.FinishOwnerBuilderRun(ctx, dbgen.FinishOwnerBuilderRunParams{RunID: run.id, OwnerID: run.ownerID, Status: string(outcome.status), FinishedAt: sql.NullInt64{Int64: s.now().Unix(), Valid: true}, Now: time.Now().UnixMilli()})
 		if err != nil || n != 1 {
 			return err
 		}
-		// A deleted Bot/chat cannot receive a late result. Its usage remains saved.
-		_, err = q.GetOwnerBuilderChat(ctx, dbgen.GetOwnerBuilderChatParams{OwnerID: run.ownerID, BotID: run.botID, ChatID: run.chatID})
-		if err == nil {
-			_, err = appendMessage(ctx, q, run.ownerID, run.botID, run.chatID, role, content)
-		} else if errors.Is(err, sql.ErrNoRows) {
-			err = nil
-		}
+		// The guarded transition above requires a live owned Bot/chat and lease.
+		// Deletion, lease loss or another terminal transition makes it a no-op.
+		_, err = appendMessage(ctx, q, run.ownerID, run.botID, run.chatID, role, content)
 		if err != nil {
 			return err
+		}
+		if outcome.status == RunSucceeded && !time.Now().Before(run.deadline) {
+			// Roll back staged success; the fallback saves an honest timeout.
+			return context.DeadlineExceeded
 		}
 		return tx.Commit()
 	})
@@ -335,7 +370,7 @@ func (s *Service) startCall(ctx context.Context, run admittedRun) (int64, error)
 		}
 		defer func() { _ = tx.Rollback() }()
 		q := dbgen.New(tx)
-		seq, err = q.StartOwnerBuilderCall(ctx, dbgen.StartOwnerBuilderCallParams{RunID: run.id, OwnerID: run.ownerID, MaxCalls: s.config.MaxCalls})
+		seq, err = q.StartOwnerBuilderCall(ctx, dbgen.StartOwnerBuilderCallParams{RunID: run.id, OwnerID: run.ownerID, MaxCalls: s.config.MaxCalls, Now: time.Now().UnixMilli()})
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrCallLimit
 		}
@@ -393,7 +428,9 @@ func (s *Service) renewRun(ctx context.Context, cancel context.CancelFunc, run a
 }
 func (s *Service) Stop(grace time.Duration) {
 	// Wake admission lock retries before waiting for their lifecycle lock.
+	s.commitMu.Lock()
 	s.cancel()
+	s.commitMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.stopping {

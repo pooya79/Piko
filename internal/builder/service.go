@@ -13,6 +13,7 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/pooya79/Piko/internal/auth"
 	"github.com/pooya79/Piko/internal/bot"
+	"github.com/pooya79/Piko/internal/platform/database"
 	"github.com/pooya79/Piko/internal/platform/database/dbgen"
 )
 
@@ -53,6 +54,13 @@ type Conversation struct {
 	Runs     []Run
 }
 
+func (c Conversation) LatestRun() Run {
+	if len(c.Runs) == 0 {
+		return Run{}
+	}
+	return c.Runs[len(c.Runs)-1]
+}
+
 type Chat struct {
 	ID, BotID            int64
 	Title                string
@@ -70,6 +78,7 @@ type Service struct {
 	genkit         *genkit.Genkit
 	now            func() time.Time
 	mu             sync.Mutex
+	commitMu       sync.Mutex
 	stopping       bool
 	work           context.Context
 	cancel         context.CancelFunc
@@ -143,6 +152,36 @@ func (s *Service) History(ctx context.Context, botID, chatID int64) (Conversatio
 		return Conversation{}, err
 	}
 	return history, tx.Commit()
+}
+
+// Status avoids loading full history or per-call accounting on every display poll.
+func (s *Service) Status(ctx context.Context, botID, chatID int64) (Run, error) {
+	ownerID, err := owner(ctx)
+	if err != nil {
+		return Run{}, err
+	}
+	var run Run
+	err = database.RetryWrite(ctx, s.repo.db, func(conn *sql.Conn) error {
+		tx, err := conn.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = tx.Rollback() }()
+		q := s.repo.q.WithTx(tx)
+		if _, err := q.GetOwnerBuilderChat(ctx, dbgen.GetOwnerBuilderChatParams{OwnerID: ownerID, BotID: botID, ChatID: chatID}); err != nil {
+			return storageError(err)
+		}
+		if err := recoverRuns(ctx, q); err != nil {
+			return err
+		}
+		row, err := q.GetLatestOwnerBuilderRunStatus(ctx, dbgen.GetLatestOwnerBuilderRunStatusParams{OwnerID: ownerID, BotID: botID, ChatID: sql.NullInt64{Int64: chatID, Valid: true}})
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+		run = Run{ID: row.ID, Status: RunStatus(row.Status)}
+		return tx.Commit()
+	})
+	return run, err
 }
 
 // Append saves one real owner/model/result entry, never a fabricated reply.
