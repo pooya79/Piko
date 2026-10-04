@@ -1,0 +1,52 @@
+package bot
+
+import (
+ "strconv"
+ "github.com/pooya79/Piko/internal/locale"
+ "github.com/pooya79/Piko/internal/web/shell"
+)
+
+templ DeployControls(csrf string, b Bot) {
+ <section class="piko-card piko-token-card piko-publication">
+  <h2>{ locale.T(ctx,"deploy.title") }</h2>
+  <p class="piko-helper">{ locale.T(ctx,"deploy.copy") }</p>
+  if b.BuilderBusy {
+   <p class="piko-bot-warning" role="status">{ locale.T(ctx,"deploy.busy") }</p>
+  }
+  <form method="post" action={ templ.URL(b.URL()+"/deploy") }>
+   <input type="hidden" name="csrf_token" value={ csrf }/>
+   <label class="piko-activation-confirm"><input type="checkbox" name="operate" value="yes" required disabled?={ b.BuilderBusy }/> { locale.T(ctx,"activate.confirm") }</label>
+   <button class="piko-primary-action piko-deploy-action" type="submit" disabled?={ b.BuilderBusy }>{ locale.T(ctx,"deploy.title") }</button>
+  </form>
+ </section>
+}
+
+templ DeployPage(displayName,csrf string,result Deployment,key string) {
+ @shell.Workspace(displayName,csrf,flowPage(ctx,result.Bot,"deploy.title"),deployContent(csrf,result,key))
+}
+
+templ deployContent(csrf string,result Deployment,key string) {
+ <h1 class="piko-page-title">{ locale.T(ctx,"deploy.title") }</h1>
+ <section class="piko-card piko-token-card piko-publication" data-deploy-version={ strconv.FormatInt(result.Version,10) }>
+  <h2><bdi dir="auto">{ result.Bot.Name }</bdi></h2>
+  <p role="status">{ locale.T(ctx,key) }</p>
+  if result.Version > 0 {
+   <p>{ locale.T(ctx,"publish.version") + locale.Digits(strconv.FormatInt(result.Version,10)) }</p>
+  }
+  <p>{ locale.T(ctx,"delivery.state."+result.Bot.DeliveryState) }</p>
+  if result.Bot.Paused {
+   <p class="piko-bot-warning">{ locale.T(ctx,"deploy.paused") }</p>
+  }
+  if result.Bot.Unconnected {
+   <a class="piko-primary-action" href={ templ.URL(result.Bot.URL()+"/connect") }>{ locale.T(ctx,"bot.connect.title") }</a>
+  } else if result.Bot.Disconnected {
+   <a class="piko-primary-action" href={ templ.URL(result.Bot.URL()) }>{ locale.T(ctx,"lifecycle.reconnect.title") }</a>
+  } else if key == "deploy.partial" {
+   <a class="piko-primary-action" href={ templ.URL(result.Bot.URL()+"/activate") }>{ locale.T(ctx,"deploy.retry") }</a>
+  }
+  <p><a class="piko-text-link" href={ templ.URL(result.Bot.URL()) }>{ locale.T(ctx,"activate.back") }</a></p>
+ </section>
+ if key == "deploy.partial" && result.Activation.Conflict != "" {
+  @activationContent(csrf,result.Activation,locale.T(ctx,"activate.changed"))
+ }
+}

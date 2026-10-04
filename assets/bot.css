@@ -38,6 +38,7 @@
  .piko-bot-warning .piko-icon { @apply mt-1 shrink-0; }
  .piko-publication { @apply mt-6; }
  .piko-activation { @apply mt-6; max-width: 48rem; }
+ .piko-deploy-action:disabled { @apply cursor-not-allowed opacity-50; }
  .piko-activation-confirm { @apply flex items-start gap-3 text-sm leading-7; }
  .piko-activation-confirm input { @apply mt-2 shrink-0; accent-color: var(--color-primary); }
  .piko-bot-next { @apply mt-8 space-y-4; }

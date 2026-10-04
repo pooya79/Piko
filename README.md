@@ -198,6 +198,14 @@ Date answers use the Tehran calendar convention and are stored as canonical Lati
 
 No new migration is required beyond the existing forward migrations. Existing databases and records remain intact. App HTTP/migrated SQLite/fake Telegram tests and desktop/mobile light/dark screenshots are documented in `docs/qa/issue-14`.
 
+## Deploying the inspected Draft
+
+Use **Deploy** (انتشار و راه‌اندازی) from the Bot detail or a Builder chat after inspecting the saved Draft and testing it in Preview. Confirm that Piko may operate the Bot. The owner-only POST/CSRF action publishes a validated immutable snapshot, then activates delivery when needed. Unconnected Bots link to their existing connection form; Disconnected Bots require reconnection. Missing credentials preserve the Draft and chats and do not publish.
+
+Deploy is disabled across all chats while that Bot has an active Builder run, and services reject both Deploy and standalone publication while it is busy. Publication, Builder admission/completion, manual saves and Undo serialize through the existing immediate SQLite transaction. Telegram I/O occurs after publication commits. Compatible active delivery is retained without reconfiguring its webhook or polling receiver. Inactive or incompatible delivery uses the existing credential checks, foreign-webhook confirmation and activation fencing.
+
+If publication succeeds but activation fails, the result shows the published version and current delivery state and offers **Retry activation** without another publication or Draft rebuild. A paused Bot remains paused, including through reconnection and activation; **Resume** stays a separate owner action on the Bot page. Draft editing, Preview and Undo do not change published behavior; unfinished Interactions and their Submissions retain the Flow version they started with. No new migration is required beyond the existing forward migrations. Verification and responsive Persian RTL screenshots are in `docs/qa/issue-32`.
+
 ## Production
 
 `make build` creates `bin/piko` and `bin/piko-migrate`. The Dockerfile builds the same binaries and static assets; its default entry point runs the server. Use `/app/piko-migrate up` to apply migrations before starting `/app/piko`.

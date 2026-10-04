@@ -253,6 +253,7 @@ func buildRouter(db *sql.DB, mw webx.Middleware, limiter *webx.RateLimiter, ah *
 		r.Get("/bots/{botID}/activate", bh.Activation)
 		r.With(limiter.MiddlewareStrict("bot-activate", 10, time.Minute)).Post("/bots/{botID}/activate", bh.Activate)
 		r.Post("/bots/{botID}/publish", bh.Publish)
+		r.With(limiter.MiddlewareStrict("bot-activate", 10, time.Minute)).Post("/bots/{botID}/deploy", bh.Deploy)
 		r.Post("/bots/{botID}/pause", bh.Pause)
 		r.Post("/bots/{botID}/resume", bh.Resume)
 		r.Get("/bots/{botID}/draft", bh.Draft)

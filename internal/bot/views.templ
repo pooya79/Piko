@@ -89,6 +89,7 @@ templ detailContent(bot Bot, csrf string, warning bool) {
  <p class="piko-page-copy"><bdi dir="ltr">{ "@" + bot.Username }</bdi></p>
  }
 </div></div>
+ @DeployControls(csrf,bot)
  <div class="piko-connect-grid">
   <section class="piko-card piko-token-card"><h2>{ locale.T(ctx, "bot.identity.title") }</h2><dl class="piko-bot-details"><div><dt>{ locale.T(ctx, "bot.identity.id") }</dt><dd>
  if bot.Unconnected {

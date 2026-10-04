@@ -47,7 +47,7 @@ func (h *Handler) requestedBot(w http.ResponseWriter, r *http.Request) (bot.Bot,
 		h.failed(w, r, bot.ErrNotFound)
 		return bot.Bot{}, false
 	}
-	b, err := h.bots.Get(r.Context(), id)
+	b, err := h.bots.InspectDeployment(r.Context(), id)
 	if err != nil {
 		h.failed(w, r, err)
 		return bot.Bot{}, false

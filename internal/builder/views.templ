@@ -82,6 +82,7 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
  <p class="piko-page-copy">{ locale.T(ctx,"builder.shared") }</p>
  <p class="piko-helper" data-draft-revision={ strconv.FormatInt(view.Revision,10) }>{ locale.T(ctx,"builder.revision")+" "+locale.Digits(strconv.FormatInt(view.Revision,10)) }</p>
  <div class="piko-builder-actions"><a class="piko-secondary-action" href={ templ.URL(b.URL()+"/draft") }>{ locale.T(ctx,"draft.title") }</a><a class="piko-secondary-action" href={ templ.URL(b.URL()+"/preview") }>{ locale.T(ctx,"preview.title") }</a></div>
+ @bot.DeployControls(csrf,b)
  if latest.Status == RunRunning {
   <section class="piko-card piko-draft-section mt-6" aria-label={ locale.T(ctx,"builder.stream.title") }>
    <h2>{ locale.T(ctx,"builder.stream.title") }</h2>

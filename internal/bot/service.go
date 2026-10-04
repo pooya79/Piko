@@ -43,6 +43,7 @@ type Bot struct {
 	Paused           bool
 	Disconnected     bool
 	Unconnected      bool
+	BuilderBusy      bool
 }
 
 func (b Bot) URL() string { return "/bots/" + strconv.FormatInt(b.ID, 10) }

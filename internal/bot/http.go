@@ -38,7 +38,7 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		web.RenderError(w, r, http.StatusNotFound, "error.message.page.missing")
 		return
 	}
-	b, err := h.service.Get(r.Context(), id)
+	b, err := h.service.InspectDeployment(r.Context(), id)
 	if errors.Is(err, ErrNotFound) {
 		web.RenderError(w, r, http.StatusNotFound, "error.message.page.missing")
 		return
