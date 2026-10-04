@@ -38,7 +38,7 @@ type Message struct {
 
 func (m Message) FeedbackKey() string {
 	if m.Role == ResultRole {
-		for _, key := range []string{RunFailed.LocaleKey(), RunTimeout.LocaleKey(), RunInterrupted.LocaleKey(), RunStopped.LocaleKey(), "builder.run.saved", "builder.run.conflict", "builder.run.invalid", "builder.run.call.limit", "builder.run.memory.failed"} {
+		for _, key := range []string{RunFailed.LocaleKey(), RunTimeout.LocaleKey(), RunInterrupted.LocaleKey(), RunStopped.LocaleKey(), "builder.run.saved", "builder.run.undone", "builder.run.conflict", "builder.run.invalid", "builder.run.call.limit", "builder.run.memory.failed"} {
 			if m.Content == key {
 				return m.Content
 			}

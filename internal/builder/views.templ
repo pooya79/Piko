@@ -128,6 +128,18 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
    }
    <p class="piko-helper">{ locale.T(ctx,"builder.calls")+" "+locale.Digits(strconv.FormatInt(run.Calls,10)) }</p>
    @usage(run.Usage)
+   if run.Result == "saved" {
+    if run.CanUndo {
+     <p class="piko-helper">{ locale.T(ctx,"builder.undo.copy") }</p>
+     <form method="post" action={ c.URL()+"/runs/"+strconv.FormatInt(run.ID,10)+"/undo" }>
+      <input type="hidden" name="csrf_token" value={ csrf }/>
+      <button class="piko-secondary-action" type="submit">{ locale.T(ctx,"builder.undo") }</button>
+     </form>
+    } else {
+     <button class="piko-secondary-action" type="button" disabled>{ locale.T(ctx,"builder.undo") }</button>
+     <p class="piko-helper">{ locale.T(ctx,"builder.undo.unavailable") }</p>
+    }
+   }
    if view.Enabled && run.ID == latest.ID && run.CanRetry {
     <p class="piko-helper">{ locale.T(ctx,"builder.retry.copy") }</p>
     <form method="post" action={ c.URL()+"/runs/"+strconv.FormatInt(run.ID,10)+"/retry" }>

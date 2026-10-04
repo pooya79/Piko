@@ -116,6 +116,7 @@ type Run struct {
 	Calls          int64
 	Usage          Usage
 	CanRetry       bool
+	CanUndo        bool
 	Result         string
 	BeforeRevision int64
 	AfterRevision  sql.NullInt64
@@ -123,7 +124,7 @@ type Run struct {
 
 func (r Run) FeedbackKey() string {
 	switch r.Result {
-	case "saved", "conflict", "invalid", "call.limit", "memory.failed":
+	case "saved", "undone", "conflict", "invalid", "call.limit", "memory.failed":
 		return "builder.run." + r.Result
 	default:
 		return r.Status.LocaleKey()
@@ -136,6 +137,10 @@ type Allowance struct {
 }
 
 func loadRuns(ctx context.Context, q *dbgen.Queries, ownerID, botID, chatID int64) ([]Run, error) {
+	draft, err := q.GetOwnerDraft(ctx, dbgen.GetOwnerDraftParams{OwnerID: ownerID, BotID: botID})
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
 	rows, err := q.ListOwnerBuilderRuns(ctx, dbgen.ListOwnerBuilderRunsParams{OwnerID: ownerID, BotID: botID, ChatID: sql.NullInt64{Int64: chatID, Valid: true}})
 	if err != nil {
 		return nil, err
@@ -146,7 +151,8 @@ func loadRuns(ctx context.Context, q *dbgen.Queries, ownerID, botID, chatID int6
 		if err != nil {
 			return nil, err
 		}
-		runs = append(runs, Run{ID: r.ID, Status: visibleStatus(r.Status, r.Result), Calls: r.ModelCalls, Usage: sumUsage(calls), CanRetry: r.Status == string(RunInterrupted) && r.Result != "stopped" && r.RequestSequence.Valid, Result: r.Result, BeforeRevision: r.DraftRevision, AfterRevision: r.AfterRevision})
+		canUndo := hasUndoSnapshot(r) && r.AfterRevision.Int64 == draft.Revision
+		runs = append(runs, Run{ID: r.ID, Status: visibleStatus(r.Status, r.Result), Calls: r.ModelCalls, Usage: sumUsage(calls), CanRetry: r.Status == string(RunInterrupted) && r.Result != "stopped" && r.RequestSequence.Valid, CanUndo: canUndo, Result: r.Result, BeforeRevision: r.DraftRevision, AfterRevision: r.AfterRevision})
 	}
 	return runs, nil
 }
@@ -320,7 +326,11 @@ func (s *Service) execute(work context.Context, run admittedRun) {
 	ctx = context.WithValue(ctx, runContextKey{}, run)
 	ctx = logger.WithContext(ctx, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	leaseDone := make(chan struct{})
-	go func(leaseCtx context.Context) { defer close(leaseDone); s.renewRun(leaseCtx, cancel, run) }(ctx)
+	// Lease renewal reads its own snapshot while execution updates run memory.
+	go func(leaseCtx context.Context, leaseRun admittedRun) {
+		defer close(leaseDone)
+		s.renewRun(leaseCtx, cancel, leaseRun)
+	}(ctx, run)
 	outcome := runOutcome{status: RunFailed}
 	// Even an unexpected SDK panic must release busy state with a safe outcome.
 	defer func() {

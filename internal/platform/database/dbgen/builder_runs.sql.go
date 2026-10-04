@@ -538,3 +538,31 @@ func (q *Queries) StopOwnerBuilderRun(ctx context.Context, arg StopOwnerBuilderR
 	}
 	return result.RowsAffected()
 }
+
+const undoOwnerBuilderRun = `-- name: UndoOwnerBuilderRun :execrows
+UPDATE builder_runs SET result='undone'
+WHERE builder_runs.id=?1 AND builder_runs.owner_id=?2 AND builder_runs.bot_id=?3
+AND builder_runs.chat_id=?4 AND status='succeeded' AND result='saved'
+AND EXISTS (SELECT 1 FROM builder_chats c JOIN bots b ON b.id=c.bot_id
+ WHERE c.id=builder_runs.chat_id AND b.id=builder_runs.bot_id AND b.owner_id=builder_runs.owner_id)
+`
+
+type UndoOwnerBuilderRunParams struct {
+	RunID   int64
+	OwnerID int64
+	BotID   sql.NullInt64
+	ChatID  sql.NullInt64
+}
+
+func (q *Queries) UndoOwnerBuilderRun(ctx context.Context, arg UndoOwnerBuilderRunParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, undoOwnerBuilderRun,
+		arg.RunID,
+		arg.OwnerID,
+		arg.BotID,
+		arg.ChatID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}

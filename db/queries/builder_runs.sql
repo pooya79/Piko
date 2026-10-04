@@ -88,3 +88,10 @@ UPDATE builder_runs SET status='interrupted',result='stopped',finished_at=sqlc.a
 WHERE builder_runs.id=sqlc.arg(run_id) AND builder_runs.owner_id=sqlc.arg(owner_id) AND status='running'
 AND EXISTS (SELECT 1 FROM builder_chats c JOIN bots b ON b.id=c.bot_id
  WHERE c.id=builder_runs.chat_id AND b.id=builder_runs.bot_id AND b.owner_id=builder_runs.owner_id);
+
+-- name: UndoOwnerBuilderRun :execrows
+UPDATE builder_runs SET result='undone'
+WHERE builder_runs.id=sqlc.arg(run_id) AND builder_runs.owner_id=sqlc.arg(owner_id) AND builder_runs.bot_id=sqlc.arg(bot_id)
+AND builder_runs.chat_id=sqlc.arg(chat_id) AND status='succeeded' AND result='saved'
+AND EXISTS (SELECT 1 FROM builder_chats c JOIN bots b ON b.id=c.bot_id
+ WHERE c.id=builder_runs.chat_id AND b.id=builder_runs.bot_id AND b.owner_id=builder_runs.owner_id);
