@@ -147,6 +147,12 @@ type BuilderRun struct {
 	AfterRevision    sql.NullInt64
 }
 
+type BuilderSummary struct {
+	ChatID          int64
+	ThroughSequence int64
+	Content         string
+}
+
 type RateLimit struct {
 	Key       string
 	Count     int64

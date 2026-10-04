@@ -38,7 +38,7 @@ type Message struct {
 
 func (m Message) FeedbackKey() string {
 	if m.Role == ResultRole {
-		for _, key := range []string{RunFailed.LocaleKey(), RunTimeout.LocaleKey(), RunInterrupted.LocaleKey(), RunStopped.LocaleKey(), "builder.run.saved", "builder.run.conflict", "builder.run.invalid", "builder.run.call.limit"} {
+		for _, key := range []string{RunFailed.LocaleKey(), RunTimeout.LocaleKey(), RunInterrupted.LocaleKey(), RunStopped.LocaleKey(), "builder.run.saved", "builder.run.conflict", "builder.run.invalid", "builder.run.call.limit", "builder.run.memory.failed"} {
 			if m.Content == key {
 				return m.Content
 			}
@@ -47,8 +47,8 @@ func (m Message) FeedbackKey() string {
 	return ""
 }
 
-// Conversation is the history boundary for the model-response slice. It contains
-// this chat's full ordered history; the current shared Draft comes from bot.LoadDraft.
+// Conversation contains this chat's ordered display history. Model admission
+// loads only messages after its private summary; the shared Draft is separate.
 type Conversation struct {
 	Chat     Chat
 	Messages []Message

@@ -123,7 +123,7 @@ type Run struct {
 
 func (r Run) FeedbackKey() string {
 	switch r.Result {
-	case "saved", "conflict", "invalid", "call.limit":
+	case "saved", "conflict", "invalid", "call.limit", "memory.failed":
 		return "builder.run." + r.Result
 	default:
 		return r.Status.LocaleKey()
@@ -188,6 +188,7 @@ func (s *Service) Allowance(ctx context.Context) (Allowance, error) {
 type admittedRun struct {
 	id, ownerID, botID, chatID int64
 	history                    Conversation
+	summary                    chatSummary
 	draft                      string
 	revision                   int64
 	deadline                   time.Time
@@ -224,6 +225,7 @@ func (s *Service) send(ctx context.Context, botID, chatID int64, message string,
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var history Conversation
+	var summary chatSummary
 	var draft dbgen.GetOwnerDraftRow
 	var r dbgen.BuilderRun
 	var m Message
@@ -237,7 +239,7 @@ func (s *Service) send(ctx context.Context, botID, chatID int64, message string,
 		if err := recoverRuns(ctx, q); err != nil {
 			return err
 		}
-		history, err = loadHistory(ctx, q, ownerID, botID, chatID)
+		history, summary, err = loadModelHistory(ctx, q, ownerID, botID, chatID)
 		if err != nil {
 			return err
 		}
@@ -294,7 +296,7 @@ func (s *Service) send(ctx context.Context, botID, chatID int64, message string,
 	go func() {
 		defer s.runs.Done()
 		defer func() { runCancel(); s.mu.Lock(); delete(s.live, r.ID); s.mu.Unlock() }()
-		s.execute(runCtx, admittedRun{id: r.ID, ownerID: ownerID, botID: botID, chatID: chatID, history: history, draft: draft.Definition, revision: draft.Revision, deadline: deadline})
+		s.execute(runCtx, admittedRun{id: r.ID, ownerID: ownerID, botID: botID, chatID: chatID, history: history, summary: summary, draft: draft.Definition, revision: draft.Revision, deadline: deadline})
 	}()
 	return nil
 }
@@ -335,7 +337,13 @@ func (s *Service) execute(work context.Context, run admittedRun) {
 		if err := s.finish(run, outcome); err != nil {
 			// A reply write can fail after paid work completed. Roll back success,
 			// then save an honest failed outcome without the unsaved model content.
-			if err := s.finish(run, runOutcome{status: RunFailed}); err != nil {
+			failed := runOutcome{status: RunFailed}
+			if errors.Is(err, errMemoryStorage) {
+				failed.result = "memory.failed"
+			}
+			// Do not retry the failing summary write in the recovery transaction.
+			run.summary = chatSummary{}
+			if err := s.finish(run, failed); err != nil {
 				slog.Error("Builder outcome storage unavailable", "run_id", run.id)
 			}
 		}
@@ -346,19 +354,20 @@ func (s *Service) execute(work context.Context, run admittedRun) {
 	}
 	candidate := &draftCandidate{base: base}
 	ctx = context.WithValue(ctx, candidateContextKey{}, candidate)
-	messages := make([]*ai.Message, 0, len(run.history.Messages))
-	for _, m := range run.history.Messages {
-		if m.Role == OwnerRole {
-			messages = append(messages, ai.NewUserTextMessage(m.Content))
-		} else if m.Role == ModelRole {
-			messages = append(messages, ai.NewModelTextMessage(m.Content))
+	messages, summary, err := s.modelMemory(ctx, run)
+	run.summary = summary
+	if err != nil {
+		outcome.result = "memory.failed"
+		if errors.Is(err, ErrCallLimit) {
+			outcome.result = "call.limit"
 		}
+		return
 	}
 	parallelTools := false
 	response, err := genkit.Generate(ctx, s.genkit,
 		ai.WithModel(openrouter.ModelRef(s.config.Model, nil)),
 		ai.WithConfig(openrouter.ChatConfig{ParallelToolCalls: &parallelTools}),
-		ai.WithSystem(instructions+"\n"+run.draft), ai.WithMessages(messages...),
+		ai.WithSystem(instructions+"\n"+run.draft+"\nThe current shared Draft above is authoritative. Historical memory and messages may describe superseded configuration; never restore it unless the owner explicitly requests it now."), ai.WithMessages(messages...),
 		ai.WithTools(s.tools...), ai.WithUse(ai.MiddlewareFunc(s.sequentialDraftTools)),
 		ai.WithStreaming(func(_ context.Context, chunk *ai.ModelResponseChunk) error {
 			// Text only: never expose reasoning, tool arguments, Draft JSON or outputs.
@@ -413,6 +422,13 @@ func (s *Service) finish(run admittedRun, outcome runOutcome) error {
 			return nil
 		} else if err != nil {
 			return err
+		}
+		// A timeout may retain earlier validated memory, but never a reply or
+		// Draft candidate. Shutdown, Stop and deletion keep their existing fences.
+		if run.summary.content != "" && (outcome.status == RunSucceeded || outcome.status == RunFailed || outcome.status == RunTimeout) {
+			if _, err := q.SaveOwnerBuilderSummary(ctx, dbgen.SaveOwnerBuilderSummaryParams{OwnerID: run.ownerID, BotID: run.botID, ChatID: run.chatID, ThroughSequence: run.summary.through, Content: run.summary.content}); err != nil {
+				return errors.Join(errMemoryStorage, err)
+			}
 		}
 		params := dbgen.FinishOwnerBuilderRunParams{RunID: run.id, OwnerID: run.ownerID, FinishedAt: sql.NullInt64{Int64: s.now().Unix(), Valid: true}, Now: time.Now().UnixMilli()}
 		if outcome.status == RunSucceeded && outcome.candidate != nil {
