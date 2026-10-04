@@ -39,3 +39,11 @@ RETURNING id;
 
 -- name: DeleteOwnerUnconnectedBot :execrows
 DELETE FROM bots WHERE owner_id = ?1 AND id = ?2 AND telegram_id IS NULL;
+
+-- name: ConnectOwnerUnconnectedBot :execrows
+UPDATE bots SET telegram_id = ?3, name = ?4, username = ?5, encrypted_token = ?6,
+has_webhook = ?7, pending_updates = ?8, verified_at = ?9
+WHERE owner_id = ?1 AND id = ?2 AND telegram_id IS NULL;
+
+-- name: GetOwnerBotByTelegramID :one
+SELECT id FROM bots WHERE owner_id = ?1 AND telegram_id = ?2;

@@ -10,6 +10,42 @@ import (
 	"database/sql"
 )
 
+const connectOwnerUnconnectedBot = `-- name: ConnectOwnerUnconnectedBot :execrows
+UPDATE bots SET telegram_id = ?3, name = ?4, username = ?5, encrypted_token = ?6,
+has_webhook = ?7, pending_updates = ?8, verified_at = ?9
+WHERE owner_id = ?1 AND id = ?2 AND telegram_id IS NULL
+`
+
+type ConnectOwnerUnconnectedBotParams struct {
+	OwnerID        int64
+	ID             int64
+	TelegramID     sql.NullInt64
+	Name           string
+	Username       string
+	EncryptedToken []byte
+	HasWebhook     int64
+	PendingUpdates int64
+	VerifiedAt     int64
+}
+
+func (q *Queries) ConnectOwnerUnconnectedBot(ctx context.Context, arg ConnectOwnerUnconnectedBotParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, connectOwnerUnconnectedBot,
+		arg.OwnerID,
+		arg.ID,
+		arg.TelegramID,
+		arg.Name,
+		arg.Username,
+		arg.EncryptedToken,
+		arg.HasWebhook,
+		arg.PendingUpdates,
+		arg.VerifiedAt,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const createBot = `-- name: CreateBot :one
 INSERT INTO bots (owner_id, telegram_id, name, username, encrypted_token, has_webhook, pending_updates, verified_at)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
@@ -162,6 +198,22 @@ func (q *Queries) GetOwnerBot(ctx context.Context, arg GetOwnerBotParams) (GetOw
 		&i.DeliveryError,
 	)
 	return i, err
+}
+
+const getOwnerBotByTelegramID = `-- name: GetOwnerBotByTelegramID :one
+SELECT id FROM bots WHERE owner_id = ?1 AND telegram_id = ?2
+`
+
+type GetOwnerBotByTelegramIDParams struct {
+	OwnerID    int64
+	TelegramID sql.NullInt64
+}
+
+func (q *Queries) GetOwnerBotByTelegramID(ctx context.Context, arg GetOwnerBotByTelegramIDParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getOwnerBotByTelegramID, arg.OwnerID, arg.TelegramID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const listOwnerBots = `-- name: ListOwnerBots :many

@@ -39,16 +39,29 @@ templ Cards(bots []Bot) {
 }
 
 templ ConnectPage(displayName, csrf, message string, invalid bool) {
- @shell.Workspace(displayName, csrf, shell.Page{Title: locale.T(ctx, "bot.connect.title"), ActiveNav: shell.BotsNav, Breadcrumbs: []shell.Breadcrumb{{Label: locale.T(ctx, "workspace.bots"), URL: "/bots"}, {Label: locale.T(ctx, "bot.connect.title")}}}, connectContent(csrf, message, invalid))
+ @shell.Workspace(displayName, csrf, shell.Page{Title: locale.T(ctx, "bot.connect.title"), ActiveNav: shell.BotsNav, Breadcrumbs: []shell.Breadcrumb{{Label: locale.T(ctx, "workspace.bots"), URL: "/bots"}, {Label: locale.T(ctx, "bot.connect.title")}}}, connectContent(csrf, message, invalid, "/bots/connect", "bot.connect.copy", ""))
 }
 
-templ connectContent(csrf, message string, invalid bool) {
- <h1 class="piko-page-title">{ locale.T(ctx, "bot.connect.title") }</h1><p class="piko-page-copy">{ locale.T(ctx, "bot.connect.copy") }</p>
+templ ConnectExistingPage(displayName, csrf string, bot Bot, message string, invalid bool, existingURL string) {
+ @shell.Workspace(displayName, csrf, flowPage(ctx, bot, "bot.connect.title"), existingConnectContent(csrf, bot, message, invalid, existingURL))
+}
+
+templ existingConnectContent(csrf string, bot Bot, message string, invalid bool, existingURL string) {
+ <p class="piko-page-copy"><bdi dir="auto">{ bot.Name }</bdi></p>
+ @connectContent(csrf, message, invalid, bot.URL()+"/connect", "bot.connect.existing.copy", existingURL)
+}
+
+templ connectContent(csrf, message string, invalid bool, action, copyKey, existingURL string) {
+ <h1 class="piko-page-title">{ locale.T(ctx, "bot.connect.title") }</h1><p class="piko-page-copy">{ locale.T(ctx, copyKey) }</p>
  <div class="piko-connect-grid">
   <section class="piko-card piko-bot-guide" aria-labelledby="botfather-title"><span class="piko-empty-icon">@shell.Icon("telegram-logo")</span><h2 id="botfather-title">{ locale.T(ctx, "bot.guide.title") }</h2><ol><li>{ locale.T(ctx, "bot.guide.open") } <a class="piko-text-link" href="https://t.me/BotFather" rel="noreferrer"><bdi dir="ltr">{ "@BotFather" }</bdi></a></li><li>{ locale.T(ctx, "bot.guide.new") } <bdi dir="ltr">/newbot</bdi></li><li>{ locale.T(ctx, "bot.guide.existing") } <bdi dir="ltr">/mybots → API Token</bdi></li><li>{ locale.T(ctx, "bot.guide.copy") }</li></ol><p class="piko-helper">{ locale.T(ctx, "bot.guide.secret") }</p></section>
-  <section class="piko-card piko-token-card" aria-labelledby="token-title"><h2 id="token-title">{ locale.T(ctx, "bot.token.heading") }</h2><form method="post" action="/bots/connect" autocomplete="off"><input type="hidden" name="csrf_token" value={ csrf }/>
+  <section class="piko-card piko-token-card" aria-labelledby="token-title"><h2 id="token-title">{ locale.T(ctx, "bot.token.heading") }</h2><form method="post" action={ templ.URL(action) } autocomplete="off"><input type="hidden" name="csrf_token" value={ csrf }/>
    if message != "" {
- <div id="token-error" class="piko-field-error piko-bot-error" role="alert"><h3>{ message }</h3><a class="piko-text-link" href="#token">{ locale.T(ctx, "bot.error.retry") }</a></div>
+ <div id="token-error" class="piko-field-error piko-bot-error" role="alert"><h3>{ message }</h3>
+ if existingURL != "" {
+ <p><a class="piko-text-link" href={ templ.URL(existingURL) }>{ locale.T(ctx, "bot.connect.duplicate.link") }</a></p>
+ }
+ <a class="piko-text-link" href="#token">{ locale.T(ctx, "bot.error.retry") }</a></div>
  }
    <label class="piko-label" for="token">{ locale.T(ctx, "bot.token.label") }</label><input id="token" class="piko-input" name="token" type="password" dir="ltr" autocomplete="new-password" autocapitalize="none" spellcheck="false" required maxlength="160"
     if invalid {
@@ -103,7 +116,7 @@ templ detailContent(bot Bot, csrf string, warning bool) {
    <p class="piko-helper">{ locale.T(ctx, "bot.delivery.checked") }: <time datetime={ bot.VerifiedAt.UTC().Format("2006-01-02T15:04:05Z") } data-persian-date>{ locale.T(ctx, "bot.delivery.checked") }</time></p>
   </section>
  } else if bot.Unconnected {
- <section class="piko-card piko-token-card"><h2>{ locale.T(ctx,"bot.status.unconnected") }</h2><p class="piko-page-copy">{ locale.T(ctx,"bot.unconnected.copy") }</p></section>
+ <section class="piko-card piko-token-card"><h2>{ locale.T(ctx,"bot.status.unconnected") }</h2><p class="piko-page-copy">{ locale.T(ctx,"bot.unconnected.copy") }</p><a class="piko-primary-action" href={ templ.URL(bot.URL()+"/connect") }>@shell.Icon("telegram-logo")<span>{ locale.T(ctx,"bot.connect.title") }</span></a></section>
  } else {
  <section class="piko-card piko-token-card"><h2>{ locale.T(ctx,"lifecycle.reconnect.title") }</h2><p class="piko-page-copy">{ locale.T(ctx,"lifecycle.disconnected.copy") }</p></section>
  }
