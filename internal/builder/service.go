@@ -14,6 +14,7 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/pooya79/Piko/internal/auth"
 	"github.com/pooya79/Piko/internal/bot"
+	"github.com/pooya79/Piko/internal/bot/flow"
 	"github.com/pooya79/Piko/internal/platform/database"
 	"github.com/pooya79/Piko/internal/platform/database/dbgen"
 )
@@ -47,12 +48,13 @@ func (m Message) FeedbackKey() string {
 	return ""
 }
 
-// Conversation contains this chat's ordered display history. Model admission
-// loads only messages after its private summary; the shared Draft is separate.
+// Conversation contains display history and its committed shared Draft in one
+// snapshot. Model admission separately loads this chat's private memory.
 type Conversation struct {
 	Chat     Chat
 	Messages []Message
 	Runs     []Run
+	Draft    bot.Draft
 }
 
 func (c Conversation) LatestRun() Run {
@@ -225,7 +227,21 @@ func (s *Service) History(ctx context.Context, botID, chatID int64) (Conversatio
 	if err != nil {
 		return Conversation{}, err
 	}
-	history.Runs, err = loadRuns(ctx, q, ownerID, botID, chatID)
+	if botID != 0 {
+		draft, err := q.GetOwnerDraft(ctx, dbgen.GetOwnerDraftParams{OwnerID: ownerID, BotID: botID})
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return Conversation{}, err
+		}
+		if err == nil {
+			definition, err := flow.Decode(draft.Definition)
+			if err != nil {
+				return Conversation{}, err
+			}
+			history.Draft.Definition = definition
+			history.Draft.Revision = draft.Revision
+		}
+	}
+	history.Runs, err = loadRuns(ctx, q, ownerID, botID, chatID, history.Draft.Revision)
 	if err != nil {
 		return Conversation{}, err
 	}

@@ -243,11 +243,7 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request, b bot.Bot, id i
 	var revision int64
 	var canvas flow.Canvas
 	if b.ID != 0 {
-		draft, err := h.bots.LoadDraft(r.Context(), b.ID)
-		if err != nil {
-			h.failed(w, r, err)
-			return
-		}
+		draft := history.Draft
 		revision = draft.Revision
 		if revision > 0 {
 			canvas = flow.ProjectCanvas(draft.Definition)

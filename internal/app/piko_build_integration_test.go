@@ -40,6 +40,9 @@ func TestPikoBuildCreatesBotInOriginalChatOnce(t *testing.T) {
 	if !strings.Contains(page, `href="/bots/1/draft"`) || !strings.Contains(page, "ثبت نام کلاس") || !strings.Contains(page, values.Get("message")) {
 		t.Fatal("original chat did not become Bot workspace", page)
 	}
+	if pane := changesPane(t, page); !strings.Contains(pane, `data-change-result="created"`) || !strings.Contains(pane, `data-change-action="added"`) || strings.Contains(pane, "/undo") {
+		t.Fatal("initial committed Draft missing truthful Changes or offers Undo without a prior Draft")
+	}
 	if got := b.send("GET", "/bots/1/draft", nil); got.Code != 200 || !strings.Contains(got.Body.String(), "ثبت نام") {
 		t.Fatal("initial Draft missing")
 	}
@@ -123,6 +126,9 @@ func TestPikoInitialBuildFailuresRetainConversationWithoutBot(t *testing.T) {
 			page := waitBuilder(t, b, path, status)
 			if !strings.Contains(page, values.Get("message")) || strings.Contains(page, "پاسخ موفق ذخیره نشده") || strings.Contains(page, "private storage failure") || strings.Contains(page, `data-draft-revision=`) {
 				t.Fatal("failure lost conversation or leaked partial success")
+			}
+			if strings.Contains(page, `data-change-action=`) || strings.Contains(page, "/undo") {
+				t.Fatal("failed initial creation displays saved Changes or Undo")
 			}
 			if got := b.send("GET", "/bots/1", nil); got.Code != 404 {
 				t.Fatal("failure left a Bot")

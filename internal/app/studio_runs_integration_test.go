@@ -106,6 +106,9 @@ func TestStudioProvisionalCandidateAndConflictKeepCommittedDraft(t *testing.T) {
 	if !strings.Contains(provisional, `data-draft-revision="1"`) || strings.Contains(provisional, `data-after-revision=`) {
 		t.Fatal("candidate represented as committed Draft")
 	}
+	if pane := changesPane(t, provisional); strings.Contains(pane, `data-change-action=`) || strings.Contains(pane, `/runs/1/undo`) {
+		t.Fatal("provisional candidate leaked into Changes")
+	}
 	if got := b.post("/bots/1/draft", draftAtRevision(inquiryDraft(), "1")); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
@@ -115,6 +118,9 @@ func TestStudioProvisionalCandidateAndConflictKeepCommittedDraft(t *testing.T) {
 	body := got.Body.String()
 	if !strings.Contains(body, `data-studio-outcome="failed"`) || !strings.Contains(body, `data-run-result="conflict"`) || !strings.Contains(body, `data-draft-revision="2"`) || strings.Contains(body, `/runs/1/retry`) || !strings.Contains(body, `data-can-send="true"`) {
 		t.Fatal("terminal conflict fragment misrepresents committed state or recovery")
+	}
+	if pane := changesPane(t, body); !strings.Contains(pane, `data-change-result="conflict"`) || strings.Contains(pane, `data-change-action=`) || strings.Contains(pane, `/runs/1/undo`) {
+		t.Fatal("conflict represented stale differences as saved Changes")
 	}
 }
 

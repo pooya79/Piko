@@ -124,6 +124,7 @@ type Run struct {
 	Result         string
 	BeforeRevision int64
 	AfterRevision  sql.NullInt64
+	Changes        []DraftChange
 }
 
 func (r Run) FeedbackKey() string {
@@ -140,15 +141,7 @@ type Allowance struct {
 	Usage           Usage
 }
 
-func loadRuns(ctx context.Context, q *dbgen.Queries, ownerID, botID, chatID int64) ([]Run, error) {
-	var draft dbgen.GetOwnerDraftRow
-	if botID != 0 {
-		var err error
-		draft, err = q.GetOwnerDraft(ctx, dbgen.GetOwnerDraftParams{OwnerID: ownerID, BotID: botID})
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return nil, err
-		}
-	}
+func loadRuns(ctx context.Context, q *dbgen.Queries, ownerID, botID, chatID, revision int64) ([]Run, error) {
 	rows, err := q.ListOwnerBuilderRuns(ctx, dbgen.ListOwnerBuilderRunsParams{OwnerID: ownerID, BotID: botID, ChatID: sql.NullInt64{Int64: chatID, Valid: true}})
 	if err != nil {
 		return nil, err
@@ -159,8 +152,12 @@ func loadRuns(ctx context.Context, q *dbgen.Queries, ownerID, botID, chatID int6
 		if err != nil {
 			return nil, err
 		}
-		canUndo := hasUndoSnapshot(r) && r.AfterRevision.Int64 == draft.Revision
-		runs = append(runs, Run{ID: r.ID, Status: visibleStatus(r.Status, r.Result), Calls: r.ModelCalls, Usage: sumUsage(calls), CanRetry: r.Status == string(RunInterrupted) && r.Result != "stopped" && r.RequestSequence.Valid, CanUndo: canUndo, Result: r.Result, BeforeRevision: r.DraftRevision, AfterRevision: r.AfterRevision})
+		changes, err := committedChanges(r)
+		if err != nil {
+			return nil, err
+		}
+		canUndo := hasUndoSnapshot(r) && r.AfterRevision.Int64 == revision
+		runs = append(runs, Run{ID: r.ID, Status: visibleStatus(r.Status, r.Result), Calls: r.ModelCalls, Usage: sumUsage(calls), CanRetry: r.Status == string(RunInterrupted) && r.Result != "stopped" && r.RequestSequence.Valid, CanUndo: canUndo, Result: r.Result, BeforeRevision: r.DraftRevision, AfterRevision: r.AfterRevision, Changes: changes})
 	}
 	return runs, nil
 }

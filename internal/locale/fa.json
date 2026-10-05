@@ -1104,7 +1104,7 @@
     "other": "پیش‌نویس پیش از این درخواست را بازگردانید. این کار فقط تا پیش از ویرایش بعدی در دسترس است و انتشار را تغییر نمی‌دهد."
   },
   "builder.undo.unavailable": {
-    "other": "بازگرداندن این تغییر دیگر در دسترس نیست؛ پیش‌نویس ویرایش شده یا این تغییر قبلاً بازگردانده شده است. پیش‌نویس فعلی حفظ شد."
+    "other": "بازگرداندن این تغییر دیگر در دسترس نیست؛ ویرایش دستی یا درخواست تازه در این گفتگو یا گفتگوی دیگری نسخهٔ پیش‌نویس را تغییر داده، یا این تغییر قبلاً بازگردانده شده است. پیش‌نویس فعلی حفظ شد."
   },
   "builder.run.conflict": {
     "other": "پیش‌نویس در زمان آماده‌سازی تغییر کرد؛ نتیجهٔ قدیمی ذخیره نشد و تغییرات تازهٔ شما حفظ شدند. پیش‌نویس فعلی را بررسی کنید و درخواست تازه‌ای بفرستید."
@@ -1471,5 +1471,113 @@
   },
   "flow.edit.skip": {
     "other": "هنگام ویرایش: رد کردن ← بررسی پاسخ‌ها"
+  },
+  "changes.unset": {
+    "other": "تنظیم نشده"
+  },
+  "changes.value.true": {
+    "other": "بله"
+  },
+  "changes.value.false": {
+    "other": "خیر"
+  },
+  "changes.title": {
+    "other": "تغییرات"
+  },
+  "changes.copy": {
+    "other": "این فهرست از پیش‌نویس‌های ذخیره‌شده به دست آمده است. تغییرات درخواست‌های این گفتگو را نشان می‌دهد؛ انتشار و فعالیت تلگرام جداگانه‌اند."
+  },
+  "changes.empty": {
+    "other": "هنوز در این گفتگو درخواستی انجام نشده است."
+  },
+  "changes.run": {
+    "other": "درخواست"
+  },
+  "changes.none": {
+    "other": "محتوای پیش‌نویس تغییری نکرده است."
+  },
+  "changes.undone": {
+    "other": "این فهرست سابقهٔ تغییر بازگردانده‌شده است و وضعیت فعلی پیش‌نویس نیست."
+  },
+  "changes.before": {
+    "other": "پیش از تغییر"
+  },
+  "changes.after": {
+    "other": "پس از تغییر"
+  },
+  "changes.action.added": {
+    "other": "افزوده شد"
+  },
+  "changes.action.removed": {
+    "other": "حذف شد"
+  },
+  "changes.action.edited": {
+    "other": "ویرایش شد"
+  },
+  "changes.action.reordered": {
+    "other": "ترتیب تغییر کرد"
+  },
+  "changes.kind.flow": {
+    "other": "ساختار جریان"
+  },
+  "changes.kind.welcome": {
+    "other": "خوش‌آمد"
+  },
+  "changes.kind.menu": {
+    "other": "منو"
+  },
+  "changes.kind.choice": {
+    "other": "گزینهٔ منو"
+  },
+  "changes.kind.message": {
+    "other": "پیام"
+  },
+  "changes.kind.form": {
+    "other": "فرم"
+  },
+  "changes.kind.question": {
+    "other": "پرسش"
+  },
+  "changes.field.version": {
+    "other": "نسخهٔ ساختار"
+  },
+  "changes.field.type": {
+    "other": "نوع"
+  },
+  "changes.field.text": {
+    "other": "متن"
+  },
+  "changes.field.label": {
+    "other": "عنوان"
+  },
+  "changes.field.target": {
+    "other": "مقصد"
+  },
+  "changes.field.review": {
+    "other": "مرور پاسخ‌ها"
+  },
+  "changes.field.acknowledgement": {
+    "other": "تأیید دریافت"
+  },
+  "changes.field.prompt": {
+    "other": "متن پرسش"
+  },
+  "changes.field.required": {
+    "other": "الزامی"
+  },
+  "changes.field.options": {
+    "other": "گزینه‌ها"
+  },
+  "changes.field.number": {
+    "other": "محدودهٔ عدد"
+  },
+  "changes.field.date": {
+    "other": "محدودهٔ تاریخ"
+  },
+  "changes.field.max.length": {
+    "other": "حداکثر طول"
+  },
+  "changes.field.order": {
+    "other": "ترتیب شناسه‌های باقی‌مانده"
   }
 }

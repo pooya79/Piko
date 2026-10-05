@@ -1,0 +1,76 @@
+package builder
+
+import (
+ "strconv"
+ "github.com/pooya79/Piko/internal/bot"
+ "github.com/pooya79/Piko/internal/locale"
+)
+
+templ changesPane(csrf string,b bot.Bot,history Conversation,revision int64) {
+ <section id="studio-changes-panel" data-pane-panel="changes" aria-label={ locale.T(ctx,"changes.title") } data-changes-bot={ strconv.FormatInt(b.ID,10) } data-changes-revision={ strconv.FormatInt(revision,10) }>
+  <h3>{ locale.T(ctx,"changes.title") }</h3>
+  <p class="piko-helper">{ locale.T(ctx,"changes.copy") }</p>
+  <p class="piko-helper"><bdi dir="auto">{ b.Name }</bdi>{ " · "+locale.T(ctx,"builder.revision")+" "+locale.Digits(strconv.FormatInt(revision,10)) }</p>
+  if len(history.Runs)==0 {
+   <p class="piko-helper">{ locale.T(ctx,"changes.empty") }</p>
+  }
+  for i:=len(history.Runs)-1;i>=0;i-- {
+   @changeRun(csrf,history.Chat,history.Runs[i])
+  }
+ </section>
+}
+
+templ changeRun(csrf string,c Chat,run Run) {
+ <article class="piko-change-run" data-change-run={ strconv.FormatInt(run.ID,10) } data-change-result={ run.Result } data-change-status={ string(run.Status) }>
+  <h4>{ locale.T(ctx,"changes.run")+" "+locale.Digits(strconv.FormatInt(run.ID,10)) }</h4>
+  <p role="status">{ locale.T(ctx,run.FeedbackKey()) }</p>
+  if run.AfterRevision.Valid {
+   <p class="piko-helper">{ locale.T(ctx,"builder.revision.change")+" " }<bdi dir="ltr">{ locale.Digits(strconv.FormatInt(run.BeforeRevision,10)+" → "+strconv.FormatInt(run.AfterRevision.Int64,10)) }</bdi></p>
+   if run.Result=="undone" {
+    <p class="piko-helper">{ locale.T(ctx,"changes.undone") }</p>
+   }
+   if len(run.Changes)==0 {
+    <p class="piko-helper">{ locale.T(ctx,"changes.none") }</p>
+   }
+   <ul class="piko-change-list">
+    for index,change:=range run.Changes {
+     <li data-change-action={ change.Action } data-change-kind={ change.Kind } data-change-id={ change.ID } data-change-form={ change.FormID }>
+      <details id={ "studio-change-"+strconv.FormatInt(run.ID,10)+"-"+strconv.Itoa(index) }>
+       <summary>{ locale.T(ctx,"changes.action."+change.Action)+" · "+locale.T(ctx,"changes.kind."+change.Kind) }
+        if change.FormID!="" {
+         { " · " }<bdi dir="auto">{ change.FormID }</bdi>
+        }
+        if change.ID!="" {
+         { " · " }<bdi dir="auto">{ change.ID }</bdi>
+        }
+       </summary>
+       <dl>
+        for _,field:=range change.Fields {
+         <div data-change-field={ field.Name }><dt>{ locale.T(ctx,field.LocaleKey()) }</dt>
+          if change.Action!="added" {
+           <dd><span class="piko-small-label">{ locale.T(ctx,"changes.before") }</span><bdi dir="auto">{ field.Display(ctx,field.Before) }</bdi></dd>
+          }
+          if change.Action!="removed" {
+           <dd><span class="piko-small-label">{ locale.T(ctx,"changes.after") }</span><bdi dir="auto">{ field.Display(ctx,field.After) }</bdi></dd>
+          }
+         </div>
+        }
+       </dl>
+      </details>
+     </li>
+    }
+   </ul>
+  }
+  if run.Result=="saved" {
+   if run.CanUndo {
+    <p class="piko-helper">{ locale.T(ctx,"builder.undo.copy") }</p>
+    <form method="post" data-studio-form="action" action={ c.URL()+"/runs/"+strconv.FormatInt(run.ID,10)+"/undo" }>
+     <input type="hidden" name="csrf_token" value={ csrf }/>
+     <button id={ "studio-undo-"+strconv.FormatInt(run.ID,10) } class="piko-secondary-action" type="submit">{ locale.T(ctx,"builder.undo") }</button>
+    </form>
+   } else {
+    <p class="piko-helper" data-undo-unavailable>{ locale.T(ctx,"builder.undo.unavailable") }</p>
+   }
+  }
+ </article>
+}
