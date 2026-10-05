@@ -118,6 +118,7 @@ type BuilderChat struct {
 	Title     string
 	CreatedAt int64
 	UpdatedAt int64
+	StartKey  sql.NullString
 }
 
 type BuilderMessage struct {

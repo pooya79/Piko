@@ -1,11 +1,12 @@
 (() => {
-  const marker = document.querySelector('[data-builder-stream-url]');
-  if (!marker) return;
-  const progress = document.querySelector('[data-builder-progress]');
-  const reply = document.querySelector('[data-builder-reply]');
-  const connection = document.querySelector('[data-builder-connection]');
   let stream;
   function connect() {
+    stream?.close();
+    const marker = document.querySelector('[data-builder-stream-url]');
+    if (!marker) return;
+    const progress = document.querySelector('[data-builder-progress]');
+    const reply = document.querySelector('[data-builder-reply]');
+    const connection = document.querySelector('[data-builder-connection]');
     if (!window.EventSource) {
       connection.textContent = connection.dataset.unavailable;
       return;
@@ -16,7 +17,7 @@
       connection.textContent = '';
       if (String(run.id) !== marker.dataset.builderRunId || run.status !== 'running') {
         stream.close();
-        window.location.reload();
+        document.dispatchEvent(new Event('piko:run-complete'));
         return;
       }
       // Provisional text is plain text, never HTML or committed Draft feedback.
@@ -30,5 +31,6 @@
   }
   window.addEventListener('pagehide', () => stream?.close());
   window.addEventListener('pageshow', event => { if (event.persisted) connect(); });
+  document.addEventListener('piko:studio-updated', connect);
   connect();
 })();

@@ -10,4 +10,104 @@
 .piko-builder-list h2 { overflow-wrap: anywhere; }
 .piko-builder-composer { min-height: 8rem; margin-block-end: 1rem; resize: vertical; }
 .piko-builder-run + .piko-builder-run { border-block-start: 1px solid var(--color-base-300); padding-block-start: 1rem; }
+
+/* The conversation owns scrolling; its composer stays outside that region. */
+.piko-workspace-main:has(.piko-studio) { display: flex; flex-direction: column; height: 100dvh; }
+.piko-workspace-main:has(.piko-studio) > .piko-topbar { flex-shrink: 0; }
+.piko-dashboard-main:has(.piko-studio) { display: flex; flex-direction: column; flex: 1; min-height: 0; max-width: none; margin: 0; padding: 0; }
+.piko-dashboard-main:has(.piko-studio) > .piko-workspace-footer { display: none; }
+.piko-studio { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.piko-studio-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 32px; border-bottom: 1px solid var(--color-base-300); background: var(--color-base-100); }
+.piko-studio-heading h1 { font-size: 18px; font-weight: 700; margin-top: 5px; overflow-wrap: anywhere; }
+.piko-studio-conversation { display: flex; flex-direction: column; min-height: 0; min-width: 0; flex: 1; }
+.piko-studio-scroll { overflow-y: auto; min-height: 0; flex: 1; padding: 28px 32px; scrollbar-width: thin; }
+.piko-studio-welcome { max-width: 760px; margin: 16px auto 32px; }
+.piko-studio-welcome > img { margin-bottom: 14px; }
+.piko-studio-welcome h2 { font-size: 26px; font-weight: 700; }
+.piko-studio-welcome > p { margin-top: 10px; color: var(--piko-text-secondary); font-size: 12px; line-height: 2; }
+.piko-studio-examples { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin-block: 28px 16px; }
+.piko-studio-example { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 18px; border: 1px solid var(--color-base-300); border-radius: 16px; background: var(--color-base-100); text-align: start; cursor: pointer; }
+.piko-studio-example:hover { border-color: var(--color-primary); background: var(--piko-selection); }
+.piko-studio-example > .piko-icon:first-child { box-sizing: content-box; padding: 9px; background: var(--piko-surface-lilac); border-radius: 10px; }
+.piko-studio-example strong { font-size: 12px; }
+.piko-studio-example span { color: var(--piko-text-secondary); font-size: 11px; line-height: 1.9; }
+.piko-studio-example > .piko-icon:last-child { margin-inline-start: auto; width: 15px; height: 15px; color: var(--color-primary); }
+.piko-studio-saved { max-width: 760px; margin-inline: auto; font-size: 12px; }
+.piko-studio-saved summary { cursor: pointer; padding-block: 12px; }
+.piko-saved-chat { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border-bottom: 1px solid var(--color-base-300); }
+.piko-saved-chat:hover { background: var(--piko-selection); }
+.piko-saved-chat bdi { overflow-wrap: anywhere; min-width: 0; }
+.piko-saved-chat small { color: var(--piko-text-secondary); }
+.piko-studio-composer { padding: 12px 32px 20px; background: var(--color-base-100); border-top: 1px solid var(--color-base-300); }
+.piko-studio-composer > *, .piko-studio-composer form { max-width: 760px; margin-inline: auto; }
+.piko-studio-composer form { margin-top: 8px; border: 1px solid var(--piko-control-border); border-radius: 16px; padding: 14px; }
+.piko-studio-composer .piko-label { font-size: 11px; margin-bottom: 6px; }
+.piko-studio-composer .piko-builder-composer { min-height: 3rem; height: 4rem; max-height: 9rem; margin: 0; border: 0; background: transparent; font-size: 13px; padding: 4px; }
+.piko-studio-composer-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.piko-studio-composer .piko-primary-action { display: inline-flex; align-items: center; gap: 7px; }
+.piko-studio-body { display: grid; grid-template-columns: minmax(0,1fr) minmax(260px,30%); min-height: 0; flex: 1; }
+.piko-studio-identity { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.piko-studio-identity > div { min-width: 0; }
+.piko-studio-identity h1 { margin: 0; }
+.piko-studio-identity .piko-helper { font-size: 10px; margin-top: 4px; }
+.piko-studio-heading-actions { flex-shrink: 0; }
+.piko-studio-chat-picker { position: relative; font-size: 11px; }
+.piko-studio-chat-picker > summary { min-height: 44px; padding: 12px; cursor: pointer; border: 1px solid var(--color-base-300); border-radius: 10px; }
+.piko-studio-chat-picker[open] { position: relative; z-index: 5; }
+.piko-studio-chat-picker > .piko-studio-chat-menu { position: absolute; inset-inline-end: 0; top: 48px; width: min(330px,calc(100vw - 36px)); max-height: 50dvh; overflow-y: auto; padding: 12px; background: var(--color-base-100); border: 1px solid var(--color-base-300); border-radius: 12px; box-shadow: var(--piko-shadow); }
+.piko-studio-chat-menu > .piko-text-link, .piko-studio-chat-menu > form { margin-top: 8px; }
+.piko-studio-chat-picker:not([open]) > :not(summary) { display: none; }
+.piko-saved-chat[aria-current="page"] { background: var(--piko-selection); color: var(--color-primary); }
+.piko-saved-chat small { display: block; margin-top: 4px; }
+.piko-studio .piko-builder-history { max-width: 760px; margin: 0 auto 20px; gap: 22px; }
+.piko-studio .piko-builder-message { border: 0; padding: 0; border-radius: 0; font-size: 13px; line-height: 2; }
+.piko-studio .piko-builder-message-owner { padding: 16px 20px; border-radius: 16px; background: var(--piko-surface-lilac); }
+.piko-studio .piko-builder-message-result { border-inline-start: 3px solid var(--color-primary); padding-inline-start: 16px; }
+.piko-studio .piko-builder-message .piko-helper { font-size: 10px; }
+.piko-studio-progress { max-width: 760px; margin: 20px auto; padding: 18px; border: 1px solid var(--color-base-300); border-radius: 16px; font-size: 12px; line-height: 2; background: var(--color-base-100); }
+.piko-studio-progress form { margin-top: 12px; }
+.piko-studio-run-details { max-width: 760px; margin: 20px auto; font-size: 11px; border-top: 1px solid var(--color-base-300); padding-top: 12px; }
+.piko-studio-run-details summary { cursor: pointer; margin-bottom: 12px; }
+.piko-studio-scroll > .piko-submission-delete { max-width: 760px; margin-inline: auto; }
+.piko-studio-pane { min-width: 0; overflow-y: auto; border-inline-start: 1px solid var(--color-base-300); background: var(--color-base-100); }
+.piko-studio-pane > header { padding: 20px 24px; border-bottom: 1px solid var(--color-base-300); }
+.piko-studio-pane h2 { font-size: 12px; font-weight: 600; }
+.piko-studio-pane-empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 50px 24px; }
+.piko-studio-pane-empty h3 { font-size: 15px; font-weight: 650; }
+.piko-studio-pane-empty p { margin-top: 10px; color: var(--piko-text-secondary); font-size: 12px; line-height: 2; }
+.piko-studio-pane-content { display: flex; flex-direction: column; gap: 14px; padding: 24px; }
+.piko-studio-pane-content h3 { font-weight: 650; overflow-wrap: anywhere; }
+.piko-studio-pane-content .piko-page-copy { font-size: 12px; line-height: 2; }
+.piko-studio-pane-content > .piko-secondary-action { display: flex; gap: 10px; align-items: center; min-height: 44px; font-size: 12px; }
+.piko-studio-pane-content > .piko-publication { margin: 8px 0 0; padding: 18px 0 0; border: 0; border-top: 1px solid var(--color-base-300); border-radius: 0; box-shadow: none; }
+.piko-studio-pane-content .piko-publication h2 { font-size: 13px; }
+.piko-studio-pane-content .piko-activation-confirm { font-size: 12px; }
+.piko-studio-switch { display: none; }
+@media (max-width: 767px) {
+ .piko-studio-heading { padding: 14px 18px; }
+ .piko-studio-heading h1 { font-size: 16px; }
+ .piko-studio-scroll { padding: 18px; }
+ .piko-studio-welcome { margin-top: 0; }
+ .piko-studio-welcome h2 { font-size: 22px; }
+ .piko-studio-examples { grid-template-columns: 1fr; gap: 8px; margin-block: 18px; }
+ .piko-studio-example { display: grid; grid-template-columns: 36px minmax(0,1fr) 18px; gap: 4px 10px; padding: 12px; }
+ .piko-studio-example > .piko-icon:first-child { grid-row: span 2; padding: 7px; }
+ .piko-studio-example span { grid-column: 2; }
+ .piko-studio-example > .piko-icon:last-child { grid-column: 3; grid-row: 1 / span 2; }
+ .piko-studio-composer { padding: 10px 18px max(12px, env(safe-area-inset-bottom)); }
+ .piko-studio-composer .piko-helper { font-size: 10px; }
+ .piko-studio-identity .piko-icon-tile { display: none; }
+ .piko-studio-identity .piko-helper span { display: none; }
+ .piko-studio-body { display: flex; flex-direction: column; }
+ .piko-studio-body > * { flex: 1; min-height: 0; }
+ .piko-studio[data-enhanced] .piko-studio-switch { display: flex; padding: 8px 18px; gap: 8px; border-bottom: 1px solid var(--color-base-300); background: var(--color-base-100); }
+ .piko-studio-switch button { display: inline-flex; justify-content: center; align-items: center; gap: 8px; flex: 1; min-height: 44px; border-radius: 8px; font-size: 11px; cursor: pointer; }
+ .piko-studio-switch [aria-pressed="true"] { background: var(--piko-selection); color: var(--color-primary); }
+ .piko-studio[data-enhanced]:not([data-view="pane"]) .piko-studio-pane,
+ .piko-studio[data-enhanced][data-view="pane"] #studio-conversation { display: none; }
+ .piko-studio:not([data-enhanced]) .piko-studio-body { overflow-y: auto; }
+ .piko-studio:not([data-enhanced]) .piko-studio-body > * { flex: none; min-height: 20rem; }
+ .piko-studio-pane { border-inline-start: 0; }
+ .piko-studio-chat-picker > summary { padding: 10px; font-size: 10px; }
+}
 }

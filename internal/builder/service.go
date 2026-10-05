@@ -66,7 +66,36 @@ func (c Conversation) LatestRun() Run {
 type Chat struct {
 	ID, BotID            int64
 	Title                string
+	BotName              string
 	CreatedAt, UpdatedAt time.Time
+}
+
+// SavedChats lists both general and Bot-associated conversations for the owner.
+func (s *Service) SavedChats(ctx context.Context) ([]Chat, error) {
+	ownerID, err := owner(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.savedChats(ctx, ownerID)
+}
+
+// StartConversation validates the first turn before saving a new conversation.
+// An admission failure retains that conversation and the owner's editable text.
+func (s *Service) StartConversation(ctx context.Context, title, message, requestKey string) (Chat, error) {
+	ownerID, err := owner(ctx)
+	if err != nil {
+		return Chat{}, err
+	}
+	if !validMessage(message) || strings.TrimSpace(requestKey) == "" || len(requestKey) > 128 || !utf8.ValidString(requestKey) {
+		return Chat{}, ErrMessage
+	}
+	// SQLite's owner/key uniqueness reserves the same chat even across processes
+	// and restarts. Run admission then uses that chat's existing durable key.
+	chat, err := s.repo.reserveChat(ctx, ownerID, title, requestKey)
+	if err != nil {
+		return Chat{}, err
+	}
+	return chat, s.SendRequest(ctx, 0, chat.ID, message, requestKey)
 }
 
 func (c Chat) URL() string {

@@ -42,6 +42,23 @@ func (r *Repository) list(ctx context.Context, ownerID, botID int64) ([]Chat, er
 	return chats, nil
 }
 
+func (r *Repository) savedChats(ctx context.Context, ownerID int64) ([]Chat, error) {
+	rows, err := r.q.ListOwnerPikoChats(ctx, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	chats := make([]Chat, 0, len(rows))
+	for _, row := range rows {
+		chats = append(chats, Chat{ID: row.ID, BotID: row.BotID.Int64, Title: row.Title, BotName: row.BotName, CreatedAt: time.Unix(row.CreatedAt, 0), UpdatedAt: time.Unix(row.UpdatedAt, 0)})
+	}
+	return chats, nil
+}
+
+func (r *Repository) reserveChat(ctx context.Context, ownerID int64, title, key string) (Chat, error) {
+	row, err := r.q.ReserveOwnerPikoChat(ctx, dbgen.ReserveOwnerPikoChatParams{OwnerID: ownerID, Title: title, CreatedAt: time.Now().Unix(), StartKey: sql.NullString{String: key, Valid: true}})
+	return chatFromRow(row), storageError(err)
+}
+
 func messageFromRow(row dbgen.BuilderMessage) Message {
 	return Message{Sequence: row.Sequence, Role: Role(row.Role), Content: row.Content, CreatedAt: time.Unix(row.CreatedAt, 0)}
 }

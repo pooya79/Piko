@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"github.com/a-h/templ"
@@ -27,6 +28,9 @@ type ChatView struct {
 	Allowance            Allowance
 	Message, FeedbackKey string
 	RequestKey           string
+	Chats                []Chat
+	DraftKey             string
+	Bots                 []bot.Bot
 }
 
 func NewHandler(service *Service, bots *bot.Service, log *slog.Logger) *Handler {
@@ -34,18 +38,26 @@ func NewHandler(service *Service, bots *bot.Service, log *slog.Logger) *Handler 
 }
 
 func (h *Handler) Index(w http.ResponseWriter, r *http.Request) {
-	bots, err := h.bots.List(r.Context())
-	if err != nil {
-		h.failed(w, r, err)
-		return
-	}
-	chats, err := h.service.List(r.Context(), 0)
+	h.index(w, r, 200, "", "")
+}
+
+func (h *Handler) index(w http.ResponseWriter, r *http.Request, status int, message, key string) {
+	chats, err := h.service.SavedChats(r.Context())
 	if err != nil {
 		h.failed(w, r, err)
 		return
 	}
 	u, _ := auth.UserFromContext(r.Context())
-	h.render(w, r, 200, IndexPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), bots, chats))
+	bots, err := h.bots.List(r.Context())
+	if err != nil {
+		h.failed(w, r, err)
+		return
+	}
+	requestKey := r.PostForm.Get("request_key")
+	if requestKey == "" {
+		requestKey = "welcome:" + rand.Text()
+	}
+	h.render(w, r, status, IndexPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), chats, ChatView{Enabled: h.service.Enabled(), Message: message, FeedbackKey: key, DraftKey: strconv.FormatInt(u.ID, 10) + ":new", RequestKey: requestKey, Bots: bots}))
 }
 
 func (h *Handler) requestedBot(w http.ResponseWriter, r *http.Request) (bot.Bot, bool) {
@@ -110,12 +122,38 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := r.ParseForm(); err != nil || (b.ID != 0 && len(r.PostForm["title"]) != 1) {
-		h.list(w, r, b, 422, "", "builder.title.error")
+		if b.ID == 0 {
+			h.index(w, r, 422, "", "builder.message.error")
+		} else {
+			h.list(w, r, b, 422, "", "builder.title.error")
+		}
+		return
+	}
+	if len(r.PostForm["message"]) > 1 || len(r.PostForm["request_key"]) > 1 {
+		h.index(w, r, 422, "", "builder.message.error")
 		return
 	}
 	title := r.PostForm.Get("title")
 	if b.ID == 0 {
 		title = locale.T(r.Context(), "piko.chat.title")
+	}
+	if len(r.PostForm["message"]) == 1 {
+		if b.ID != 0 {
+			h.list(w, r, b, 422, title, "builder.message.error")
+			return
+		}
+		message := r.PostForm.Get("message")
+		chat, err := h.service.StartConversation(r.Context(), title, message, r.PostForm.Get("request_key"))
+		if err == nil {
+			http.Redirect(w, r, chat.URL(), http.StatusSeeOther)
+		} else if chat.ID != 0 {
+			h.sent(w, r, b, chat.ID, message, err)
+		} else if errors.Is(err, ErrMessage) {
+			h.index(w, r, 422, message, "builder.message.error")
+		} else {
+			h.failed(w, r, err)
+		}
+		return
 	}
 	chat, err := h.service.Create(r.Context(), b.ID, title)
 	if errors.Is(err, ErrTitle) {
@@ -206,7 +244,23 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request, b bot.Bot, id i
 	if requestKey == "" {
 		requestKey = strconv.FormatInt(id, 10) + ":" + strconv.FormatInt(history.LatestRun().ID, 10)
 	}
-	h.render(w, r, status, ChatPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, history, ChatView{Revision: revision, Enabled: h.service.Enabled(), Allowance: allowance, Message: message, FeedbackKey: key, RequestKey: requestKey}))
+	chats, err := h.service.SavedChats(r.Context())
+	if err != nil {
+		h.failed(w, r, err)
+		return
+	}
+	view := ChatView{Revision: revision, Enabled: h.service.Enabled(), Allowance: allowance, Message: message, FeedbackKey: key, RequestKey: requestKey, Chats: chats, DraftKey: strconv.FormatInt(u.ID, 10) + ":" + strconv.FormatInt(id, 10)}
+	view.Bots, err = h.bots.List(r.Context())
+	if err != nil {
+		h.failed(w, r, err)
+		return
+	}
+	csrf := request.CookieValue(r, auth.CSRFCookie)
+	if r.Header.Get("X-Piko-Studio") == "fragment" {
+		h.render(w, r, status, chatContent(csrf, b, history, view))
+		return
+	}
+	h.render(w, r, status, ChatPage(u.DisplayName, csrf, b, history, view))
 }
 
 func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {

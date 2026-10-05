@@ -9,10 +9,6 @@ import (
 	"github.com/pooya79/Piko/internal/web/request"
 )
 
-func (h *Handler) CreateForm(w http.ResponseWriter, r *http.Request) {
-	h.createPage(w, r, 200, "", "")
-}
-
 func (h *Handler) Rename(w http.ResponseWriter, r *http.Request) {
 	b, ok := h.requestedBot(w, r)
 	if !ok {

@@ -15,8 +15,8 @@ templ DeployControls(csrf string, b Bot) {
   }
   <form method="post" action={ templ.URL(b.URL()+"/deploy") }>
    <input type="hidden" name="csrf_token" value={ csrf }/>
-   <label class="piko-activation-confirm"><input type="checkbox" name="operate" value="yes" required disabled?={ b.BuilderBusy }/> { locale.T(ctx,"activate.confirm") }</label>
-   <button class="piko-primary-action piko-deploy-action" type="submit" disabled?={ b.BuilderBusy }>{ locale.T(ctx,"deploy.title") }</button>
+   <label class="piko-activation-confirm"><input id="deploy-operate" type="checkbox" name="operate" value="yes" required disabled?={ b.BuilderBusy }/> { locale.T(ctx,"activate.confirm") }</label>
+   <button id="deploy-submit" class="piko-primary-action piko-deploy-action" type="submit" disabled?={ b.BuilderBusy }>{ locale.T(ctx,"deploy.title") }</button>
   </form>
  </section>
 }
