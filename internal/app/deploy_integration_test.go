@@ -38,6 +38,23 @@ func TestDeployGuidesConnectionWithoutChangingDraftOrChats(t *testing.T) {
 // Keep all observations at App HTTP and the external Telegram/provider seams.
 func deployFixture(t *testing.T, provider http.HandlerFunc) (*App, *accountBrowser, *telegramFake) {
 	t.Helper()
+	a, b, f := generalDeployFixture(t, provider)
+	if got := b.post("/bots/new", url.Values{"name": {"ربات انتشار"}}); got.Code != 303 {
+		t.Fatal(got.Code)
+	}
+	for _, title := range []string{"گفتگوی اول", "گفتگوی دوم"} {
+		if got := b.post("/bots/1/chats", url.Values{"title": {title}}); got.Code != 303 {
+			t.Fatal(got.Code)
+		}
+	}
+	if got := b.post("/bots/1/connect", url.Values{"token": {testBotToken}}); got.Code != 303 {
+		t.Fatal(got.Code)
+	}
+	return a, b, f
+}
+
+func generalDeployFixture(t *testing.T, provider http.HandlerFunc) (*App, *accountBrowser, *telegramFake) {
+	t.Helper()
 	_, path := testsupport.MigratedSQLite(t, t.Context())
 	f := &telegramFake{}
 	api := httptest.NewServer(f)
@@ -56,17 +73,6 @@ func deployFixture(t *testing.T, provider http.HandlerFunc) (*App, *accountBrows
 	b := newAccountBrowser(t, a.server.Handler)
 	b.send("GET", "/register", nil)
 	if got := b.post("/register", registerValues("deploy-owner@example.test", "مینا", "OwnerPassword123")); got.Code != 303 {
-		t.Fatal(got.Code)
-	}
-	if got := b.post("/bots/new", url.Values{"name": {"ربات انتشار"}}); got.Code != 303 {
-		t.Fatal(got.Code)
-	}
-	for _, title := range []string{"گفتگوی اول", "گفتگوی دوم"} {
-		if got := b.post("/bots/1/chats", url.Values{"title": {title}}); got.Code != 303 {
-			t.Fatal(got.Code)
-		}
-	}
-	if got := b.post("/bots/1/connect", url.Values{"token": {testBotToken}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	return a, b, f
