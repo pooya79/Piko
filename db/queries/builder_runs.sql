@@ -104,3 +104,8 @@ AND EXISTS (SELECT 1 FROM builder_chats c
 -- name: ActiveOwnerPikoChat :one
 SELECT COUNT(*) FROM builder_runs
 WHERE owner_id=sqlc.arg(owner_id) AND chat_id=sqlc.arg(chat_id) AND status='running';
+
+-- name: GetOwnerActiveBuilderChat :one
+SELECT c.* FROM builder_chats c JOIN builder_runs r ON r.chat_id=c.id AND r.owner_id=c.owner_id AND r.bot_id IS c.bot_id
+WHERE c.owner_id=sqlc.arg(owner_id) AND c.bot_id=sqlc.arg(bot_id) AND r.status='running'
+ORDER BY r.id DESC LIMIT 1;

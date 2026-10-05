@@ -260,7 +260,7 @@ func TestPikoBuildStreamObservesConversionWithoutReadmission(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.StatusCode != 200 || !strings.Contains(string(body), `"succeeded"`) || calls.Load() != 3 {
+	if res.StatusCode != 200 || !strings.Contains(string(body), `"succeeded"`) || strings.Contains(string(body), "intent") || calls.Load() != 3 {
 		t.Fatal("stream lost conversion or replayed generation", string(body))
 	}
 }

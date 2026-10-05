@@ -14,11 +14,16 @@ func page(ctx context.Context, b bot.Bot) shell.Page {
 }
 
 templ IndexPage(displayName,csrf string,chats []Chat,view ChatView) {
- @shell.Workspace(displayName,csrf,shell.Page{Title:locale.T(ctx,"piko.chat.title"),ActiveNav:shell.BuilderNav},indexContent(csrf,chats,view))
+ @shell.Workspace(displayName,csrf,shell.Page{Title:locale.T(ctx,"piko.chat.title"),ActiveNav:shell.BuilderNav},indexDocument(csrf,chats,view))
+}
+
+templ indexDocument(csrf string,chats []Chat,view ChatView) {
+ <script src="/static/studio.js?v=studio2" defer></script>
+ <script src="/static/builder-status.js?v=studio2" defer></script>
+ @indexContent(csrf,chats,view)
 }
 
 templ indexContent(csrf string,chats []Chat,view ChatView) {
- <script src="/static/studio.js" defer></script>
  <section class="piko-studio" data-piko-studio data-chat-url="/builder" data-draft-key={ view.DraftKey }>
   <header class="piko-studio-heading"><div><span class="piko-small-label">@shell.Icon("sparkle")
  { locale.T(ctx,"piko.chat.title") }</span><h1>{ locale.T(ctx,"studio.welcome.title") }</h1></div><a class="piko-text-link" href="#saved-chats">{ locale.T(ctx,"studio.chats") }</a></header>
@@ -29,6 +34,7 @@ templ indexContent(csrf string,chats []Chat,view ChatView) {
     @savedBots(view.Bots)
 
    </div>
+   <p class="piko-field-error" role="status" data-studio-refresh-error hidden>{ locale.T(ctx,"studio.refresh.error") } <button type="button" data-studio-refresh class="piko-text-link">{ locale.T(ctx,"builder.refresh") }</button></p>
    @composer(csrf,"/chats",view,false)
   </div>
  </section>
@@ -61,7 +67,7 @@ templ composer(csrf,action string,view ChatView,running bool) {
   if !view.Enabled {
  <p id="builder-unavailable" class="piko-field-error">{ locale.T(ctx,"piko.chat.unavailable") }</p>
  }
-  <form method="post"
+  <form method="post" data-studio-form="message"
    if view.Enabled {
  action={ templ.URL(action) }
  }
@@ -129,6 +135,8 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
  <section class="piko-studio" data-piko-studio data-chat-url={ c.URL() } data-draft-key={ view.DraftKey }
   if latest.Status == RunRunning {
    data-builder-stream-url={ c.URL()+"/stream" } data-builder-run-id={ strconv.FormatInt(latest.ID,10) }
+  } else if view.ActiveRun.Status == RunRunning {
+   data-builder-stream-url={ view.ActiveChat.URL()+"/stream" } data-builder-run-id={ strconv.FormatInt(view.ActiveRun.ID,10) }
   }
  >
   <header class="piko-studio-heading">
@@ -181,6 +189,13 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
        }
       </ol>
      }
+     if latest.ID != 0 {
+      <p class="piko-helper" role="status" data-studio-outcome={ string(latest.Status) }>{ locale.T(ctx,latest.FeedbackKey()) }</p>
+     }
+     if view.ActiveRun.Status == RunRunning && view.ActiveChat.ID != c.ID {
+      <p class="piko-field-error" role="status" data-studio-busy>{ locale.T(ctx,"builder.busy") } <a id="studio-active-chat" class="piko-text-link" href={ templ.URL(view.ActiveChat.URL()) }><bdi dir="auto">{ view.ActiveChat.Title }</bdi></a></p>
+      @connectionFeedback()
+     }
      if latest.Status == RunRunning {
       <section class="piko-studio-progress" aria-label={ locale.T(ctx,"builder.stream.title") }>
        <span class="piko-small-label">@shell.Icon("sparkle")
@@ -188,11 +203,11 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
        <p class="piko-helper">{ locale.T(ctx,"builder.stream.provisional") }</p>
        <p role="status" aria-live="polite" data-builder-progress>{ locale.T(ctx,"builder.progress.model") }</p>
        <p class="piko-builder-text"><bdi dir="auto" data-builder-reply></bdi></p>
-       <p class="piko-helper" data-builder-connection data-reconnecting={ locale.T(ctx,"builder.stream.reconnecting") } data-unavailable={ locale.T(ctx,"builder.stream.unavailable") }></p>
-       <form method="post" action={ c.URL()+"/runs/"+strconv.FormatInt(latest.ID,10)+"/stop" }><input type="hidden" name="csrf_token" value={ csrf }/><button id="studio-stop" type="submit" class="piko-secondary-action">{ locale.T(ctx,"builder.stop") }</button></form>
+       @connectionFeedback()
+       <form method="post" data-studio-form="action" action={ c.URL()+"/runs/"+strconv.FormatInt(latest.ID,10)+"/stop" }><input type="hidden" name="csrf_token" value={ csrf }/><button id="studio-stop" type="submit" class="piko-secondary-action">{ locale.T(ctx,"builder.stop") }</button></form>
       </section>
      }
-     <p class="piko-field-error" role="status" data-studio-refresh-error hidden>{ locale.T(ctx,"studio.refresh.error") } <a class="piko-text-link" href={ templ.URL(c.URL()) }>{ locale.T(ctx,"builder.refresh") }</a></p>
+     <p class="piko-field-error" role="status" data-studio-refresh-error hidden>{ locale.T(ctx,"studio.refresh.error") } <button type="button" data-studio-refresh class="piko-text-link">{ locale.T(ctx,"builder.refresh") }</button></p>
  <details id="studio-run-details" class="piko-studio-run-details"><summary id="studio-runs-summary">{ locale.T(ctx,"builder.runs") }</summary>
  for _,run:=range history.Runs {
   <div class="piko-builder-run" data-run-id={ strconv.FormatInt(run.ID,10) } data-run-status={ string(run.Status) } data-run-result={ run.Result } data-before-revision={ strconv.FormatInt(run.BeforeRevision,10) }
@@ -209,7 +224,7 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
    if run.Result == "saved" {
     if run.CanUndo {
      <p class="piko-helper">{ locale.T(ctx,"builder.undo.copy") }</p>
-     <form method="post" action={ c.URL()+"/runs/"+strconv.FormatInt(run.ID,10)+"/undo" }>
+     <form method="post" data-studio-form="action" action={ c.URL()+"/runs/"+strconv.FormatInt(run.ID,10)+"/undo" }>
       <input type="hidden" name="csrf_token" value={ csrf }/>
       <button id={ "studio-undo-"+strconv.FormatInt(run.ID,10) } class="piko-secondary-action" type="submit">{ locale.T(ctx,"builder.undo") }</button>
      </form>
@@ -220,7 +235,7 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
    }
    if view.Enabled && run.ID == latest.ID && run.CanRetry {
     <p class="piko-helper">{ locale.T(ctx,"builder.retry.copy") }</p>
-    <form method="post" action={ c.URL()+"/runs/"+strconv.FormatInt(run.ID,10)+"/retry" }>
+    <form method="post" data-studio-form="action" action={ c.URL()+"/runs/"+strconv.FormatInt(run.ID,10)+"/retry" }>
      <input type="hidden" name="csrf_token" value={ csrf }/>
      <button id={ "studio-retry-"+strconv.FormatInt(run.ID,10) } class="piko-primary-action" type="submit">{ locale.T(ctx,"builder.retry") }</button>
     </form>
@@ -233,7 +248,7 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
  </details>
      @deleteChat(csrf,c)
     </div>
-    @composer(csrf,c.URL()+"/messages",view,latest.Status==RunRunning)
+    @composer(csrf,c.URL()+"/messages",view,latest.Status==RunRunning || view.ActiveRun.Status==RunRunning)
    </section>
    @studioPane(csrf,b,view)
   </div>
@@ -311,8 +326,8 @@ func chatDeleteKey(c Chat) string {
 }
 
 templ chatDocument(csrf string,b bot.Bot,history Conversation,view ChatView) {
- <script src="/static/studio.js" defer></script>
- <script src="/static/builder-status.js?v=studio1" defer></script>
+ <script src="/static/studio.js?v=studio2" defer></script>
+ <script src="/static/builder-status.js?v=studio2" defer></script>
  @chatContent(csrf,b,history,view)
 }
 
@@ -324,4 +339,8 @@ templ savedBots(bots []bot.Bot) {
    }
   </nav>
  }
+}
+
+templ connectionFeedback() {
+ <p class="piko-helper" data-builder-connection data-reconnecting={ locale.T(ctx,"builder.stream.reconnecting") } data-unavailable={ locale.T(ctx,"builder.stream.unavailable") }></p>
 }

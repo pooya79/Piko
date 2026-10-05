@@ -55,15 +55,10 @@ async page => {
   };
   await completeWithFocus('#studio-runs-summary', '#studio-run-details');
   await completeWithFocus('#studio-chat-picker', '#studio-chat-selector');
+  await page.keyboard.press('Escape');
   await completeWithFocus('#studio-stop');
   await page.setViewportSize({ width: 390, height: 844 });
-  const refresh = async () => {
-    await page.evaluate(() => {
-      document.querySelector('[data-piko-studio]').dataset.refreshProbe = 'pending';
-      document.dispatchEvent(new Event('piko:run-complete'));
-    });
-    await page.waitForFunction(() => !document.querySelector('[data-piko-studio]').dataset.refreshProbe);
-  };
+  const refresh = () => page.evaluate(() => window.pikoStudio.refresh());
   const history = page.locator('.piko-studio-scroll');
   check(await history.evaluate(el => el.scrollHeight > el.clientHeight + 50), 'fixture needs scrollable history');
   await history.evaluate(el => { el.scrollTop = 50; });

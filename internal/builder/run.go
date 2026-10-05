@@ -443,6 +443,8 @@ func (s *Service) execute(work context.Context, run admittedRun) {
 		return
 	}
 	generate := func() (*ai.ModelResponse, error) {
+		var generalText string
+		generalVisible := false
 		parallelTools := false
 		return genkit.Generate(ctx, s.genkit,
 			ai.WithModel(openrouter.ModelRef(s.config.Model, nil)),
@@ -451,10 +453,20 @@ func (s *Service) execute(work context.Context, run admittedRun) {
 			ai.WithTools(tools...), ai.WithUse(ai.MiddlewareFunc(s.sequentialDraftTools)),
 			ai.WithStreaming(func(_ context.Context, chunk *ai.ModelResponseChunk) error {
 				// Text only: never expose reasoning, tool arguments, Draft JSON or outputs.
-				if run.botID == 0 && candidate == nil {
-					return nil
+				text := chunk.Text()
+				if run.botID == 0 && candidate == nil && !generalVisible {
+					// Buffer possible routing prefixes so fragmented decisions stay private.
+					generalText += text
+					if len(generalText) > 128<<10 {
+						return ErrMessage
+					}
+					if isBuildRoutingPrefix(generalText) {
+						return nil
+					}
+					generalVisible = true
+					text, generalText = generalText, ""
 				}
-				return s.display(run.id, chunk.Text(), "")
+				return s.display(run.id, text, "")
 			}),
 			ai.WithMaxTurns(int(s.config.MaxCalls)+1))
 	}
@@ -732,4 +744,21 @@ func buildIntent(text string) bool {
 		return false
 	}
 	return len(decision) == 1 && decision["intent"] == "build"
+}
+
+// Keep only prefixes that could still be the private, single-field decision.
+// Decoder tokens handle whitespace and escaped keys without hiding other JSON
+// or prose that happens to start with a brace.
+func isBuildRoutingPrefix(text string) bool {
+	decoder := json.NewDecoder(strings.NewReader(text))
+	for _, expected := range []any{json.Delim('{'), "intent", "build", json.Delim('}')} {
+		token, err := decoder.Token()
+		if err != nil {
+			return errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF)
+		}
+		if token != expected {
+			return false
+		}
+	}
+	return strings.TrimSpace(text[decoder.InputOffset():]) == ""
 }

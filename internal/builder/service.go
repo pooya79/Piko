@@ -153,6 +153,22 @@ func (s *Service) ResolveChat(ctx context.Context, chatID int64) (Chat, error) {
 	return chatFromRow(row), storageError(err)
 }
 
+// ActiveChat identifies the owner's shared Bot fence without exposing other owners.
+func (s *Service) ActiveChat(ctx context.Context, botID int64) (Chat, error) {
+	ownerID, err := owner(ctx)
+	if err != nil {
+		return Chat{}, err
+	}
+	if _, err := s.bots.Get(ctx, botID); err != nil {
+		return Chat{}, err
+	}
+	row, err := s.repo.q.GetOwnerActiveBuilderChat(ctx, dbgen.GetOwnerActiveBuilderChatParams{OwnerID: ownerID, BotID: sql.NullInt64{Int64: botID, Valid: true}})
+	if errors.Is(err, sql.ErrNoRows) {
+		return Chat{}, nil
+	}
+	return chatFromRow(row), storageError(err)
+}
+
 func (s *Service) Create(ctx context.Context, botID int64, title string) (Chat, error) {
 	ownerID, err := owner(ctx)
 	if err != nil {

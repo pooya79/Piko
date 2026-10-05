@@ -8,24 +8,30 @@
     const reply = document.querySelector('[data-builder-reply]');
     const connection = document.querySelector('[data-builder-connection]');
     if (!window.EventSource) {
-      connection.textContent = connection.dataset.unavailable;
+      if (connection) connection.textContent = connection.dataset.unavailable;
       return;
     }
-    stream = new EventSource(marker.dataset.builderStreamUrl);
-    stream.addEventListener('snapshot', event => {
+    const source = new EventSource(marker.dataset.builderStreamUrl);
+    stream = source;
+    source.addEventListener('snapshot', event => {
+      if (!marker.isConnected || stream !== source) return;
       const run = JSON.parse(event.data);
-      connection.textContent = '';
+      if (connection) connection.textContent = '';
       if (String(run.id) !== marker.dataset.builderRunId || run.status !== 'running') {
-        stream.close();
+        source.close();
         document.dispatchEvent(new Event('piko:run-complete'));
         return;
       }
+      const history = marker.querySelector('.piko-studio-scroll');
+      const follow = history?.getClientRects().length && history.scrollHeight - history.clientHeight - history.scrollTop < 40;
       // Provisional text is plain text, never HTML or committed Draft feedback.
-      reply.textContent = run.text;
-      progress.textContent = run.progress;
+      if (reply) reply.textContent = run.text;
+      if (progress) progress.textContent = run.progress;
+      if (follow) history.scrollTop = history.scrollHeight;
     });
-    stream.addEventListener('error', () => {
-      connection.textContent = stream.readyState === EventSource.CLOSED
+    source.addEventListener('error', () => {
+      if (!marker.isConnected || stream !== source) return;
+      if (connection) connection.textContent = source.readyState === EventSource.CLOSED
         ? connection.dataset.unavailable : connection.dataset.reconnecting;
     });
   }

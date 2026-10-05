@@ -275,6 +275,32 @@ func (q *Queries) GetLatestOwnerBuilderRunStatus(ctx context.Context, arg GetLat
 	return i, err
 }
 
+const getOwnerActiveBuilderChat = `-- name: GetOwnerActiveBuilderChat :one
+SELECT c.id, c.owner_id, c.bot_id, c.title, c.created_at, c.updated_at, c.start_key FROM builder_chats c JOIN builder_runs r ON r.chat_id=c.id AND r.owner_id=c.owner_id AND r.bot_id IS c.bot_id
+WHERE c.owner_id=?1 AND c.bot_id=?2 AND r.status='running'
+ORDER BY r.id DESC LIMIT 1
+`
+
+type GetOwnerActiveBuilderChatParams struct {
+	OwnerID int64
+	BotID   sql.NullInt64
+}
+
+func (q *Queries) GetOwnerActiveBuilderChat(ctx context.Context, arg GetOwnerActiveBuilderChatParams) (BuilderChat, error) {
+	row := q.db.QueryRowContext(ctx, getOwnerActiveBuilderChat, arg.OwnerID, arg.BotID)
+	var i BuilderChat
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.BotID,
+		&i.Title,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.StartKey,
+	)
+	return i, err
+}
+
 const getOwnerBuilderRun = `-- name: GetOwnerBuilderRun :one
 SELECT r.id, r.owner_id, r.bot_id, r.chat_id, r.day, r.model, r.draft_revision, r.status, r.created_at, r.lease_until, r.finished_at, r.model_calls, r.request_sequence, r.result, r.before_definition, r.after_definition, r.after_revision, r.request_key FROM builder_runs r JOIN builder_chats c ON c.id=r.chat_id AND c.bot_id IS r.bot_id
 WHERE r.id=?1 AND r.owner_id=?2 AND c.owner_id=?2

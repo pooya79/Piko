@@ -31,6 +31,8 @@ type ChatView struct {
 	Chats                []Chat
 	DraftKey             string
 	Bots                 []bot.Bot
+	ActiveChat           Chat
+	ActiveRun            Run
 }
 
 func NewHandler(service *Service, bots *bot.Service, log *slog.Logger) *Handler {
@@ -57,7 +59,13 @@ func (h *Handler) index(w http.ResponseWriter, r *http.Request, status int, mess
 	if requestKey == "" {
 		requestKey = "welcome:" + rand.Text()
 	}
-	h.render(w, r, status, IndexPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), chats, ChatView{Enabled: h.service.Enabled(), Message: message, FeedbackKey: key, DraftKey: strconv.FormatInt(u.ID, 10) + ":new", RequestKey: requestKey, Bots: bots}))
+	view := ChatView{Enabled: h.service.Enabled(), Message: message, FeedbackKey: key, DraftKey: strconv.FormatInt(u.ID, 10) + ":new", RequestKey: requestKey, Bots: bots}
+	csrf := request.CookieValue(r, auth.CSRFCookie)
+	if r.Header.Get("X-Piko-Studio") == "fragment" {
+		h.render(w, r, status, indexContent(csrf, chats, view))
+		return
+	}
+	h.render(w, r, status, IndexPage(u.DisplayName, csrf, chats, view))
 }
 
 func (h *Handler) requestedBot(w http.ResponseWriter, r *http.Request) (bot.Bot, bool) {
@@ -145,7 +153,11 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		message := r.PostForm.Get("message")
 		chat, err := h.service.StartConversation(r.Context(), title, message, r.PostForm.Get("request_key"))
 		if err == nil {
-			http.Redirect(w, r, chat.URL(), http.StatusSeeOther)
+			if r.Header.Get("X-Piko-Studio") == "fragment" {
+				h.sent(w, r, b, chat.ID, message, nil)
+			} else {
+				http.Redirect(w, r, chat.URL(), http.StatusSeeOther)
+			}
 		} else if chat.ID != 0 {
 			h.sent(w, r, b, chat.ID, message, err)
 		} else if errors.Is(err, ErrMessage) {
@@ -241,6 +253,9 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request, b bot.Bot, id i
 		return
 	}
 	requestKey := r.PostForm.Get("request_key")
+	if status == http.StatusOK {
+		requestKey = ""
+	}
 	if requestKey == "" {
 		requestKey = strconv.FormatInt(id, 10) + ":" + strconv.FormatInt(history.LatestRun().ID, 10)
 	}
@@ -250,6 +265,20 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request, b bot.Bot, id i
 		return
 	}
 	view := ChatView{Revision: revision, Enabled: h.service.Enabled(), Allowance: allowance, Message: message, FeedbackKey: key, RequestKey: requestKey, Chats: chats, DraftKey: strconv.FormatInt(u.ID, 10) + ":" + strconv.FormatInt(id, 10)}
+	if b.ID != 0 {
+		view.ActiveChat, err = h.service.ActiveChat(r.Context(), b.ID)
+		if err != nil {
+			h.failed(w, r, err)
+			return
+		}
+		if view.ActiveChat.ID != 0 {
+			view.ActiveRun, err = h.service.Status(r.Context(), b.ID, view.ActiveChat.ID)
+			if err != nil {
+				h.failed(w, r, err)
+				return
+			}
+		}
+	}
 	view.Bots, err = h.bots.List(r.Context())
 	if err != nil {
 		h.failed(w, r, err)
@@ -319,7 +348,7 @@ func (h *Handler) Stop(w http.ResponseWriter, r *http.Request) {
 		h.failed(w, r, err)
 		return
 	}
-	http.Redirect(w, r, (Chat{BotID: b.ID, ID: id}).URL(), http.StatusSeeOther)
+	h.updated(w, r, b, id)
 }
 
 func (h *Handler) Undo(w http.ResponseWriter, r *http.Request) {
@@ -344,7 +373,7 @@ func (h *Handler) Undo(w http.ResponseWriter, r *http.Request) {
 		h.failed(w, r, err)
 		return
 	}
-	http.Redirect(w, r, (Chat{BotID: b.ID, ID: id}).URL(), http.StatusSeeOther)
+	h.updated(w, r, b, id)
 }
 
 func (h *Handler) sent(w http.ResponseWriter, r *http.Request, b bot.Bot, id int64, message string, err error) {
@@ -370,8 +399,18 @@ func (h *Handler) sent(w http.ResponseWriter, r *http.Request, b bot.Bot, id int
 	case err != nil:
 		h.failed(w, r, err)
 	default:
-		http.Redirect(w, r, (Chat{BotID: b.ID, ID: id}).URL(), http.StatusSeeOther)
+		w.Header().Set("X-Piko-Accepted", "true")
+		h.updated(w, r, b, id)
 	}
+}
+
+// Enhanced forms share the same authorized committed view as ordinary GETs.
+func (h *Handler) updated(w http.ResponseWriter, r *http.Request, b bot.Bot, id int64) {
+	if r.Header.Get("X-Piko-Studio") == "fragment" {
+		h.detail(w, r, b, id, http.StatusOK, "", "")
+		return
+	}
+	http.Redirect(w, r, (Chat{BotID: b.ID, ID: id}).URL(), http.StatusSeeOther)
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {

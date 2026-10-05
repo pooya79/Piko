@@ -1,8 +1,8 @@
 (() => {
   const root = () => document.querySelector('[data-piko-studio]');
   const key = () => 'piko-composer:' + root().dataset.draftKey;
-  let submitted = false;
   let refreshing = false;
+  let renderedSignature = root()?.outerHTML;
   const reading = {};
   function captureReading(studio) {
     for (const selector of ['.piko-studio-scroll', '.piko-studio-pane']) {
@@ -21,7 +21,7 @@
   }
   function saveDraft() {
     const composer = document.getElementById('builder-message');
-    if (!composer || submitted) return;
+    if (!composer) return;
     try { sessionStorage.setItem(key(), composer.value); } catch (_) { /* Editing works without storage. */ }
   }
   function enhance(restore = false) {
@@ -40,52 +40,126 @@
       } catch (_) { /* A blocked storage API does not affect the composer. */ }
     }
   }
-  async function refreshStudio() {
-    const studio = root();
-    if (!studio || refreshing) return;
-    refreshing = true;
-    try {
-      const response = await fetch(studio.dataset.chatUrl, {
-        headers: { 'X-Piko-Studio': 'fragment' }, cache: 'no-store',
-      });
-      if (!response.ok) throw new Error('studio unavailable');
-      const next = new DOMParser().parseFromString(await response.text(), 'text/html').querySelector('[data-piko-studio]');
-      if (!next) throw new Error('studio unavailable');
-      // Read editing state after the request: typing may continue while it is in flight.
-      const composer = document.getElementById('builder-message');
-      captureReading(studio);
-      const focused = document.activeElement;
-      const state = {
-        text: composer.value, start: composer.selectionStart, end: composer.selectionEnd,
-        focusID: focused.id, focusInStudio: studio.contains(focused),
-        view: studio.dataset.view,
-        details: Object.fromEntries([...studio.querySelectorAll('details[id]')].map(detail => [detail.id, detail.open])),
-      };
-      studio.replaceWith(next);
-      next.dataset.view = state.view;
-      enhance();
-      const input = document.getElementById('builder-message');
-      input.value = state.text;
-      input.setSelectionRange(state.start, state.end);
-      next.querySelectorAll('details[id]').forEach(detail => { detail.open = state.details[detail.id] || false; });
-      let focus = state.focusID ? document.getElementById(state.focusID) : null;
-      if (state.focusInStudio && (!focus || focus.disabled)) {
-        focus = state.view === 'pane' ? next.querySelector('#studio-pane') : input;
-      }
-      focus?.focus({ preventScroll: true });
-      restoreReading(next);
-      // The same chat may have become a Bot's Builder chat while work completed.
-      history.replaceState(null, '', next.dataset.chatUrl);
-      saveDraft();
-      document.dispatchEvent(new Event('piko:studio-updated'));
-    } catch (_) {
-      const feedback = studio.querySelector('[data-studio-refresh-error]');
+  // Pane slices register their own state at the same committed refresh boundary.
+  const paneStates = new Map();
+  window.pikoStudio = {
+    registerPaneState(name, adapter) {
+      paneStates.set(name, adapter);
+      return () => { if (paneStates.get(name) === adapter) paneStates.delete(name); };
+    },
+    refresh: () => refreshStudio(),
+  };
+  let queue = Promise.resolve();
+  let composing = false;
+  const compositionWaiters = [];
+  function waitForComposition() {
+    return composing ? new Promise(resolve => compositionWaiters.push(resolve)) : Promise.resolve();
+  }
+  let posting = false;
+  function enqueue(work) {
+    queue = queue.then(work).catch(() => {
+      const feedback = root()?.querySelector('[data-studio-refresh-error]');
       if (feedback) feedback.hidden = false;
-    } finally {
-      refreshing = false;
+    });
+    return queue;
+  }
+  async function readFragment(response) {
+    // Error fragments carry validation/conflict feedback; an auth/error document
+    // cannot replace the studio or cause an automatic repeat of a POST.
+    const next = new DOMParser().parseFromString(await response.text(), 'text/html').querySelector('[data-piko-studio]');
+    if (!next) throw new Error('studio unavailable');
+    return next;
+  }
+  function applyFragment(next, acceptedMessage) {
+    const studio = root();
+    const signature = next.outerHTML;
+    const oldKey = key();
+    const composer = document.getElementById('builder-message');
+    captureReading(studio);
+    const focused = document.activeElement;
+    const state = {
+      text: composer.value, start: composer.selectionStart, end: composer.selectionEnd,
+      direction: composer.selectionDirection, scroll: composer.scrollTop,
+      focusID: focused.id, focusInStudio: studio.contains(focused),
+      view: studio.dataset.view || 'conversation',
+      details: Object.fromEntries([...studio.querySelectorAll('details[id]')].map(detail => [detail.id, detail.open])),
+    };
+    const paneSnapshots = [...paneStates].map(([name, adapter]) => [name, adapter.capture(studio)]);
+    // Only clear the admitted text. A follow-up typed during the request survives.
+    if (acceptedMessage !== undefined && state.text === acceptedMessage) {
+      state.text = ''; state.start = state.end = 0;
     }
+    studio.replaceWith(next);
+    next.dataset.view = state.view;
+    enhance();
+    const input = document.getElementById('builder-message');
+    input.value = state.text;
+    input.setSelectionRange(state.start, state.end, state.direction);
+    input.scrollTop = state.scroll;
+    next.querySelectorAll('details[id]').forEach(detail => { detail.open = state.details[detail.id] || false; });
+    for (const [name, snapshot] of paneSnapshots) paneStates.get(name)?.restore(next, snapshot);
+    let focus = state.focusID ? document.getElementById(state.focusID) : null;
+    if (state.focusInStudio && (!focus || focus.disabled)) {
+      focus = state.view === 'pane' ? next.querySelector('#studio-pane') : input;
+    }
+    focus?.focus({ preventScroll: true });
+    restoreReading(next);
+    // The conversation may now identify a newly committed Bot.
+    history.replaceState(history.state, '', next.dataset.chatUrl);
+    try { if (oldKey !== key()) sessionStorage.removeItem(oldKey); } catch (_) { /* Optional persistence. */ }
+    saveDraft();
+    renderedSignature = signature;
+    document.dispatchEvent(new CustomEvent('piko:studio-updated', { detail: { studio: next } }));
+  }
+  function refreshStudio() {
+    if (!root() || refreshing) return queue;
+    refreshing = true;
+    return enqueue(async () => {
+      try {
+        await waitForComposition();
+        const response = await fetch(root().dataset.chatUrl, {
+          headers: { 'X-Piko-Studio': 'fragment' }, cache: 'no-store', mode: 'same-origin', signal: AbortSignal.timeout(10000),
+        });
+        if (!response.ok) throw new Error('studio unavailable');
+        const next = await readFragment(response);
+        await waitForComposition();
+        if (next.outerHTML !== renderedSignature) applyFragment(next);
+        else {
+          const feedback = root().querySelector('[data-studio-refresh-error]');
+          if (feedback) feedback.hidden = true;
+        }
+      } finally { refreshing = false; }
+    });
+  }
+  async function submitForm(form) {
+    if (posting) return;
+    posting = true;
+    const body = new URLSearchParams(new FormData(form));
+    const message = form.dataset.studioForm === 'message' ? body.get('message') : undefined;
+    const button = form.querySelector('button[type="submit"]');
+    // Keep focus on an action while its request is pending. Disabling a focused
+    // native button moves focus to body before the refresh can capture it.
+    button.setAttribute('aria-disabled', 'true');
+    form.setAttribute('aria-busy', 'true');
+    await enqueue(async () => {
+      try {
+        const response = await fetch(form.action, {
+          method: 'POST', body, headers: { 'X-Piko-Studio': 'fragment' },
+          cache: 'no-store', mode: 'same-origin', signal: AbortSignal.timeout(10000),
+        });
+        const next = await readFragment(response);
+        // Preserve an active composition until its text is committed by the IME.
+        await waitForComposition();
+        applyFragment(next, response.headers.get('X-Piko-Accepted') === 'true' ? message : undefined);
+      } finally {
+        posting = false;
+        button.removeAttribute('aria-disabled');
+        form.removeAttribute('aria-busy');
+      }
+    });
   }
   document.addEventListener('click', event => {
+    if (event.target.closest('[data-studio-refresh]')) { refreshStudio(); return; }
     const switcher = event.target.closest('[data-studio-view]');
     if (switcher) {
       const studio = root();
@@ -121,22 +195,33 @@
     form.requestSubmit();
   });
   document.addEventListener('submit', event => {
-    if (!event.target.querySelector('#builder-message')) return;
-    if (!event.target.hasAttribute('action')) { event.preventDefault(); return; }
-    submitted = true;
-    try { sessionStorage.removeItem(key()); } catch (_) { /* Optional persistence. */ }
-    // Prevent a double click from creating two conversations from the welcome.
-    event.target.querySelector('button[type="submit"]').disabled = true;
+    const form = event.target;
+    if (!form.matches('[data-studio-form]')) return;
+    event.preventDefault();
+    if (form.hasAttribute('action')) submitForm(form);
+  });
+  document.addEventListener('compositionstart', () => { composing = true; });
+  document.addEventListener('compositionend', () => {
+    composing = false;
+    for (const resolve of compositionWaiters.splice(0)) resolve();
   });
   document.addEventListener('input', event => {
-    if (event.target.id === 'builder-message') { submitted = false; saveDraft(); }
+    if (event.target.id === 'builder-message') { saveDraft(); }
   });
   document.addEventListener('piko:run-complete', refreshStudio);
   window.addEventListener('pagehide', saveDraft);
   window.addEventListener('pageshow', () => {
-    submitted = false;
     const button = root()?.querySelector('[data-can-send]');
     if (button) button.disabled = button.dataset.canSend !== 'true';
+    if (root()?.dataset.chatUrl !== '/builder') refreshStudio();
   });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && root()?.dataset.chatUrl !== '/builder') refreshStudio();
+  });
+  // Read-only reconciliation covers lost SSE, unavailable EventSource, and work
+  // admitted in another browser/chat. It never submits or retries a request.
+  setInterval(() => {
+    if (!document.hidden && !posting && root()?.dataset.chatUrl !== '/builder') refreshStudio();
+  }, 5000);
   enhance(true);
 })();

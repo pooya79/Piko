@@ -75,7 +75,7 @@ func (s *Service) snapshot(ctx context.Context, botID, chatID int64) (displaySna
 }
 
 // Stream is read-only. Reconnect sends a full current display snapshot instead
-// of replaying deltas or admitting work; terminal history is restored on reload.
+// of replaying deltas or admitting work; authorized fragments restore terminal history.
 func (h *Handler) Stream(w http.ResponseWriter, r *http.Request) {
 	b, ok := h.requestedBot(w, r)
 	if !ok {
