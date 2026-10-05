@@ -119,6 +119,10 @@ Apply forward migration `000005_bot_drafts` before starting the updated server. 
 
 ## Supported Piko journey evidence (#37)
 
+The [integrated studio acceptance report (#48)](docs/verification/piko-studio-acceptance.md)
+records the complete local HTTP/browser pass, visual inspection, reproducible
+confirmation journey and the remaining controlled-live setup limit.
+
 Deterministic application HTTP verification covers Piko creation and maintenance of all three Templates. `internal/app/piko_journey_integration_test.go` uses migrated temporary SQLite files, the real Genkit/OpenRouter adapter, and scripted external model/Telegram HTTP servers. It covers:
 
 - Inquiry, Registration, and Booking request creation in the original conversation; follow-up Question additions, edits, removals and reordering; saved Draft inspection; old Preview snapshot isolation; fresh Preview review, answer editing and confirmation; eligible Undo without publication or model calls.

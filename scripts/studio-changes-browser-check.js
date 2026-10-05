@@ -110,11 +110,9 @@ async page => {
     await page.locator('#studio-tab-changes').click();
     for (const mode of ['light', 'dark', 'system']) {
       await page.emulateMedia({ colorScheme: mode === 'light' ? 'light' : 'dark', reducedMotion: 'reduce' });
-      await page.evaluate(mode => {
-        localStorage.setItem('piko-theme', mode);
-        document.documentElement.dataset.theme = mode === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'piko-dark' : 'piko-light') : 'piko-' + mode;
-      }, mode);
+      await page.locator(`[data-theme-choice="${mode}"]`).click();
       await refresh();
+      check(await page.locator('html').getAttribute('data-theme') === `piko-${mode === 'system' ? 'dark' : mode}`, 'Changes screenshot has the wrong theme');
       check(await changes().isVisible(), 'refresh lost mobile Changes pane');
       check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Changes overflows the document');
       await page.locator('#studio-pane').evaluate(el => { el.scrollTop = 0; });

@@ -1,6 +1,6 @@
 // Run against TestSubmissionBrowserFixture with PIKO_SUBMISSION_BROWSER_ADDR.
 async page => {
-  const origin = new URL(page.url()).origin;
+  const origin = page.url().match(/^https?:\/\/[^/]+/)[0];
   const check = (ok, message) => { if (!ok) throw new Error(message); };
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));

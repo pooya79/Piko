@@ -8,6 +8,7 @@ async page => {
  await page.locator('[data-builder-reply]').filter({hasText:'متن موقت'}).waitFor();
  const calls=(await (await page.request.get('http://127.0.0.1:18089/call-count')).json()).calls;
  await page.locator('#builder-message').fill('پیام من در زمان راه اندازی دوباره');
+ if(await page.locator('#builder-message').inputValue()!=='پیام من در زمان راه اندازی دوباره') throw new Error('restart fixture did not enter the complete unsent message');
  await page.evaluate(calls=>{sessionStorage.setItem('studio-interruption-calls',String(calls));window.interruptionProbe='intact';},calls);
  return { readyForRestart:true, chat:page.url(), calls };
 }

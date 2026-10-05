@@ -96,7 +96,8 @@ async page => {
   await page.locator(`.piko-studio-saved a[href="${botChat}"]`).click();
   await page.waitForURL(origin + botChat);
   check(await page.locator(`#studio-pane a[href="${botPath}/draft"]`).count() === 1, 'manual configuration missing');
-  check(await page.locator(`#studio-pane a[href="${botPath}/preview"]`).count() === 1, 'standalone Preview missing');
+  check(await page.locator(`[data-studio-preview] form[action="${botPath}/preview"] button`).count() === 1, 'embedded Preview launch missing');
+  check((await page.request.get(origin + botPath + '/preview')).ok(), 'standalone Preview unavailable');
   await completeWithFocus('#studio-preview');
 
   const results = [];
