@@ -410,7 +410,7 @@ func ConnectPage(displayName, csrf, message string, invalid bool) templ.Componen
 			templ_7745c5c3_Var20 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = shell.Workspace(displayName, csrf, shell.Page{Title: locale.T(ctx, "bot.connect.title"), ActiveNav: shell.BotsNav, Breadcrumbs: []shell.Breadcrumb{{Label: locale.T(ctx, "workspace.bots"), URL: "/bots"}, {Label: locale.T(ctx, "bot.connect.title")}}}, connectContent(csrf, message, invalid, "/bots/connect", "bot.connect.copy", "")).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = shell.Workspace(displayName, csrf, shell.Page{Title: locale.T(ctx, "bot.connect.title"), ActiveNav: shell.BotsNav, Breadcrumbs: []shell.Breadcrumb{{Label: locale.T(ctx, "workspace.bots"), URL: "/bots"}, {Label: locale.T(ctx, "bot.connect.title")}}}, connectContent(csrf, message, invalid, "/bots/connect", "bot.connect.copy", "", "bot.connect.title", "bot.connect.submit")).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -485,7 +485,7 @@ func existingConnectContent(csrf string, bot Bot, message string, invalid bool, 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = connectContent(csrf, message, invalid, bot.URL()+"/connect", "bot.connect.existing.copy", existingURL).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = connectContent(csrf, message, invalid, bot.URL()+"/connect", "bot.connect.existing.copy", existingURL, "bot.connect.title", "bot.connect.submit").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -523,7 +523,7 @@ func existingConnectContent(csrf string, bot Bot, message string, invalid bool, 
 	})
 }
 
-func connectContent(csrf, message string, invalid bool, action, copyKey, existingURL string) templ.Component {
+func connectContent(csrf, message string, invalid bool, action, copyKey, existingURL, titleKey, submitKey string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -549,9 +549,9 @@ func connectContent(csrf, message string, invalid bool, action, copyKey, existin
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var27 string
-		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "bot.connect.title"))
+		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, titleKey))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 56, Col: 65}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 56, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 		if templ_7745c5c3_Err != nil {
@@ -564,7 +564,7 @@ func connectContent(csrf, message string, invalid bool, action, copyKey, existin
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, copyKey))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 56, Col: 122}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 56, Col: 111}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 		if templ_7745c5c3_Err != nil {
@@ -604,14 +604,14 @@ func connectContent(csrf, message string, invalid bool, action, copyKey, existin
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, " <a class=\"piko-text-link\" href=\"https://t.me/BotFather\" rel=\"noreferrer\"><bdi dir=\"ltr\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, " <a class=\"piko-text-link\" href=\"https://t.me/BotFather\" target=\"_blank\" rel=\"noopener noreferrer\"><bdi dir=\"ltr\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var31 string
 		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs("@BotFather")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 58, Col: 355}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 58, Col: 380}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 		if templ_7745c5c3_Err != nil {
@@ -624,7 +624,7 @@ func connectContent(csrf, message string, invalid bool, action, copyKey, existin
 		var templ_7745c5c3_Var32 string
 		templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "bot.guide.new"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 58, Col: 408}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 58, Col: 433}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 		if templ_7745c5c3_Err != nil {
@@ -637,7 +637,7 @@ func connectContent(csrf, message string, invalid bool, action, copyKey, existin
 		var templ_7745c5c3_Var33 string
 		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "bot.guide.existing"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 58, Col: 485}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 58, Col: 510}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 		if templ_7745c5c3_Err != nil {
@@ -650,7 +650,7 @@ func connectContent(csrf, message string, invalid bool, action, copyKey, existin
 		var templ_7745c5c3_Var34 string
 		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "bot.guide.copy"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 58, Col: 572}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 58, Col: 597}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 		if templ_7745c5c3_Err != nil {
@@ -663,7 +663,7 @@ func connectContent(csrf, message string, invalid bool, action, copyKey, existin
 		var templ_7745c5c3_Var35 string
 		templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "bot.guide.secret"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 58, Col: 642}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 58, Col: 667}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 		if templ_7745c5c3_Err != nil {
@@ -840,9 +840,9 @@ func connectContent(csrf, message string, invalid bool, action, copyKey, existin
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var45 string
-		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "bot.connect.submit"))
+		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, submitKey))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 76, Col: 203}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 76, Col: 192}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 		if templ_7745c5c3_Err != nil {
@@ -855,7 +855,7 @@ func connectContent(csrf, message string, invalid bool, action, copyKey, existin
 		var templ_7745c5c3_Var46 string
 		templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "bot.connect.readonly"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 76, Col: 283}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/views.templ`, Line: 76, Col: 272}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 		if templ_7745c5c3_Err != nil {

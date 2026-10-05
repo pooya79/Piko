@@ -39,7 +39,7 @@ templ Cards(bots []Bot) {
 }
 
 templ ConnectPage(displayName, csrf, message string, invalid bool) {
- @shell.Workspace(displayName, csrf, shell.Page{Title: locale.T(ctx, "bot.connect.title"), ActiveNav: shell.BotsNav, Breadcrumbs: []shell.Breadcrumb{{Label: locale.T(ctx, "workspace.bots"), URL: "/bots"}, {Label: locale.T(ctx, "bot.connect.title")}}}, connectContent(csrf, message, invalid, "/bots/connect", "bot.connect.copy", ""))
+ @shell.Workspace(displayName, csrf, shell.Page{Title: locale.T(ctx, "bot.connect.title"), ActiveNav: shell.BotsNav, Breadcrumbs: []shell.Breadcrumb{{Label: locale.T(ctx, "workspace.bots"), URL: "/bots"}, {Label: locale.T(ctx, "bot.connect.title")}}}, connectContent(csrf, message, invalid, "/bots/connect", "bot.connect.copy", "", "bot.connect.title", "bot.connect.submit"))
 }
 
 templ ConnectExistingPage(displayName, csrf string, bot Bot, message string, invalid bool, existingURL string) {
@@ -48,14 +48,14 @@ templ ConnectExistingPage(displayName, csrf string, bot Bot, message string, inv
 
 templ existingConnectContent(csrf string, bot Bot, message string, invalid bool, existingURL string) {
  <p class="piko-page-copy"><bdi dir="auto">{ bot.Name }</bdi></p>
- @connectContent(csrf, message, invalid, bot.URL()+"/connect", "bot.connect.existing.copy", existingURL)
+ @connectContent(csrf, message, invalid, bot.URL()+"/connect", "bot.connect.existing.copy", existingURL, "bot.connect.title", "bot.connect.submit")
  <p class="piko-page-copy"><a class="piko-text-link" href={ templ.URL(bot.URL()+"/studio") }>{ locale.T(ctx,"bot.overview.change") }</a></p>
 }
 
-templ connectContent(csrf, message string, invalid bool, action, copyKey, existingURL string) {
- <h1 class="piko-page-title">{ locale.T(ctx, "bot.connect.title") }</h1><p class="piko-page-copy">{ locale.T(ctx, copyKey) }</p>
+templ connectContent(csrf, message string, invalid bool, action, copyKey, existingURL, titleKey, submitKey string) {
+ <h1 class="piko-page-title">{ locale.T(ctx, titleKey) }</h1><p class="piko-page-copy">{ locale.T(ctx, copyKey) }</p>
  <div class="piko-connect-grid">
-  <section class="piko-card piko-bot-guide" aria-labelledby="botfather-title"><span class="piko-empty-icon">@shell.Icon("telegram-logo")</span><h2 id="botfather-title">{ locale.T(ctx, "bot.guide.title") }</h2><ol><li>{ locale.T(ctx, "bot.guide.open") } <a class="piko-text-link" href="https://t.me/BotFather" rel="noreferrer"><bdi dir="ltr">{ "@BotFather" }</bdi></a></li><li>{ locale.T(ctx, "bot.guide.new") } <bdi dir="ltr">/newbot</bdi></li><li>{ locale.T(ctx, "bot.guide.existing") } <bdi dir="ltr">/mybots → API Token</bdi></li><li>{ locale.T(ctx, "bot.guide.copy") }</li></ol><p class="piko-helper">{ locale.T(ctx, "bot.guide.secret") }</p></section>
+  <section class="piko-card piko-bot-guide" aria-labelledby="botfather-title"><span class="piko-empty-icon">@shell.Icon("telegram-logo")</span><h2 id="botfather-title">{ locale.T(ctx, "bot.guide.title") }</h2><ol><li>{ locale.T(ctx, "bot.guide.open") } <a class="piko-text-link" href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer"><bdi dir="ltr">{ "@BotFather" }</bdi></a></li><li>{ locale.T(ctx, "bot.guide.new") } <bdi dir="ltr">/newbot</bdi></li><li>{ locale.T(ctx, "bot.guide.existing") } <bdi dir="ltr">/mybots → API Token</bdi></li><li>{ locale.T(ctx, "bot.guide.copy") }</li></ol><p class="piko-helper">{ locale.T(ctx, "bot.guide.secret") }</p></section>
   <section class="piko-card piko-token-card" aria-labelledby="token-title"><h2 id="token-title">{ locale.T(ctx, "bot.token.heading") }</h2><form method="post" action={ templ.URL(action) } autocomplete="off"><input type="hidden" name="csrf_token" value={ csrf }/>
    if message != "" {
  <div id="token-error" class="piko-field-error piko-bot-error" role="alert"><h3>{ message }</h3>
@@ -73,7 +73,7 @@ templ connectContent(csrf, message string, invalid bool, action, copyKey, existi
  } else {
  aria-describedby="token-hint"
  }
-   /><p id="token-hint" class="piko-helper">{ locale.T(ctx, "bot.token.hint") }</p><button class="piko-primary-action" type="submit">@shell.Icon("check-circle")<span>{ locale.T(ctx, "bot.connect.submit") }</span></button><p class="piko-helper">{ locale.T(ctx, "bot.connect.readonly") }</p>
+   /><p id="token-hint" class="piko-helper">{ locale.T(ctx, "bot.token.hint") }</p><button class="piko-primary-action" type="submit">@shell.Icon("check-circle")<span>{ locale.T(ctx, submitKey) }</span></button><p class="piko-helper">{ locale.T(ctx, "bot.connect.readonly") }</p>
   </form></section>
  </div>
 }

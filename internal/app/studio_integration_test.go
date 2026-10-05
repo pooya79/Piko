@@ -13,7 +13,7 @@ import (
 
 func TestStudioEntryOpensPikoWithoutCreatingBotOrChat(t *testing.T) {
 	_, b := unconnectedFixture(t)
-	for _, path := range []string{"/builder", "/bots/new"} {
+	for _, path := range []string{"/builder"} {
 		got := b.send("GET", path, nil)
 		body := got.Body.String()
 		if got.Code != 200 || !strings.Contains(body, `data-piko-studio`) || !strings.Contains(body, `id="builder-message"`) {

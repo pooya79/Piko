@@ -24,8 +24,8 @@ func unconnectedFixture(t *testing.T) (*App, *accountBrowser) {
 
 func TestOwnerCreatesEditsAndPreviewsUnconnectedBotAcrossRestart(t *testing.T) {
 	a, b := unconnectedFixture(t)
-	if page := b.send("GET", "/bots/new", nil); page.Code != 200 || strings.Contains(page.Body.String(), `name="token"`) {
-		t.Fatalf("credential-free creation page: %d", page.Code)
+	if page := b.send("GET", "/bots/new", nil); page.Code != 200 || !strings.Contains(page.Body.String(), `name="token"`) {
+		t.Fatalf("Telegram setup page: %d", page.Code)
 	}
 	got := b.post("/bots/new", url.Values{"name": {"ایده <script>من</script>"}})
 	if got.Code != 303 || got.Header().Get("Location") != "/bots/1/draft" {

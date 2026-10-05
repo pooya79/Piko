@@ -5,6 +5,34 @@ import (
  "github.com/pooya79/Piko/internal/web/shell"
 )
 
+templ CreateTokenPage(displayName, csrf, message string, invalid bool) {
+ @shell.Workspace(displayName, csrf, shell.Page{Title: locale.T(ctx,"bot.create.title"), ActiveNav: shell.BotsNav, Breadcrumbs: []shell.Breadcrumb{{Label: locale.T(ctx,"workspace.bots"), URL: "/bots"}, {Label: locale.T(ctx,"bot.create.title")}}}, connectContent(csrf, message, invalid, "/bots/new", "bot.create.token.copy", "", "bot.create.title", "bot.create.token.submit"))
+}
+
+templ CreatedPage(displayName, csrf string, bot Bot) {
+ @shell.Workspace(displayName, csrf, shell.Page{Title: locale.T(ctx,"bot.created.title"), ActiveNav: shell.BotsNav, Breadcrumbs: []shell.Breadcrumb{{Label: locale.T(ctx,"workspace.bots"), URL: "/bots"}, {Label: bot.Name, URL: bot.URL()}, {Label: locale.T(ctx,"bot.created.title")}}}, createdContent(csrf, bot))
+}
+
+templ createdContent(csrf string, bot Bot) {
+ <section class="piko-card piko-bot-empty piko-activation" aria-labelledby="bot-created-title">
+  <span class="piko-empty-icon">@shell.Icon("check-circle")</span>
+  <h1 class="piko-page-title" id="bot-created-title">{ locale.T(ctx,"bot.created.title") }</h1>
+  <h2><bdi dir="auto">{ bot.Name }</bdi></h2>
+  if !bot.Unconnected {
+   <p><bdi dir="ltr">{ "@" + bot.Username }</bdi></p>
+  }
+  <p class="piko-page-copy">{ locale.T(ctx,"bot.created.copy") }</p>
+  <div class="piko-overview-links">
+   <form method="post" action={ templ.URL(bot.URL()+"/chats") }>
+    <input type="hidden" name="csrf_token" value={ csrf }/>
+    <input type="hidden" name="title" value={ locale.T(ctx,"bot.created.chat") }/>
+    <button class="piko-primary-action" type="submit">@shell.Icon("chat-circle-dots")<span>{ locale.T(ctx,"bot.created.chat") }</span></button>
+   </form>
+   <a class="piko-secondary-action" href={ templ.URL(bot.URL()) }>@shell.Icon("squares-four")<span>{ locale.T(ctx,"bot.created.dashboard") }</span></a>
+  </div>
+ </section>
+}
+
 templ CreatePage(displayName, csrf, name, message string) {
  @shell.Workspace(displayName, csrf, shell.Page{Title: locale.T(ctx,"bot.create.title"), ActiveNav: shell.BotsNav, Breadcrumbs: []shell.Breadcrumb{{Label: locale.T(ctx,"workspace.bots"), URL: "/bots"}, {Label: locale.T(ctx,"bot.create.title")}}}, createContent(csrf, name, message))
 }

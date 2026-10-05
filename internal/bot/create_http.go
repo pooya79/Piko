@@ -34,7 +34,17 @@ func (h *Handler) Rename(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	if r.ParseForm() != nil || len(r.PostForm["name"]) != 1 {
+	if r.ParseForm() != nil {
+		h.connection(w, r, http.StatusUnprocessableEntity, "bot.error.token", true)
+		return
+	}
+	// Token setup is the primary creation flow. Keep explicit name-only
+	// creation available for callers building an Unconnected Bot first.
+	if len(r.PostForm["token"]) > 0 || len(r.PostForm["name"]) == 0 {
+		h.Connect(w, r)
+		return
+	}
+	if len(r.PostForm["name"]) != 1 {
 		h.createPage(w, r, 422, "", "bot.create.name.error")
 		return
 	}
@@ -49,6 +59,19 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, b.URL()+"/draft", http.StatusSeeOther)
+}
+
+func (h *Handler) Created(w http.ResponseWriter, r *http.Request) {
+	b, ok := h.requestedBot(w, r)
+	if !ok {
+		return
+	}
+	if b.Unconnected || b.Disconnected {
+		http.Redirect(w, r, b.URL(), http.StatusSeeOther)
+		return
+	}
+	u, _ := auth.UserFromContext(r.Context())
+	h.render(w, r, http.StatusOK, CreatedPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b))
 }
 
 func (h *Handler) createPage(w http.ResponseWriter, r *http.Request, status int, name, key string) {

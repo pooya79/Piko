@@ -54,7 +54,7 @@ func (h *Handler) ConnectForm(w http.ResponseWriter, r *http.Request) {
 	h.connection(w, r, 200, "", false)
 }
 func (h *Handler) Connect(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
+	if err := r.ParseForm(); err != nil || len(r.PostForm["token"]) != 1 {
 		h.connection(w, r, 422, "bot.error.token", true)
 		return
 	}
@@ -74,13 +74,21 @@ func (h *Handler) Connect(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	http.Redirect(w, r, b.URL(), http.StatusSeeOther)
+	target := b.URL()
+	if r.URL.Path == "/bots/new" {
+		target += "/created"
+	}
+	http.Redirect(w, r, target, http.StatusSeeOther)
 }
 func (h *Handler) connection(w http.ResponseWriter, r *http.Request, status int, key string, invalid bool) {
 	u, _ := auth.UserFromContext(r.Context())
 	message := ""
 	if key != "" {
 		message = locale.T(r.Context(), key)
+	}
+	if r.URL.Path == "/bots/new" {
+		h.render(w, r, status, CreateTokenPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), message, invalid))
+		return
 	}
 	h.render(w, r, status, ConnectPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), message, invalid))
 }
