@@ -15,3 +15,6 @@ test-results/
 *.db
 *.db-wal
 *.db-shm
+
+# Generated QA artifacts stay outside version control.
+/docs/qa/

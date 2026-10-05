@@ -20,7 +20,7 @@ Keep session/password operations in `internal/auth`. Every state-changing route 
 
 ## Collaboration
 
-Use GitHub Issues for specs. Commit subjects use `Type(scope): Imperative message`, with `Feat`, `Fix`, `Docs`, `Refactor`, `Test`, or `Chore`. Keep commits focused, link relevant issues, and use `.github/pull_request_template.md`; include screenshots for UI changes. Preserve installed skills under `.agents/skills` and `skills-lock.json`.
+Use GitHub Issues for specs. Commit subjects use `Type(scope): Imperative message`, with `Feat`, `Fix`, `Docs`, `Refactor`, `Test`, or `Chore`. Keep commits focused, link relevant issues, and use `.github/pull_request_template.md`. Record validation results in the PR description. Store temporary browser output under `/tmp`. Preserve installed skills under `.agents/skills` and `skills-lock.json`.
 
 @RTK.md
 
