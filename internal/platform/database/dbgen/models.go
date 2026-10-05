@@ -20,6 +20,24 @@ type Bot struct {
 	VerifiedAt     int64
 	WebhookIsPiko  int64
 	Paused         int64
+	ActionRevision int64
+}
+
+type BotActionProposal struct {
+	ID               int64
+	BotID            int64
+	ChatID           int64
+	RunID            int64
+	Action           string
+	ActionRevision   int64
+	DraftRevision    int64
+	BotName          string
+	DeliveryState    string
+	Paused           int64
+	PublishedVersion int64
+	Receiver         string
+	Result           string
+	Version          int64
 }
 
 type BotDelivery struct {

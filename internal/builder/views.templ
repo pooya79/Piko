@@ -198,6 +198,7 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
        }
       </ol>
      }
+     @bot.ActionCards(csrf,b,history.Proposals)
      if latest.ID != 0 {
       <p class="piko-helper" role="status" data-studio-outcome={ string(latest.Status) }>{ locale.T(ctx,latest.FeedbackKey()) }</p>
      }

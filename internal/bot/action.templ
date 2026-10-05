@@ -1,0 +1,63 @@
+package bot
+
+import (
+ "strconv"
+ "github.com/pooya79/Piko/internal/locale"
+ "github.com/pooya79/Piko/internal/web/shell"
+)
+
+templ ActionCards(csrf string,b Bot,proposals []ActionProposal) {
+ for _,p:=range proposals {
+  <article class="piko-card piko-token-card piko-publication" data-action-proposal={ strconv.FormatInt(p.ID,10) } data-action={ p.Action }>
+   <h2>{ locale.T(ctx,"action."+p.Action) } · <bdi dir="auto">{ p.BotName }</bdi></h2>
+   <p class="piko-helper">
+    if p.Result=="pending" {
+     { locale.T(ctx,"action.copy") }
+    } else {
+     { locale.T(ctx,"action.history") }
+    }
+   </p>
+   <p>{ locale.T(ctx,"builder.revision")+" "+locale.Digits(strconv.FormatInt(p.DraftRevision,10)) } · { locale.T(ctx,"publish.version")+locale.Digits(strconv.FormatInt(p.PublishedVersion,10)) }</p>
+   <p>{ locale.T(ctx,"action.snapshot")+" "+locale.T(ctx,"delivery.state."+p.DeliveryState) }</p>
+   if p.Paused {
+    <p>{ locale.T(ctx,"deploy.paused") }</p>
+   }
+   if p.Result!="pending" {
+    <p role="status">{ locale.T(ctx,p.Result) }</p>
+    <p>{ locale.T(ctx,"action.current")+" "+locale.T(ctx,"delivery.state."+b.DeliveryState) }</p>
+    if p.Version>0 {
+     <p>{ locale.T(ctx,"publish.version")+locale.Digits(strconv.FormatInt(p.Version,10)) }</p>
+    }
+    if (p.Result=="deploy.partial" || p.Result=="action.executing") && !b.Unconnected && !b.Disconnected && b.DeliveryState!="active" && b.DeliveryState!="paused" {
+     <a class="piko-primary-action" href={ templ.URL(b.URL()+"/activate") }>{ locale.T(ctx,"deploy.retry") }</a>
+    }
+   } else if p.Stale {
+    <p role="status">{ locale.T(ctx,"action.stale") }</p>
+   } else if b.BuilderBusy {
+    <p role="status">{ locale.T(ctx,"deploy.busy") }</p>
+   } else if p.CanConfirm() {
+    <form method="post" action={ p.URL() }>
+     <input type="hidden" name="csrf_token" value={ csrf }/>
+     if p.Action=="deploy" {
+      <label class="piko-activation-confirm"><input type="checkbox" name="operate" value="yes" required/> { locale.T(ctx,"activate.confirm") }</label>
+     }
+     <button type="submit" class="piko-primary-action">{ locale.T(ctx,"action.confirm")+" "+locale.T(ctx,"action."+p.Action) }</button>
+    </form>
+   } else if p.DeliveryState=="unconnected" {
+    <p>{ locale.T(ctx,"deploy.connect") }</p><a class="piko-primary-action" href={ templ.URL(b.URL()+"/connect") }>{ locale.T(ctx,"bot.connect.title") }</a>
+   } else if p.DeliveryState=="disconnected" {
+    <p>{ locale.T(ctx,"deploy.connect") }</p><a class="piko-primary-action" href={ templ.URL(b.URL()) }>{ locale.T(ctx,"lifecycle.reconnect.title") }</a>
+   } else {
+    <p role="status">{ locale.T(ctx,"pause.unavailable") }</p>
+   }
+  </article>
+ }
+}
+
+templ ActionPage(displayName,csrf string,b Bot,key string) {
+ @shell.Workspace(displayName,csrf,flowPage(ctx,b,"action.title"),actionContent(b,key))
+}
+
+templ actionContent(b Bot,key string) {
+ <section class="piko-card piko-publication"><h1><bdi dir="auto">{ b.Name }</bdi></h1><p role="status">{ locale.T(ctx,key) }</p><p>{ locale.T(ctx,"delivery.state."+b.DeliveryState) }</p><a class="piko-primary-action" href={ templ.URL(b.URL()+"/chats") }>{ locale.T(ctx,"action.back") }</a></section>
+}

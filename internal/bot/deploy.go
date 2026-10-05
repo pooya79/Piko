@@ -21,15 +21,29 @@ type Deployment struct {
 // InspectDeployment adds the busy state only to Deploy-facing pages. Ordinary
 // Bot reads and Draft operations remain independent of Builder storage.
 func (s *Service) InspectDeployment(ctx context.Context, botID int64) (Bot, error) {
-	b, err := s.Get(ctx, botID)
-	if err != nil {
-		return Bot{}, err
-	}
+	return s.inspectDeployment(ctx, s.repo.q, botID)
+}
+
+// InspectDeploymentTx keeps confirmation availability in the same committed
+// snapshot as Builder history, Draft revisions and saved proposal cards.
+func (s *Service) InspectDeploymentTx(ctx context.Context, tx *sql.Tx, botID int64) (Bot, error) {
+	return s.inspectDeployment(ctx, dbgen.New(tx), botID)
+}
+
+func (s *Service) inspectDeployment(ctx context.Context, q *dbgen.Queries, botID int64) (Bot, error) {
 	ownerID, err := owner(ctx)
 	if err != nil {
 		return Bot{}, err
 	}
-	active, err := s.repo.q.ActiveOwnerBuilderBot(ctx, dbgen.ActiveOwnerBuilderBotParams{OwnerID: ownerID, BotID: sql.NullInt64{Int64: botID, Valid: true}})
+	row, err := q.GetOwnerBot(ctx, dbgen.GetOwnerBotParams{OwnerID: ownerID, ID: botID})
+	if errors.Is(err, sql.ErrNoRows) {
+		return Bot{}, ErrNotFound
+	}
+	if err != nil {
+		return Bot{}, err
+	}
+	b := s.deliveryStatus(botFromRow(row))
+	active, err := q.ActiveOwnerBuilderBot(ctx, dbgen.ActiveOwnerBuilderBotParams{OwnerID: ownerID, BotID: sql.NullInt64{Int64: botID, Valid: true}})
 	b.BuilderBusy = active > 0
 	return b, err
 }
@@ -40,7 +54,12 @@ func (s *Service) Deploy(ctx context.Context, botID int64, confirmation string) 
 	if err != nil {
 		return result, err
 	}
-	result.Version = version
+	return s.activateDeployment(ctx, botID, version, confirmation)
+}
+
+func (s *Service) activateDeployment(ctx context.Context, botID, version int64, confirmation string) (Deployment, error) {
+	result := Deployment{Version: version}
+	var err error
 	result.Bot, err = s.Get(ctx, botID)
 	if err != nil {
 		return result, err

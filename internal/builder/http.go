@@ -233,12 +233,8 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request, b bot.Bot, id i
 		h.failed(w, r, err)
 		return
 	}
-	if b.ID == 0 && history.Chat.BotID != 0 {
-		b, err = h.bots.InspectDeployment(r.Context(), history.Chat.BotID)
-		if err != nil {
-			h.failed(w, r, err)
-			return
-		}
+	if history.Chat.BotID != 0 {
+		b = history.Bot
 	}
 	var revision int64
 	var canvas flow.Canvas

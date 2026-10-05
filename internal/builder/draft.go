@@ -25,6 +25,7 @@ type draftCandidate struct {
 	staged  *flow.Definition
 	invalid bool
 	name    string
+	action  *bot.ActionProposal
 }
 
 type initialDraftInput struct {
@@ -176,5 +177,5 @@ func (s *Service) draftTools() []ai.ToolRef {
 		return validationResult{Valid: key == "", Staged: key == "", Error: key}, nil
 	})
 	s.templateTool, s.validationTool = templates, validate
-	return []ai.ToolRef{read, templates, validate, prepare}
+	return []ai.ToolRef{read, templates, validate, prepare, s.actionTool()}
 }

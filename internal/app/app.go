@@ -236,6 +236,7 @@ func buildRouter(db *sql.DB, mw webx.Middleware, limiter *webx.RateLimiter, ah *
 		r.Post("/chats/{chatID}/runs/{runID}/undo", builderHandler.Undo)
 		r.Post("/chats/{chatID}/delete", builderHandler.Delete)
 		r.Get("/bots/{botID}/chats", builderHandler.List)
+		r.Post("/bots/{botID}/proposals/{proposalID}/confirm", bh.ConfirmAction)
 		r.Post("/bots/{botID}/chats", builderHandler.Create)
 		r.Get("/bots/{botID}/chats/{chatID}", builderHandler.Detail)
 		r.Get("/bots/{botID}/chats/{chatID}/status", builderHandler.Status)

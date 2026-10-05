@@ -1,0 +1,10 @@
+DROP TRIGGER bot_action_delivery_delete;
+DROP TRIGGER bot_action_delivery_update;
+DROP TRIGGER bot_action_delivery_insert;
+DROP TRIGGER bot_action_publication;
+DROP TRIGGER bot_action_draft_delete;
+DROP TRIGGER bot_action_draft_update;
+DROP TRIGGER bot_action_draft_insert;
+DROP TRIGGER bot_action_identity;
+DROP TABLE bot_action_proposals;
+ALTER TABLE bots DROP COLUMN action_revision;

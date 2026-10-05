@@ -305,7 +305,10 @@ func TestDeployAndRunAdmissionSerializeAcrossAppInstances(t *testing.T) {
 func TestDeployRetainsPublishedFlowThroughDraftPreviewUndoAndNewVersions(t *testing.T) {
 	var calls atomic.Int64
 	a, b, f := deployFixture(t, func(w http.ResponseWriter, r *http.Request) {
-		if calls.Add(1)%2 == 1 {
+		n := calls.Add(1)
+		if n == 3 {
+			builderToolReply(w, "propose_action", map[string]string{"action": "deploy"})
+		} else if n == 1 {
 			builderToolReply(w, "prepare_draft", map[string]string{"definition": structuredDraft})
 		} else {
 			builderTextReply(w)
@@ -342,7 +345,8 @@ func TestDeployRetainsPublishedFlowThroughDraftPreviewUndoAndNewVersions(t *test
 	if got := b.postDraft(t, "/bots/1/draft", updated); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	if got := b.post("/bots/1/deploy", url.Values{"operate": {"yes"}}); got.Code != 200 {
+	target := proposedAction(t, b, "منتشر کن")
+	if got := b.post(target, url.Values{"operate": {"yes"}}); got.Code != 200 {
 		t.Fatal(got.Code)
 	}
 	d.text("/start", 1)

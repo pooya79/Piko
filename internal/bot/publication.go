@@ -29,52 +29,60 @@ func (s *Service) publish(ctx context.Context, botID int64, requireCredentials b
 			return err
 		}
 		defer func() { _ = tx.Rollback() }()
-		q := dbgen.New(tx)
-		b, err := q.GetOwnerBot(ctx, dbgen.GetOwnerBotParams{OwnerID: ownerID, ID: botID})
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrNotFound
-		}
-		if err != nil {
-			return err
-		}
-		// The immediate transaction serializes with Builder admission and completion,
-		// manual saves and Undo, across server processes. No upstream I/O runs here.
-		active, err := q.ActiveOwnerBuilderBot(ctx, dbgen.ActiveOwnerBuilderBotParams{OwnerID: ownerID, BotID: sql.NullInt64{Int64: botID, Valid: true}})
-		if err != nil {
-			return err
-		}
-		if active > 0 {
-			return ErrBuilderBusy
-		}
-		if requireCredentials {
-			if !b.TelegramID.Valid {
-				return ErrUnconnected
-			}
-			credentials, err := q.GetOwnerBotCredentials(ctx, dbgen.GetOwnerBotCredentialsParams{OwnerID: ownerID, ID: botID})
-			if err != nil {
-				return err
-			}
-			if len(credentials.EncryptedToken) == 0 {
-				return ErrDisconnected
-			}
-		}
-		draft, err := q.GetOwnerDraft(ctx, dbgen.GetOwnerDraftParams{OwnerID: ownerID, BotID: botID})
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrNoDraft
-		}
-		if err != nil {
-			return err
-		}
-		if _, err := flow.Decode(draft.Definition); err != nil {
-			return err
-		}
-		version, err = q.PublishOwnerDraft(ctx, dbgen.PublishOwnerDraftParams{OwnerID: ownerID, ID: botID, Definition: draft.Definition})
+		version, err = s.publishTx(ctx, dbgen.New(tx), ownerID, botID, requireCredentials)
 		if err != nil {
 			return err
 		}
 		return tx.Commit()
 	})
 	return version, err
+}
+
+// Publication shares the immediate transaction with conversational confirmation.
+func (s *Service) publishTx(ctx context.Context, q *dbgen.Queries, ownerID, botID int64, requireCredentials bool) (int64, error) {
+	b, err := q.GetOwnerBot(ctx, dbgen.GetOwnerBotParams{OwnerID: ownerID, ID: botID})
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, ErrNotFound
+	}
+	if err != nil {
+		return 0, err
+	}
+	// The immediate transaction serializes with Builder admission and completion,
+	// manual saves and Undo, across server processes. No upstream I/O runs here.
+	active, err := q.ActiveOwnerBuilderBot(ctx, dbgen.ActiveOwnerBuilderBotParams{OwnerID: ownerID, BotID: sql.NullInt64{Int64: botID, Valid: true}})
+	if err != nil {
+		return 0, err
+	}
+	if active > 0 {
+		return 0, ErrBuilderBusy
+	}
+	if requireCredentials {
+		if !b.TelegramID.Valid {
+			return 0, ErrUnconnected
+		}
+		credentials, err := q.GetOwnerBotCredentials(ctx, dbgen.GetOwnerBotCredentialsParams{OwnerID: ownerID, ID: botID})
+		if err != nil {
+			return 0, err
+		}
+		if len(credentials.EncryptedToken) == 0 {
+			return 0, ErrDisconnected
+		}
+	}
+	draft, err := q.GetOwnerDraft(ctx, dbgen.GetOwnerDraftParams{OwnerID: ownerID, BotID: botID})
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, ErrNoDraft
+	}
+	if err != nil {
+		return 0, err
+	}
+	if _, err := flow.Decode(draft.Definition); err != nil {
+		return 0, err
+	}
+	version, err := q.PublishOwnerDraft(ctx, dbgen.PublishOwnerDraftParams{OwnerID: ownerID, ID: botID, Definition: draft.Definition})
+	if err != nil {
+		return 0, err
+	}
+	return version, nil
 }
 
 func (h *Handler) Publish(w http.ResponseWriter, r *http.Request) {

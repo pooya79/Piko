@@ -51,10 +51,12 @@ func (m Message) FeedbackKey() string {
 // Conversation contains display history and its committed shared Draft in one
 // snapshot. Model admission separately loads this chat's private memory.
 type Conversation struct {
-	Chat     Chat
-	Messages []Message
-	Runs     []Run
-	Draft    bot.Draft
+	Chat      Chat
+	Bot       bot.Bot
+	Messages  []Message
+	Runs      []Run
+	Draft     bot.Draft
+	Proposals []bot.ActionProposal
 }
 
 func (c Conversation) LatestRun() Run {
@@ -228,6 +230,10 @@ func (s *Service) History(ctx context.Context, botID, chatID int64) (Conversatio
 		return Conversation{}, err
 	}
 	if botID != 0 {
+		history.Bot, err = s.bots.InspectDeploymentTx(ctx, tx, botID)
+		if err != nil {
+			return Conversation{}, err
+		}
 		draft, err := q.GetOwnerDraft(ctx, dbgen.GetOwnerDraftParams{OwnerID: ownerID, BotID: botID})
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return Conversation{}, err
@@ -241,6 +247,13 @@ func (s *Service) History(ctx context.Context, botID, chatID int64) (Conversatio
 			history.Draft.Revision = draft.Revision
 		}
 	}
+	if botID != 0 {
+		history.Proposals, err = s.bots.ActionProposalsTx(ctx, tx, botID, chatID)
+		if err != nil {
+			return Conversation{}, err
+		}
+	}
+
 	history.Runs, err = loadRuns(ctx, q, ownerID, botID, chatID, history.Draft.Revision)
 	if err != nil {
 		return Conversation{}, err
