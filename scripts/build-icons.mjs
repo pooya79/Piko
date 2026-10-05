@@ -26,6 +26,7 @@ const icons = {
  "sparkle": ["regular", "sparkle"],
  "squares-four": ["regular", "squares-four"],
  "telegram-logo": ["regular", "telegram-logo"],
+ "tray": ["regular", "tray"],
  "user": ["regular", "user"],
  "users": ["regular", "users"],
  "warning-circle": ["regular", "warning-circle"],

@@ -34,10 +34,18 @@ func (h *Handler) Submissions(w http.ResponseWriter, r *http.Request) {
 		next = items[len(items)-1].ID
 	}
 	u, _ := auth.UserFromContext(r.Context())
-	h.render(w, r, http.StatusOK, SubmissionsPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, items, next))
+	h.render(w, r, http.StatusOK, SubmissionsPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, items, before, next))
 }
 
 func (h *Handler) Submission(w http.ResponseWriter, r *http.Request) {
+	h.submissionPage(w, r, false)
+}
+
+func (h *Handler) SubmissionDeleteForm(w http.ResponseWriter, r *http.Request) {
+	h.submissionPage(w, r, true)
+}
+
+func (h *Handler) submissionPage(w http.ResponseWriter, r *http.Request, deleting bool) {
 	b, ok := h.requestedBot(w, r)
 	if !ok {
 		return
@@ -53,6 +61,10 @@ func (h *Handler) Submission(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u, _ := auth.UserFromContext(r.Context())
+	if deleting {
+		h.render(w, r, http.StatusOK, SubmissionDeletePage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, item))
+		return
+	}
 	h.render(w, r, http.StatusOK, SubmissionPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, item))
 }
 

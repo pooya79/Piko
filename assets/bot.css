@@ -87,17 +87,44 @@
  @media (max-width: 767px) { .piko-connect-grid { grid-template-columns: 1fr; } .piko-bot-guide, .piko-token-card { @apply p-5; } .piko-header-actions > .piko-primary-action { display: none; } }
 
 .piko-preview-answer { @apply border-t border-base-300 p-5; }
-.piko-submission-list { @apply grid gap-4 md:grid-cols-2; }
-.piko-submission-answers { @apply space-y-6; }
-.piko-submission-answers dt { @apply mb-2 font-bold; }
-.piko-submission-answers dd { @apply whitespace-pre-wrap break-words leading-7; overflow-wrap: anywhere; }
-.piko-submission-summary { overflow-wrap: anywhere; }
-.piko-draft-section:has(.piko-submission-answers) { @apply mt-6; }
 }
 
-.piko-submission-delete > summary { @apply cursor-pointer text-sm font-semibold text-error; }
-.piko-submission-delete form { @apply mt-3 space-y-3; }
-.piko-submission-delete button { @apply border-error text-error; }
+.piko-submissions-heading { @apply flex items-center gap-4; }
+.piko-submission-list { @apply mt-7; }
+.piko-submission-row { @apply border-b border-base-300 p-7; min-width:0; }
+.piko-submission-row:last-child { border-bottom:0; }
+.piko-submission-row-heading { @apply flex flex-wrap items-center justify-between gap-3; }
+.piko-submission-row h2, .piko-submission-detail h2 { @apply text-lg font-bold; }
+.piko-submission-version { @apply rounded-lg px-3 py-1 text-xs font-semibold; background:var(--piko-surface-lilac); }
+.piko-submission-summary { @apply my-4 text-sm leading-7; overflow-wrap:anywhere; white-space:pre-wrap; }
+.piko-submission-meta { @apply my-5 grid gap-4 text-sm; grid-template-columns:repeat(3,minmax(0,1fr)); }
+.piko-submission-meta dt { @apply mb-2 text-xs text-muted; }
+.piko-submission-meta dd { overflow-wrap:anywhere; }
+.piko-submission-meta time { display:inline-block; }
+.piko-submission-actions { @apply flex flex-wrap items-center justify-between gap-4; }
+.piko-submission-actions .piko-text-link { @apply inline-flex min-h-11 items-center gap-2; }
+.piko-submission-delete-link { @apply inline-flex min-h-11 items-center text-sm font-semibold text-error; }
+.piko-submission-pagination { @apply mt-6 flex flex-wrap items-center gap-6; }
+.piko-submission-empty { @apply mt-7 flex flex-col items-center gap-4 p-10 text-center; }
+.piko-submission-empty h2 { @apply text-lg font-bold; }
+.piko-submission-empty p { @apply max-w-lg text-sm leading-8 text-muted; }
+.piko-submission-detail { @apply mt-7 grid items-start gap-6; grid-template-columns:minmax(0,1.8fr) minmax(0,1fr); }
+.piko-submission-answer-panel, .piko-submission-context { @apply p-7; min-width:0; }
+.piko-submission-context .piko-submission-meta { @apply grid-cols-1 gap-6 border-y border-base-300 py-5; }
+.piko-submission-answers { @apply mt-6; }
+.piko-submission-answers > div { @apply border-t border-base-300 py-5; }
+.piko-submission-answers > div:last-child { @apply pb-0; }
+.piko-submission-answers dt { @apply mb-3 text-sm font-semibold text-muted; }
+.piko-submission-answers dd { @apply whitespace-pre-wrap break-words leading-8; overflow-wrap:anywhere; }
+.piko-submission-answers dd.piko-helper { @apply mt-2 text-sm; }
+.piko-submission-row a:focus-visible, .piko-submission-delete-link:focus-visible, .piko-submission-pagination a:focus-visible { outline:2px solid var(--color-primary); outline-offset:4px; border-radius:4px; }
+@media (max-width:1023px) { .piko-submission-detail { grid-template-columns:1fr; } }
+@media (max-width:767px) {
+ .piko-submission-row, .piko-submission-answer-panel, .piko-submission-context { @apply p-5; }
+ .piko-submission-meta { grid-template-columns:1fr; }
+ .piko-submission-empty { @apply p-6; }
+ .piko-submission-actions { @apply gap-3; }
+}
 
 .piko-lifecycle { @apply mt-8; }
 .piko-lifecycle > h2 { @apply text-lg font-bold; }
@@ -136,7 +163,6 @@
 .piko-draft-savebar .piko-helper { @apply mt-2; max-width:46ch; }
 .piko-draft-form { scroll-padding-bottom:12rem; }
 .piko-draft-form :is(input,textarea,select,summary,button) { scroll-margin-bottom:12rem; }
-.piko-submission-delete summary:focus-visible { outline:2px solid var(--color-primary); outline-offset:3px; }
 @media (max-width:767px) {
  .piko-settings-panel { @apply px-5; }
  .piko-setting-row { grid-template-columns:1fr; }
