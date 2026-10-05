@@ -18,7 +18,7 @@ templ IndexPage(displayName,csrf string,chats []Chat,view ChatView) {
 }
 
 templ indexDocument(csrf string,chats []Chat,view ChatView) {
- <script src="/static/studio.js?v=studio4" defer></script>
+ <script src="/static/studio.js?v=studio5" defer></script>
  <script src="/static/studio-preview.js?v=preview1" defer></script>
  <script src="/static/studio-flow.js?v=flow1" defer></script>
  <script src="/static/builder-status.js?v=studio2" defer></script>
@@ -27,17 +27,16 @@ templ indexDocument(csrf string,chats []Chat,view ChatView) {
 
 templ indexContent(csrf string,chats []Chat,view ChatView) {
  <section class="piko-studio" data-piko-studio data-chat-url="/builder" data-draft-key={ view.DraftKey }>
-  <header class="piko-studio-heading"><div><span class="piko-small-label">@shell.Icon("sparkle")
- { locale.T(ctx,"piko.chat.title") }</span><h1>{ locale.T(ctx,"studio.welcome.title") }</h1></div><a class="piko-text-link" href="#saved-chats">{ locale.T(ctx,"studio.chats") }</a></header>
-  <div class="piko-studio-conversation">
-   <div class="piko-studio-scroll">
-    @welcomeExamples()
-    @savedChats(chats,0)
-    @savedBots(view.Bots)
-
-   </div>
-   <p class="piko-field-error" role="status" data-studio-refresh-error hidden>{ locale.T(ctx,"studio.refresh.error") } <button type="button" data-studio-refresh class="piko-text-link">{ locale.T(ctx,"builder.refresh") }</button></p>
-   @composer(csrf,"/chats",view,false)
+  <header class="piko-studio-heading"><div class="piko-studio-identity"><img src="/static/brand/piko-mark-v2.webp" width="32" height="32" alt=""/><h1>{ locale.T(ctx,"piko.chat.title") }</h1></div></header>
+  @studioSwitch()
+  <div class="piko-studio-body">
+   @chatSidebar(csrf,bot.Bot{},chats,view.Bots,0)
+   <section id="studio-conversation" class="piko-studio-conversation" aria-label={ locale.T(ctx,"piko.chat.title") } tabindex="-1">
+    <div class="piko-studio-scroll">@welcomeExamples()</div>
+    <p class="piko-field-error" role="status" data-studio-refresh-error hidden>{ locale.T(ctx,"studio.refresh.error") } <button type="button" data-studio-refresh class="piko-text-link">{ locale.T(ctx,"builder.refresh") }</button></p>
+    @composer(csrf,"/chats",view,false)
+   </section>
+   @studioPane(csrf,bot.Bot{},Conversation{},view)
   </div>
  </section>
 }
@@ -46,18 +45,17 @@ templ welcomeExamples() {
  <section class="piko-studio-welcome" aria-labelledby="studio-welcome">
   <img src="/static/brand/piko-mark-v2.webp" width="56" height="56" alt=""/>
   <h2 id="studio-welcome">{ locale.T(ctx,"studio.welcome.heading") }</h2>
-  <p>{ locale.T(ctx,"piko.chat.copy") }</p>
+  <p>{ locale.T(ctx,"studio.welcome.copy") }</p>
   <div class="piko-studio-examples">
    @example("inquiry","chat-circle-dots")
    @example("registration","users")
    @example("booking","calendar-blank")
   </div>
-  <p class="piko-helper">{ locale.T(ctx,"studio.examples.hint") }</p>
  </section>
 }
 
 templ example(kind,icon string) {
- <button id={ "studio-example-"+kind } type="button" class="piko-studio-example" data-example={ kind } data-prompt={ locale.T(ctx,"studio.example."+kind+".prompt") }>@shell.Icon(icon)<strong>{ locale.T(ctx,"studio.example."+kind+".title") }</strong><span>{ locale.T(ctx,"studio.example."+kind+".copy") }</span>@shell.Icon("arrow-up-left")</button>
+ <button id={ "studio-example-"+kind } type="button" class="piko-studio-example" data-example={ kind } data-prompt={ locale.T(ctx,"studio.example."+kind+".prompt") }>@shell.Icon(icon)<strong>{ locale.T(ctx,"studio.example."+kind+".title") }</strong>@shell.Icon("arrow-up-left")</button>
 }
 
 templ composer(csrf,action string,view ChatView,running bool) {
@@ -69,7 +67,7 @@ templ composer(csrf,action string,view ChatView,running bool) {
  }
  >{ locale.T(ctx,view.FeedbackKey) }</p>
  }
-  <p class="piko-helper" id="builder-capabilities">{ locale.T(ctx,"studio.composer.hint") }</p>
+  <p class="sr-only" id="builder-capabilities">{ locale.T(ctx,"studio.composer.hint") }</p>
   if !view.Enabled {
  <p id="builder-unavailable" class="piko-field-error">{ locale.T(ctx,"piko.chat.unavailable") }</p>
  }
@@ -83,8 +81,8 @@ templ composer(csrf,action string,view ChatView,running bool) {
  <input type="hidden" name="selected_block" value={ view.Selection.Key }/>
  <input type="hidden" name="selected_revision" value={ selectionRevision(view.Selection) }/>
  <p class="piko-helper" data-flow-request hidden?={ view.Selection.Key=="" }>{ locale.T(ctx,"flow.selected") } <bdi dir="ltr" data-flow-request-label>{ view.Selection.Key }</bdi><span data-flow-request-stale hidden>{ locale.T(ctx,"flow.stale") }</span><button id="flow-clear-selection" type="button" data-flow-clear class="piko-text-link">{ locale.T(ctx,"flow.clear") }</button></p>
-   <label class="piko-label" for="builder-message">{ locale.T(ctx,"builder.message") }</label>
-   <textarea id="builder-message" name="message" dir="auto" class="piko-input piko-builder-composer" maxlength="32768" required
+   <label class="sr-only" for="builder-message">{ locale.T(ctx,"builder.message") }</label>
+   <textarea id="builder-message" name="message" dir="auto" class="piko-input piko-builder-composer" placeholder={ locale.T(ctx,"studio.composer.placeholder") } maxlength="32768" required
     if !view.Enabled {
  aria-describedby="builder-capabilities builder-unavailable"
  } else {
@@ -92,7 +90,7 @@ templ composer(csrf,action string,view ChatView,running bool) {
  }
    >{ view.Message }</textarea>
    <div class="piko-studio-composer-actions"><span class="piko-helper">{ locale.T(ctx,"studio.keyboard") } <kbd dir="ltr">Ctrl / ⌘ + Enter</kbd></span><button id="studio-send" class="piko-primary-action" type="submit" disabled?={ !view.Enabled || running } data-can-send={ strconv.FormatBool(view.Enabled && !running) }>@shell.Icon("arrow-up-left")
- { locale.T(ctx,"builder.send") }</button></div>
+ <span class="sr-only">{ locale.T(ctx,"builder.send") }</span></button></div>
   </form>
  </section>
 }
@@ -153,27 +151,14 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
     if b.ID == 0 {
      { locale.T(ctx,"studio.general") }
     } else {
-     <bdi dir="auto">{ b.Name }</bdi><span>{ " · "+locale.T(ctx,"builder.shared") }</span>
+     <bdi dir="auto">{ b.Name }</bdi>
     }
    </p></div></div>
-   <div class="piko-studio-heading-actions">
-    <details id="studio-chat-selector" class="piko-studio-chat-picker"><summary id="studio-chat-picker">{ locale.T(ctx,"studio.chats") }</summary><div class="piko-studio-chat-menu">@savedChats(view.Chats,c.ID)
-     @savedBots(view.Bots)
-     <a id="studio-new-chat" class="piko-text-link" href="/builder">@shell.Icon("plus")
- { locale.T(ctx,"piko.chat.start") }</a>
-     if b.ID != 0 {
-      <form method="post" action={ b.URL()+"/chats" }><input type="hidden" name="csrf_token" value={ csrf }/><input type="hidden" name="title" value={ locale.T(ctx,"builder.create") }/><button id="studio-new-bot-chat" class="piko-secondary-action" type="submit">{ locale.T(ctx,"studio.chat.new.bot") }</button></form>
-     }
-    </div></details>
-   </div>
+   <a class="piko-secondary-action piko-studio-new" href="/builder">@shell.Icon("plus")<span>{ locale.T(ctx,"piko.chat.start") }</span></a>
   </header>
-  <nav class="piko-studio-switch" aria-label={ locale.T(ctx,"studio.views") }>
-   <button type="button" id="studio-view-conversation" data-studio-view="conversation" aria-controls="studio-conversation" aria-pressed="true">@shell.Icon("chat-circle-dots")
- { locale.T(ctx,"piko.chat.title") }</button>
-   <button type="button" id="studio-view-pane" data-studio-view="pane" aria-controls="studio-pane" aria-pressed="false">@shell.Icon("squares-four")
- { locale.T(ctx,"studio.pane.title") }</button>
-  </nav>
+  @studioSwitch()
   <div class="piko-studio-body">
+   @chatSidebar(csrf,b,view.Chats,view.Bots,c.ID)
    <section id="studio-conversation" class="piko-studio-conversation" aria-label={ locale.T(ctx,"piko.chat.title") } tabindex="-1">
     <div id="studio-history" class="piko-studio-scroll" tabindex="0" aria-label={ locale.T(ctx,"builder.history") }>
      if len(history.Messages)==0 {
@@ -253,6 +238,27 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
  </section>
 }
 
+templ studioSwitch() {
+ <nav class="piko-studio-switch" aria-label={ locale.T(ctx,"studio.views") }>
+  <button type="button" id="studio-view-conversation" data-studio-view="conversation" aria-controls="studio-conversation" aria-pressed="true">@shell.Icon("chat-circle-dots")<span>{ locale.T(ctx,"piko.chat.title") }</span></button>
+  <button type="button" id="studio-view-pane" data-studio-view="pane" aria-controls="studio-pane" aria-pressed="false">@shell.Icon("telegram-logo")<span>{ locale.T(ctx,"preview.title") }</span></button>
+ </nav>
+}
+
+templ chatSidebar(csrf string,b bot.Bot,chats []Chat,bots []bot.Bot,currentID int64) {
+ <details open id="studio-chat-selector" class="piko-studio-sidebar">
+  <summary id="studio-chat-picker">@shell.Icon("chat-circle-dots")<span>{ locale.T(ctx,"studio.chats") }</span>@shell.Icon("caret-left")</summary>
+  <div class="piko-studio-sidebar-content">
+   <a id="studio-new-chat" class="piko-studio-new piko-secondary-action" href="/builder">@shell.Icon("plus")<span>{ locale.T(ctx,"piko.chat.start") }</span></a>
+   @savedChats(chats,currentID)
+   if b.ID != 0 {
+    <form method="post" action={ b.URL()+"/chats" }><input type="hidden" name="csrf_token" value={ csrf }/><input type="hidden" name="title" value={ locale.T(ctx,"builder.create") }/><button id="studio-new-bot-chat" class="piko-secondary-action" type="submit">{ locale.T(ctx,"studio.chat.new.bot") }</button></form>
+   }
+   @savedBots(bots)
+  </div>
+ </details>
+}
+
 templ savedChats(chats []Chat,currentID int64) {
  <nav id="saved-chats" class="piko-studio-saved" aria-label={ locale.T(ctx,"studio.chats") }>
   if len(chats)==0 {
@@ -276,26 +282,22 @@ templ savedChats(chats []Chat,currentID int64) {
 
 templ studioPane(csrf string,b bot.Bot,history Conversation,view ChatView) {
  <aside id="studio-pane" class="piko-studio-pane" aria-labelledby="studio-pane-title" tabindex="-1">
-  <header><span class="piko-small-label">@shell.Icon("squares-four")<h2 id="studio-pane-title">
-   if b.ID==0 {
-    { locale.T(ctx,"studio.pane.title") }
-   } else {
-    { locale.T(ctx,"studio.pane.title") }
-   }
-  </h2></span></header>
   if b.ID==0 {
-   <div class="piko-studio-pane-empty"><span class="piko-empty-icon">@shell.Icon("robot")</span><h3>{ locale.T(ctx,"studio.pane.empty.title") }</h3><p>{ locale.T(ctx,"studio.pane.empty.copy") }</p></div>
+   <header class="piko-studio-pane-heading">@shell.Icon("telegram-logo")<h2 id="studio-pane-title">{ locale.T(ctx,"preview.title") }</h2></header>
+   <div class="piko-studio-pane-content">@bot.PreviewEmpty(locale.T(ctx,"studio.preview.bot"),locale.T(ctx,"studio.preview.empty"))</div>
   } else {
-   <div class="piko-studio-pane-content"><p class="piko-helper" data-draft-revision={ strconv.FormatInt(view.Revision,10) }>{ locale.T(ctx,"builder.revision")+" "+locale.Digits(strconv.FormatInt(view.Revision,10)) }</p>
+   <h2 id="studio-pane-title" class="sr-only">{ locale.T(ctx,"preview.title") }</h2>
+   <div class="piko-studio-pane-content"><p class="sr-only" data-draft-revision={ strconv.FormatInt(view.Revision,10) }>{ locale.T(ctx,"builder.revision")+" "+locale.Digits(strconv.FormatInt(view.Revision,10)) }</p>
     <nav class="piko-pane-tabs" aria-label={ locale.T(ctx,"studio.views") }><button id="studio-tab-preview" type="button" data-pane-tab="preview" aria-controls="studio-preview-panel" aria-pressed="true">{ locale.T(ctx,"preview.title") }</button><button id="studio-tab-flow" type="button" data-pane-tab="flow" aria-controls="studio-flow-panel" aria-pressed="false">{ locale.T(ctx,"flow.title") }</button><button id="studio-tab-changes" type="button" data-pane-tab="changes" aria-controls="studio-changes-panel" aria-pressed="false">{ locale.T(ctx,"changes.title") }</button></nav>
     <section id="studio-preview-panel" data-pane-panel="preview">@bot.PreviewPane(csrf,b,bot.Preview{},view.Revision>0,"")</section>
     <section id="studio-flow-panel" data-pane-panel="flow">@flowCanvas(b,view)</section>
     @changesPane(csrf,b,history,view.Revision)
-    <p class="piko-page-copy">{ locale.T(ctx,"studio.pane.copy") }</p>
+    <details id="studio-bot-tools" class="piko-studio-bot-tools"><summary>{ locale.T(ctx,"studio.bot.tools") }</summary>
     <a id="studio-draft" class="piko-secondary-action" href={ templ.URL(b.URL()+"/draft") }>@shell.Icon("squares-four")
  { locale.T(ctx,"draft.title") }</a>
     <a id="studio-overview" class="piko-text-link" href={ templ.URL(b.URL()) }>{ locale.T(ctx,"studio.bot.overview") }</a>
     @bot.DeployControls(csrf,b)
+    </details>
    </div>
   }
  </aside>
@@ -332,7 +334,7 @@ func chatDeleteKey(c Chat) string {
 }
 
 templ chatDocument(csrf string,b bot.Bot,history Conversation,view ChatView) {
- <script src="/static/studio.js?v=studio4" defer></script>
+ <script src="/static/studio.js?v=studio5" defer></script>
  <script src="/static/studio-preview.js?v=preview1" defer></script>
  <script src="/static/studio-flow.js?v=flow1" defer></script>
  <script src="/static/builder-status.js?v=studio2" defer></script>
@@ -341,7 +343,7 @@ templ chatDocument(csrf string,b bot.Bot,history Conversation,view ChatView) {
 
 templ savedBots(bots []bot.Bot) {
  if len(bots)>0 {
-  <nav class="piko-studio-saved" aria-label={ locale.T(ctx,"builder.choose") }><h2>{ locale.T(ctx,"builder.choose") }</h2>
+  <nav class="piko-studio-saved" aria-label={ locale.T(ctx,"workspace.bots") }><h2>{ locale.T(ctx,"workspace.bots") }</h2>
    for _,b:=range bots {
     <a id={ "studio-bot-"+strconv.FormatInt(b.ID,10) } class="piko-saved-chat" href={ templ.URL(b.URL()+"/chats") }><bdi dir="auto">{ b.Name }</bdi>@shell.Icon("caret-left")</a>
    }

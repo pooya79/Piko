@@ -36,20 +36,28 @@ templ previewContent(csrf string,b Bot,p Preview,message string) {
 // page and in the studio. The source snapshot never follows a Draft refresh.
 templ PreviewPane(csrf string,b Bot,p Preview,saved bool,message string) {
  <section id="studio-preview" tabindex="-1" data-studio-preview data-preview-base={ b.URL()+"/preview" } data-preview-url={ previewURL(b,p) } aria-label={ locale.T(ctx,"preview.title") }>
- <p class="piko-helper">{ locale.T(ctx,"preview.pane.copy") }</p>
+ <p class="sr-only">{ locale.T(ctx,"preview.pane.copy") }</p>
  <p class="piko-field-error" role="status" data-preview-load-error hidden>{ locale.T(ctx,"preview.error.load") } <button type="button" data-preview-retry class="piko-text-link">{ locale.T(ctx,"preview.retry") }</button></p>
- if p.ID == "" {
-  if saved {
-   <form method="post" action={ templ.URL(b.URL()+"/preview") }><input type="hidden" name="csrf_token" value={ csrf }/><button id="preview-start" class="piko-primary-action" type="submit">{ locale.T(ctx,"preview.start") }</button></form>
-  } else {
-   <p class="piko-helper" role="status">{ locale.T(ctx,"preview.save.first") }</p>
-  }
- } else {
- @previewRevision(p)
+ if p.ID != "" {
+  @previewRevision(p)
+ }
  if message != "" {
   <p class="piko-field-error piko-bot-error" role="alert">{ message }</p>
  }
- <section class="piko-card piko-preview-chat" aria-labelledby="preview-chat-heading"><header><span class="piko-empty-icon">@shell.Icon("robot")</span><div><h2 id="preview-chat-heading"><bdi dir="auto">{ b.Name }</bdi></h2><p class="piko-helper">{ locale.T(ctx,"preview.simulated") }</p></div></header>
+ <section class="piko-card piko-preview-chat" aria-labelledby="preview-chat-heading">
+ @previewHeader(b.Name)
+ if p.ID == "" {
+  <div class="piko-preview-empty">
+   <span class="piko-preview-watermark">@shell.Icon("telegram-logo")</span>
+   <p>{ locale.T(ctx,"preview.empty") }</p>
+   if saved {
+    <form method="post" action={ templ.URL(b.URL()+"/preview") }><input type="hidden" name="csrf_token" value={ csrf }/><button id="preview-start" class="piko-primary-action" type="submit">{ locale.T(ctx,"preview.start") }</button></form>
+   } else {
+    <p class="piko-helper" role="status">{ locale.T(ctx,"preview.save.first") }</p>
+   }
+  </div>
+ } else {
+ <div class="piko-preview-thread">
  <ol class="piko-preview-transcript" tabindex="0" aria-label={ locale.T(ctx,"preview.conversation") }>
  for _, msg := range p.Conversation.Messages {
   <li class={ "piko-preview-message", templ.KV("piko-preview-participant",msg.Participant) }><span class="piko-helper">
@@ -66,13 +74,28 @@ templ PreviewPane(csrf string,b Bot,p Preview,saved bool,message string) {
   <button id={ "preview-choice-"+choice.ID } class="piko-secondary-action" type="submit" name="choice" value={ choice.ID }><bdi dir="auto">{ choice.Label }</bdi></button>
  }
  </form>
+ </div>
  if p.Conversation.AcceptsAnswer {
- <form class="piko-draft-form piko-preview-answer" method="post" action={ templ.URL(b.URL()+"/preview/"+p.ID+"/choose") }><input type="hidden" name="csrf_token" value={ csrf }/><input type="hidden" name="revision" value={ strconv.FormatInt(p.Revision,10) }/><label class="piko-label" for="preview-answer">{ locale.T(ctx,"inquiry.answer") }</label><textarea class="piko-input piko-draft-textarea" id="preview-answer" name="answer" dir="auto" maxlength="2000"></textarea><button class="piko-primary-action" type="submit">{ locale.T(ctx,"inquiry.answer.send") }</button></form>
+ <form class="piko-draft-form piko-preview-answer" method="post" action={ templ.URL(b.URL()+"/preview/"+p.ID+"/choose") }><input type="hidden" name="csrf_token" value={ csrf }/><input type="hidden" name="revision" value={ strconv.FormatInt(p.Revision,10) }/><label class="sr-only" for="preview-answer">{ locale.T(ctx,"inquiry.answer") }</label><textarea class="piko-input piko-draft-textarea" id="preview-answer" placeholder={ locale.T(ctx,"inquiry.answer") } name="answer" dir="auto" maxlength="2000"></textarea><button class="piko-primary-action" type="submit">@shell.Icon("arrow-up-left")<span class="sr-only">{ locale.T(ctx,"inquiry.answer.send") }</span></button></form>
+ }
  }
  </section>
- <div class="piko-preview-footer"><form method="post" action={ templ.URL(b.URL()+"/preview/"+p.ID+"/restart") }><input type="hidden" name="csrf_token" value={ csrf }/><input type="hidden" name="revision" value={ strconv.FormatInt(p.Revision,10) }/><button class="piko-subtle-action" type="submit">@shell.Icon("arrow-clockwise")<span>{ locale.T(ctx,"preview.restart") }</span></button></form><form method="post" action={ templ.URL(b.URL()+"/preview") }><input type="hidden" name="csrf_token" value={ csrf }/><button class="piko-secondary-action" type="submit">{ locale.T(ctx,"preview.new") }</button></form><p class="piko-helper">{ locale.T(ctx,"preview.restart.hint") }</p></div>
+ if p.ID != "" {
+ <div class="piko-preview-footer"><form method="post" action={ templ.URL(b.URL()+"/preview/"+p.ID+"/restart") }><input type="hidden" name="csrf_token" value={ csrf }/><input type="hidden" name="revision" value={ strconv.FormatInt(p.Revision,10) }/><button class="piko-subtle-action" type="submit">@shell.Icon("arrow-clockwise")<span>{ locale.T(ctx,"preview.restart") }</span></button></form><form method="post" action={ templ.URL(b.URL()+"/preview") }><input type="hidden" name="csrf_token" value={ csrf }/><button class="piko-secondary-action" type="submit">{ locale.T(ctx,"preview.new") }</button></form><p class="sr-only">{ locale.T(ctx,"preview.restart.hint") }</p></div>
  }
  </section>
+}
+
+// Empty previews share the same Telegram frame as an interactive conversation.
+templ PreviewEmpty(title,copy string) {
+ <section class="piko-card piko-preview-chat" aria-labelledby="preview-chat-heading">
+  @previewHeader(title)
+  <div class="piko-preview-empty"><span class="piko-preview-watermark">@shell.Icon("telegram-logo")</span><p>{ copy }</p></div>
+ </section>
+}
+
+templ previewHeader(name string) {
+ <header><span class="piko-preview-avatar">@shell.Icon("robot")</span><div><h2 id="preview-chat-heading"><bdi dir="auto">{ name }</bdi></h2><p class="piko-helper">{ locale.T(ctx,"preview.local") }</p></div><span class="piko-preview-platform" aria-label={ locale.T(ctx,"preview.telegram") }>@shell.Icon("telegram-logo")</span></header>
 }
 
 func previewURL(b Bot,p Preview) string {

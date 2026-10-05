@@ -1777,5 +1777,29 @@
   },
   "draft.sections": {
     "other": "بخش‌های تنظیمات دستی"
+  },
+  "studio.welcome.copy": {
+    "other": "ایده‌ات را بنویس، با هم رباتت را می‌سازیم."
+  },
+  "studio.composer.placeholder": {
+    "other": "چه رباتی بسازیم، یا چه چیزی را تغییر بدهیم؟"
+  },
+  "studio.preview.empty": {
+    "other": "با ساخت ربات، گفت‌وگو و دکمه‌های آن را اینجا امتحان کن."
+  },
+  "studio.bot.tools": {
+    "other": "تنظیمات و انتشار"
+  },
+  "preview.empty": {
+    "other": "پیش‌نمایش را شروع کن و رباتت را امتحان کن."
+  },
+  "preview.telegram": {
+    "other": "پیش‌نمایش تلگرام"
+  },
+  "studio.preview.bot": {
+    "other": "ربات تو"
+  },
+  "preview.local": {
+    "other": "آزمایش محلی"
   }
 }

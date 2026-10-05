@@ -8,102 +8,97 @@
 .piko-builder-text { white-space: pre-wrap; overflow-wrap: anywhere; margin-block: .5rem 0; }
 .piko-builder-text bdi { unicode-bidi: plaintext; }
 .piko-builder-list h2 { overflow-wrap: anywhere; }
-.piko-builder-composer { min-height: 8rem; margin-block-end: 1rem; resize: vertical; }
+/* Override the shared single-line input style for multiline chat messages. */
+.piko-builder-composer { min-height: 8rem; margin-block-end: 1rem; resize: vertical; white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: hidden; overflow-y: auto; }
 .piko-builder-run + .piko-builder-run { border-block-start: 1px solid var(--color-base-300); padding-block-start: 1rem; }
 
-/* The conversation owns scrolling; its composer stays outside that region. */
-.piko-workspace-main:has(.piko-studio) { display: flex; flex-direction: column; height: 100dvh; }
+/* The studio keeps history, editing and the preview in separate scroll regions. */
+.piko-workspace-main:has(.piko-studio) { position: relative; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
 .piko-workspace-main:has(.piko-studio) > .piko-topbar { flex-shrink: 0; }
 .piko-dashboard-main:has(.piko-studio) { display: flex; flex-direction: column; flex: 1; min-height: 0; max-width: none; margin: 0; padding: 0; }
 .piko-dashboard-main:has(.piko-studio) > .piko-workspace-footer { display: none; }
-.piko-dashboard-main:has(.piko-studio) > .piko-bot-navigation { flex-shrink: 0; margin: 0; padding-inline: 32px; background: var(--color-base-100); }
+.piko-dashboard-main:has(.piko-studio) > .piko-bot-navigation { flex-shrink: 0; margin: 0; padding-inline: 24px; background: var(--color-base-100); flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; }
 .piko-studio { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.piko-studio-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 32px; border-bottom: 1px solid var(--color-base-300); background: var(--color-base-100); }
-.piko-studio-heading h1 { font-size: 18px; font-weight: 700; margin-top: 5px; overflow-wrap: anywhere; }
-.piko-studio-conversation { display: flex; flex-direction: column; min-height: 0; min-width: 0; flex: 1; }
-.piko-studio-scroll { overflow-y: auto; min-height: 0; flex: 1; padding: 28px 32px; scrollbar-width: thin; }
-.piko-studio-welcome { max-width: 760px; margin: 16px auto 32px; }
-.piko-studio-welcome > img { margin-bottom: 14px; }
-.piko-studio-welcome h2 { font-size: 26px; font-weight: 700; }
-.piko-studio-welcome > p { margin-top: 10px; color: var(--piko-text-secondary); font-size: 12px; line-height: 2; }
-.piko-studio-examples { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin-block: 28px 16px; }
-.piko-studio-example { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 18px; border: 1px solid var(--color-base-300); border-radius: 16px; background: var(--color-base-100); text-align: start; cursor: pointer; }
-.piko-studio-example:hover { border-color: var(--color-primary); background: var(--piko-selection); }
-.piko-studio-example > .piko-icon:first-child { box-sizing: content-box; padding: 9px; background: var(--piko-surface-lilac); border-radius: 10px; }
-.piko-studio-example strong { font-size: 12px; }
-.piko-studio-example span { color: var(--piko-text-secondary); font-size: 11px; line-height: 1.9; }
-.piko-studio-example > .piko-icon:last-child { margin-inline-start: auto; width: 15px; height: 15px; color: var(--color-primary); }
-.piko-studio-saved { max-width: 760px; margin-inline: auto; font-size: 12px; }
-.piko-studio-saved summary { cursor: pointer; padding-block: 12px; }
-.piko-saved-chat { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border-bottom: 1px solid var(--color-base-300); }
-.piko-saved-chat:hover { background: var(--piko-selection); }
-.piko-saved-chat bdi { overflow-wrap: anywhere; min-width: 0; }
-.piko-saved-chat small { color: var(--piko-text-secondary); }
-.piko-studio-composer { padding: 12px 32px 20px; background: var(--color-base-100); border-top: 1px solid var(--color-base-300); }
-.piko-studio-composer > *, .piko-studio-composer form { max-width: 760px; margin-inline: auto; }
-.piko-studio-composer form { margin-top: 8px; border: 1px solid var(--piko-control-border); border-radius: 16px; padding: 14px; }
-.piko-studio-composer .piko-label { font-size: 11px; margin-bottom: 6px; }
-.piko-studio-composer .piko-builder-composer { min-height: 3rem; height: 4rem; max-height: 9rem; margin: 0; border: 0; background: transparent; font-size: 13px; padding: 4px; }
-.piko-studio-composer-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.piko-studio-composer .piko-primary-action { display: inline-flex; align-items: center; gap: 7px; }
-.piko-studio-body { display: grid; grid-template-columns: minmax(0,1fr) minmax(320px,40%); min-height: 0; flex: 1; }
-.piko-studio-identity { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.piko-studio-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 68px; padding: 12px 24px; border-bottom: 1px solid var(--color-base-300); background: var(--color-base-100); }
+.piko-studio-heading h1 { font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+.piko-studio-identity { display: flex; gap: 10px; align-items: center; min-width: 0; }
 .piko-studio-identity > div { min-width: 0; }
-.piko-studio-identity h1 { margin: 0; }
-.piko-studio-identity .piko-helper { font-size: 10px; margin-top: 4px; }
-.piko-studio-heading-actions { flex-shrink: 0; }
-.piko-studio-chat-picker { position: relative; font-size: 11px; }
-.piko-studio-chat-picker > summary { min-height: 44px; padding: 12px; cursor: pointer; border: 1px solid var(--color-base-300); border-radius: 10px; }
-.piko-studio-chat-picker[open] { position: relative; z-index: 5; }
-.piko-studio-chat-picker > .piko-studio-chat-menu { position: absolute; inset-inline-end: 0; top: 48px; width: min(330px,calc(100vw - 36px)); max-height: 50dvh; overflow-y: auto; padding: 12px; background: var(--color-base-100); border: 1px solid var(--color-base-300); border-radius: 12px; box-shadow: var(--piko-shadow); }
-.piko-studio-chat-menu > .piko-text-link, .piko-studio-chat-menu > form { margin-top: 8px; }
-.piko-studio-chat-picker:not([open]) > :not(summary) { display: none; }
+.piko-studio-identity .piko-icon-tile { width: 36px; height: 36px; }
+.piko-studio-identity .piko-helper { font-size: 10px; margin-top: 2px; }
+.piko-studio-new { display: inline-flex; gap: 8px; align-items: center; min-height: 40px; font-size: 11px; }
+.piko-studio-body { display: grid; grid-template-columns: 190px minmax(0,1fr) minmax(280px,320px); min-height: 0; flex: 1; }
+.piko-studio-sidebar { min-height: 0; min-width: 0; border-inline-end: 1px solid var(--color-base-300); background: var(--color-base-100); overflow-y: auto; scrollbar-width: thin; }
+.piko-studio-sidebar > summary { display: flex; align-items: center; gap: 8px; padding: 20px 14px 8px; font-size: 11px; color: var(--piko-text-secondary); list-style: none; }
+.piko-studio-sidebar > summary::-webkit-details-marker { display: none; }
+.piko-studio-sidebar > summary .piko-icon { width: 16px; height: 16px; }
+.piko-studio-sidebar > summary .piko-icon:last-child { display: none; }
+.piko-studio-sidebar-content { padding: 12px; }
+.piko-studio-sidebar-content > .piko-studio-new { width: 100%; margin-bottom: 16px; }
+.piko-studio-saved { font-size: 11px; min-width: 0; }
+.piko-studio-saved > .piko-helper { font-size: 11px; padding: 10px 4px; }
+.piko-studio-saved h2 { font-size: 10px; color: var(--piko-text-secondary); margin: 22px 8px 8px; }
+.piko-saved-chat { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 10px; border-radius: 10px; margin-block: 4px; min-height: 44px; }
+.piko-saved-chat > div { min-width: 0; }
+.piko-saved-chat bdi { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.piko-saved-chat .piko-icon { width: 13px; height: 13px; color: var(--piko-text-secondary); }
+.piko-saved-chat small { display: block; color: var(--piko-text-secondary); font-size: 10px; margin-top: 4px; }
+.piko-saved-chat:hover { background: var(--color-base-200); }
 .piko-saved-chat[aria-current="page"] { background: var(--piko-selection); color: var(--color-primary); }
-.piko-saved-chat small { display: block; margin-top: 4px; }
-.piko-studio .piko-builder-history { max-width: 760px; margin: 0 auto 20px; gap: 22px; }
+.piko-studio-sidebar-content > form { margin-top: 12px; }
+.piko-studio-conversation { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.piko-studio-scroll { overflow-y: auto; min-height: 0; flex: 1; padding: 28px; scrollbar-width: thin; }
+.piko-studio-scroll:has(> .piko-studio-welcome:only-child) { display: flex; align-items: center; }
+.piko-studio-welcome { width: 100%; max-width: 620px; margin: 24px auto; text-align: center; }
+.piko-studio-welcome > img { margin: 0 auto 20px; width: 48px; height: 48px; }
+.piko-studio-welcome h2 { font-size: 24px; font-weight: 700; line-height: 1.6; }
+.piko-studio-welcome > p { margin-top: 8px; color: var(--piko-text-secondary); font-size: 12px; line-height: 1.9; }
+.piko-studio-examples { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.piko-studio-example { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px 12px; border: 1px solid var(--color-base-300); border-radius: 12px; background: var(--color-base-100); text-align: start; cursor: pointer; }
+.piko-studio-example:hover { border-color: var(--color-primary); background: var(--piko-selection); }
+.piko-studio-example .piko-icon { width: 17px; height: 17px; color: var(--piko-text-secondary); }
+.piko-studio-example strong { font-size: 11px; font-weight: 500; }
+.piko-studio-example > .piko-icon:last-child { display: none; }
+.piko-studio-composer { flex-shrink: 0; padding: 12px 28px 24px; }
+.piko-studio-composer > *, .piko-studio-composer form { max-width: 760px; margin-inline: auto; }
+.piko-studio-composer > .piko-field-error { font-size: 11px; margin-bottom: 8px; }
+.piko-studio-composer form { border: 1px solid var(--color-base-300); border-radius: 16px; padding: 14px; background: var(--color-base-100); box-shadow: var(--piko-shadow); transition: border-color .15s, box-shadow .15s; }
+.piko-studio-composer form:focus-within { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--piko-selection); }
+.piko-studio-composer .piko-builder-composer { display: block; min-height: 56px; height: 64px; max-height: 160px; margin: 0 0 10px; border: 0; border-radius: 0; background: transparent; font-size: 13px; line-height: 1.9; padding: 2px; outline: none; box-shadow: none; resize: none; }
+.piko-studio-composer-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.piko-studio-composer-actions .piko-helper { font-size: 10px; }
+.piko-studio-composer .piko-primary-action { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; padding: 0; flex-shrink: 0; }
+.piko-studio .piko-builder-history { max-width: 760px; margin: 0 auto 20px; gap: 26px; }
 .piko-studio .piko-builder-message { border: 0; padding: 0; border-radius: 0; font-size: 13px; line-height: 2; }
-.piko-studio .piko-builder-message-owner { padding: 16px 20px; border-radius: 16px; background: var(--piko-surface-lilac); }
+.piko-studio .piko-builder-message-owner { padding: 14px 18px; border-radius: 16px 4px 16px 16px; background: var(--piko-surface-lilac); margin-inline-start: 32px; }
 .piko-studio .piko-builder-message-result { border-inline-start: 3px solid var(--color-primary); padding-inline-start: 16px; }
 .piko-studio .piko-builder-message .piko-helper { font-size: 10px; }
 .piko-studio-progress { max-width: 760px; margin: 20px auto; padding: 18px; border: 1px solid var(--color-base-300); border-radius: 16px; font-size: 12px; line-height: 2; background: var(--color-base-100); }
 .piko-studio-progress form { margin-top: 12px; }
 .piko-studio-run-details { max-width: 760px; margin: 20px auto; font-size: 11px; border-top: 1px solid var(--color-base-300); padding-top: 12px; }
 .piko-studio-run-details summary { cursor: pointer; margin-bottom: 12px; }
+.piko-studio-scroll > .piko-helper { font-size: 11px; line-height: 1.9; }
+.piko-studio-scroll > .piko-submission-delete summary { font-size: 11px; color: var(--piko-text-secondary); }
 .piko-studio-scroll > .piko-submission-delete { max-width: 760px; margin-inline: auto; }
-.piko-studio-pane { min-width: 0; overflow-y: auto; border-inline-start: 1px solid var(--color-base-300); background: var(--color-base-100); }
-.piko-studio-pane > header { padding: 16px 24px; border-bottom: 1px solid var(--color-base-300); }
+.piko-studio-pane { min-width: 0; min-height: 0; overflow-y: auto; border-inline-start: 1px solid var(--color-base-300); background: var(--color-base-100); scrollbar-width: thin; }
+.piko-studio-pane-heading { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 20px; }
+.piko-studio-pane-heading .piko-icon { color: var(--color-primary); width: 18px; height: 18px; }
 .piko-studio-pane h2 { font-size: 12px; font-weight: 600; }
-.piko-studio-pane-empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 50px 24px; }
-.piko-studio-pane-empty h3 { font-size: 15px; font-weight: 650; }
-.piko-studio-pane-empty p { margin-top: 10px; color: var(--piko-text-secondary); font-size: 12px; line-height: 2; }
-.piko-studio-pane-content { display: flex; flex-direction: column; gap: 12px; padding: 16px 24px; }
-.piko-studio-pane-content h3 { font-weight: 650; overflow-wrap: anywhere; }
-.piko-studio-pane-content .piko-page-copy { font-size: 12px; line-height: 2; }
-.piko-studio-pane-content > .piko-secondary-action { display: flex; gap: 10px; align-items: center; min-height: 44px; font-size: 12px; }
-.piko-studio-pane-content > .piko-publication { margin: 8px 0 0; padding: 18px 0 0; border: 0; border-top: 1px solid var(--color-base-300); border-radius: 0; box-shadow: none; }
-.piko-studio-pane-content .piko-publication h2 { font-size: 13px; }
-.piko-studio-pane-content .piko-activation-confirm { font-size: 12px; }
+.piko-studio-pane-content { display: flex; flex-direction: column; gap: 12px; padding: 18px 18px 24px; }
+.piko-studio-pane-content > .piko-helper { font-size: 10px; }
+.piko-studio-bot-tools { font-size: 12px; border-top: 1px solid var(--color-base-300); padding-top: 12px; margin-top: 8px; }
+.piko-studio-bot-tools summary { min-height: 44px; padding-block: 12px; cursor: pointer; color: var(--piko-text-secondary); }
+.piko-studio-bot-tools > a { display: flex; gap: 8px; align-items: center; margin-block: 12px; min-height: 44px; }
+.piko-studio-bot-tools .piko-publication { padding: 16px 0 0; border: 0; border-top: 1px solid var(--color-base-300); border-radius: 0; box-shadow: none; }
+.piko-studio-bot-tools .piko-publication h2 { font-size: 13px; }
+.piko-studio-bot-tools .piko-activation-confirm { font-size: 12px; }
 .piko-studio-switch { display: none; }
-/* The shared Telegram-style conversation fits the adjacent studio pane. */
 .piko-studio [data-studio-preview] { min-width: 0; font-size: 12px; }
-.piko-studio [data-studio-preview] > .piko-helper { margin-block: 10px; line-height: 1.9; }
-.piko-studio [data-preview-source-revision] { margin-block: 14px; }
-.piko-studio .piko-preview-chat { margin: 14px 0 0; border-radius: 14px; box-shadow: none; }
-.piko-studio .piko-preview-chat header { padding: 14px; gap: 10px; }
-.piko-studio .piko-preview-chat h2 { font-size: 13px; }
-.piko-studio .piko-preview-chat header .piko-empty-icon { width: 36px; height: 36px; margin: 0; }
-.piko-studio .piko-preview-transcript { padding: 14px; min-height: 10rem; max-height: 42dvh; gap: 12px; }
-.piko-studio .piko-preview-message { padding: 10px 12px; margin-inline-end: 16px; }
-.piko-studio .piko-preview-participant { margin-inline: 16px 0; }
-.piko-studio .piko-preview-message p { font-size: 12px; line-height: 1.9; }
-.piko-studio .piko-preview-message .piko-helper { font-size: 9px; }
-.piko-studio .piko-preview-buttons { padding: 12px; gap: 8px; grid-template-columns: repeat(auto-fit,minmax(110px,1fr)); }
-.piko-studio .piko-preview-buttons button { font-size: 11px; min-height: 44px; }
-.piko-studio .piko-preview-answer { padding: 14px; gap: 8px; }
-.piko-studio .piko-preview-answer textarea { min-height: 5rem; }
-.piko-studio .piko-preview-footer { margin: 14px 0 0; gap: 12px; }
-.piko-studio .piko-preview-footer button { min-height: 44px; font-size: 11px; }
-.piko-studio .piko-preview-footer .piko-helper { width: 100%; line-height: 1.9; font-size: 10px; }
+.piko-studio [data-preview-source-revision] { margin-bottom: 10px; }
+.piko-studio [data-preview-source-revision] .piko-helper { font-size: 10px; }
+.piko-studio .piko-preview-chat { margin: 0; }
+.piko-studio .piko-preview-chat h2 { font-size: 12px; }
+.piko-studio .piko-preview-footer { gap: 8px; margin-top: 12px; }
+.piko-studio .piko-preview-footer button { min-height: 40px; font-size: 10px; }
 [data-studio-preview][aria-busy="true"] button[type="submit"] { opacity: .6; cursor: wait; }
 /* Read-only Flow paths use native details for keyboard and no-script access. */
 .piko-pane-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--color-base-300); padding-bottom: 8px; }
@@ -142,31 +137,41 @@
 [data-flow-request] { background: var(--piko-selection); border-radius: 8px; padding: 8px; font-size: 11px; overflow-wrap: anywhere; }
 [data-flow-request] bdi { display: block; max-height: 3rem; overflow: auto; }
 [data-studio-flow] > [role="status"] { margin-block: 12px; color: var(--color-primary); font-size: 11px; line-height: 1.9; }
+@media (max-width: 1179px) {
+ .piko-studio-body { grid-template-columns: minmax(0,1fr) minmax(280px,34%); grid-template-rows: auto minmax(0,1fr); }
+ .piko-studio-sidebar { grid-column: 1 / -1; border-inline-end: 0; border-bottom: 1px solid var(--color-base-300); max-height: 30dvh; }
+ .piko-studio-sidebar > summary { padding: 10px 24px; min-height: 44px; cursor: pointer; }
+ .piko-studio-sidebar > summary .piko-icon:last-child { display: block; margin-inline-start: auto; }
+ .piko-studio-sidebar[open] > summary .piko-icon:last-child { transform: rotate(-90deg); }
+ .piko-studio-sidebar-content { padding: 8px 24px 16px; }
+}
+@media (min-width: 1180px) {
+ .piko-studio-sidebar > summary { pointer-events: none; }
+}
 @media (max-width: 767px) {
- .piko-studio-heading { padding: 14px 18px; }
- .piko-studio-heading h1 { font-size: 16px; }
- .piko-studio-scroll { padding: 18px; }
- .piko-studio-welcome { margin-top: 0; }
+ .piko-studio-heading { padding: 12px 18px; min-height: 56px; }
+ .piko-studio-heading h1 { font-size: 14px; }
+ .piko-studio-scroll { padding: 20px; }
+ .piko-studio-welcome { margin-block: 16px; }
  .piko-studio-welcome h2 { font-size: 22px; }
- .piko-studio-examples { grid-template-columns: 1fr; gap: 8px; margin-block: 18px; }
- .piko-studio-example { display: grid; grid-template-columns: 36px minmax(0,1fr) 18px; gap: 4px 10px; padding: 12px; }
- .piko-studio-example > .piko-icon:first-child { grid-row: span 2; padding: 7px; }
- .piko-studio-example span { grid-column: 2; }
- .piko-studio-example > .piko-icon:last-child { grid-column: 3; grid-row: 1 / span 2; }
- .piko-studio-composer { padding: 10px 18px max(12px, env(safe-area-inset-bottom)); }
- .piko-studio-composer .piko-helper { font-size: 10px; }
+ .piko-studio-examples { gap: 8px; }
+ .piko-studio-composer { padding: 10px 16px max(16px, env(safe-area-inset-bottom)); }
+ .piko-studio-composer-actions .piko-helper { font-size: 9px; }
  .piko-studio-identity .piko-icon-tile { display: none; }
- .piko-studio-identity .piko-helper span { display: none; }
  .piko-studio-body { display: flex; flex-direction: column; }
- .piko-studio-body > * { flex: 1; min-height: 0; }
- .piko-studio[data-enhanced] .piko-studio-switch { display: flex; padding: 8px 18px; gap: 8px; border-bottom: 1px solid var(--color-base-300); background: var(--color-base-100); }
- .piko-studio-switch button { display: inline-flex; justify-content: center; align-items: center; gap: 8px; flex: 1; min-height: 44px; border-radius: 8px; font-size: 11px; cursor: pointer; }
+ .piko-studio-body > .piko-studio-sidebar { flex: none; }
+ .piko-studio-body > .piko-studio-conversation, .piko-studio-body > .piko-studio-pane { flex: 1; min-height: 0; }
+ .piko-studio-sidebar > summary { padding-inline: 18px; }
+ .piko-studio[data-enhanced] .piko-studio-switch { display: flex; padding: 6px 18px; gap: 8px; border-bottom: 1px solid var(--color-base-300); background: var(--color-base-100); }
+ .piko-studio-switch button { display: inline-flex; justify-content: center; align-items: center; gap: 8px; flex: 1; min-height: 40px; border-radius: 8px; font-size: 11px; cursor: pointer; }
+ .piko-studio-switch button .piko-icon { width: 16px; height: 16px; }
  .piko-studio-switch [aria-pressed="true"] { background: var(--piko-selection); color: var(--color-primary); }
  .piko-studio[data-enhanced]:not([data-view="pane"]) .piko-studio-pane,
  .piko-studio[data-enhanced][data-view="pane"] #studio-conversation { display: none; }
  .piko-studio:not([data-enhanced]) .piko-studio-body { overflow-y: auto; }
- .piko-studio:not([data-enhanced]) .piko-studio-body > * { flex: none; min-height: 20rem; }
+ .piko-studio:not([data-enhanced]) .piko-studio-body > .piko-studio-conversation,
+ .piko-studio:not([data-enhanced]) .piko-studio-body > .piko-studio-pane { flex: none; min-height: 20rem; }
  .piko-studio-pane { border-inline-start: 0; }
- .piko-studio-chat-picker > summary { padding: 10px; font-size: 10px; }
+ .piko-studio-pane-content { max-width: 420px; width: 100%; margin-inline: auto; }
 }
 }

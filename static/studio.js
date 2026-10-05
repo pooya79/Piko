@@ -4,8 +4,9 @@
   let refreshing = false;
   let renderedSignature = root()?.outerHTML;
   const reading = {};
+  const wideStudio = window.matchMedia('(min-width: 1180px)');
   function captureReading(studio) {
-    for (const selector of ['.piko-studio-scroll', '.piko-studio-pane']) {
+    for (const selector of ['.piko-studio-scroll', '.piko-studio-pane', '.piko-studio-sidebar']) {
       const region = studio.querySelector(selector);
       // A hidden mobile region reports zero dimensions; retain its last visible state.
       if (region?.getClientRects().length) {
@@ -29,6 +30,8 @@
     if (!studio) return;
     studio.dataset.enhanced = '';
     studio.dataset.view ||= 'conversation';
+    const sidebar = studio.querySelector('#studio-chat-selector');
+    if (sidebar && (restore || wideStudio.matches)) sidebar.open = wideStudio.matches || (restore && location.hash === '#saved-chats');
     studio.querySelectorAll('[data-studio-view]').forEach(button => {
       button.setAttribute('aria-pressed', String(button.dataset.studioView === studio.dataset.view));
     });
@@ -98,6 +101,7 @@
     input.setSelectionRange(state.start, state.end, state.direction);
     input.scrollTop = state.scroll;
     next.querySelectorAll('details[id]').forEach(detail => { detail.open = state.details[detail.id] || false; });
+    if (wideStudio.matches) next.querySelector('#studio-chat-selector').open = true;
     for (const [name, snapshot] of paneSnapshots) paneStates.get(name)?.restore(next, snapshot, { message: acceptedMessage, selection: acceptedSelection });
     let focus = state.focusID ? document.getElementById(state.focusID) : null;
     if (state.focusInStudio && (!focus || focus.disabled)) {
@@ -175,9 +179,6 @@
       document.dispatchEvent(new CustomEvent('piko:studio-view-updated'));
       return;
     }
-    if (event.target.closest('.piko-studio-chat-picker summary')) return;
-    const picker = root()?.querySelector('.piko-studio-chat-picker');
-    if (picker && !picker.contains(event.target)) picker.open = false;
     const example = event.target.closest('[data-example]');
     if (!example) return;
     const composer = document.getElementById('builder-message');
@@ -187,9 +188,9 @@
     composer.dispatchEvent(new Event('input', { bubbles: true }));
   });
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape') {
-      const picker = root()?.querySelector('.piko-studio-chat-picker[open]');
-      if (picker) { picker.open = false; picker.querySelector('summary').focus(); }
+    if (event.key === 'Escape' && !wideStudio.matches) {
+      const sidebar = root()?.querySelector('#studio-chat-selector[open]');
+      if (sidebar) { sidebar.open = false; sidebar.querySelector('summary').focus(); }
     }
     if (event.target.id !== 'builder-message' || event.isComposing || event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) return;
     event.preventDefault();
@@ -226,5 +227,9 @@
   setInterval(() => {
     if (!document.hidden && !posting && root()?.dataset.chatUrl !== '/builder') refreshStudio();
   }, 5000);
+  wideStudio.addEventListener('change', () => {
+    const sidebar = root()?.querySelector('#studio-chat-selector');
+    if (sidebar) sidebar.open = wideStudio.matches;
+  });
   enhance(true);
 })();
