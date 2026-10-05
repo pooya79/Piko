@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/pooya79/Piko/internal/auth"
 	"github.com/pooya79/Piko/internal/bot"
+	"github.com/pooya79/Piko/internal/locale"
 	"github.com/pooya79/Piko/internal/web"
 	"github.com/pooya79/Piko/internal/web/request"
 	"log/slog"
@@ -37,11 +38,19 @@ func (h *Handler) Index(w http.ResponseWriter, r *http.Request) {
 		h.failed(w, r, err)
 		return
 	}
+	chats, err := h.service.List(r.Context(), 0)
+	if err != nil {
+		h.failed(w, r, err)
+		return
+	}
 	u, _ := auth.UserFromContext(r.Context())
-	h.render(w, r, 200, IndexPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), bots))
+	h.render(w, r, 200, IndexPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), bots, chats))
 }
 
 func (h *Handler) requestedBot(w http.ResponseWriter, r *http.Request) (bot.Bot, bool) {
+	if chi.URLParam(r, "botID") == "" {
+		return bot.Bot{}, true
+	}
 	id, err := strconv.ParseInt(chi.URLParam(r, "botID"), 10, 64)
 	if err != nil || id < 1 {
 		h.failed(w, r, bot.ErrNotFound)
@@ -78,11 +87,15 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := r.ParseForm(); err != nil || len(r.PostForm["title"]) != 1 {
+	if err := r.ParseForm(); err != nil || (b.ID != 0 && len(r.PostForm["title"]) != 1) {
 		h.list(w, r, b, 422, "", "builder.title.error")
 		return
 	}
-	chat, err := h.service.Create(r.Context(), b.ID, r.PostForm.Get("title"))
+	title := r.PostForm.Get("title")
+	if b.ID == 0 {
+		title = locale.T(r.Context(), "piko.chat.title")
+	}
+	chat, err := h.service.Create(r.Context(), b.ID, title)
 	if errors.Is(err, ErrTitle) {
 		h.list(w, r, b, 422, r.PostForm.Get("title"), "builder.title.error")
 		return
@@ -145,10 +158,14 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request, b bot.Bot, id i
 		h.failed(w, r, err)
 		return
 	}
-	draft, err := h.bots.LoadDraft(r.Context(), b.ID)
-	if err != nil {
-		h.failed(w, r, err)
-		return
+	var revision int64
+	if b.ID != 0 {
+		draft, err := h.bots.LoadDraft(r.Context(), b.ID)
+		if err != nil {
+			h.failed(w, r, err)
+			return
+		}
+		revision = draft.Revision
 	}
 	u, _ := auth.UserFromContext(r.Context())
 	allowance, err := h.service.Allowance(r.Context())
@@ -156,7 +173,7 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request, b bot.Bot, id i
 		h.failed(w, r, err)
 		return
 	}
-	h.render(w, r, status, ChatPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, history, ChatView{Revision: draft.Revision, Enabled: h.service.Enabled(), Allowance: allowance, Message: message, FeedbackKey: key}))
+	h.render(w, r, status, ChatPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, history, ChatView{Revision: revision, Enabled: h.service.Enabled(), Allowance: allowance, Message: message, FeedbackKey: key}))
 }
 
 func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
@@ -215,7 +232,7 @@ func (h *Handler) Stop(w http.ResponseWriter, r *http.Request) {
 		h.failed(w, r, err)
 		return
 	}
-	http.Redirect(w, r, b.URL()+"/chats/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+	http.Redirect(w, r, (Chat{BotID: b.ID, ID: id}).URL(), http.StatusSeeOther)
 }
 
 func (h *Handler) Undo(w http.ResponseWriter, r *http.Request) {
@@ -240,7 +257,7 @@ func (h *Handler) Undo(w http.ResponseWriter, r *http.Request) {
 		h.failed(w, r, err)
 		return
 	}
-	http.Redirect(w, r, b.URL()+"/chats/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+	http.Redirect(w, r, (Chat{BotID: b.ID, ID: id}).URL(), http.StatusSeeOther)
 }
 
 func (h *Handler) sent(w http.ResponseWriter, r *http.Request, b bot.Bot, id int64, message string, err error) {
@@ -250,15 +267,23 @@ func (h *Handler) sent(w http.ResponseWriter, r *http.Request, b bot.Bot, id int
 	case errors.Is(err, ErrMessage):
 		h.detail(w, r, b, id, 422, message, "builder.message.error")
 	case errors.Is(err, ErrBusy):
-		h.detail(w, r, b, id, 409, message, "builder.busy")
+		key := "builder.busy"
+		if b.ID == 0 {
+			key = "piko.chat.busy"
+		}
+		h.detail(w, r, b, id, 409, message, key)
 	case errors.Is(err, ErrDailyLimit):
 		h.detail(w, r, b, id, 429, message, "builder.limit")
 	case errors.Is(err, ErrUnavailable):
-		h.detail(w, r, b, id, 503, message, "builder.unavailable")
+		key := "builder.unavailable"
+		if b.ID == 0 {
+			key = "piko.chat.unavailable"
+		}
+		h.detail(w, r, b, id, 503, message, key)
 	case err != nil:
 		h.failed(w, r, err)
 	default:
-		http.Redirect(w, r, b.URL()+"/chats/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+		http.Redirect(w, r, (Chat{BotID: b.ID, ID: id}).URL(), http.StatusSeeOther)
 	}
 }
 
@@ -275,7 +300,11 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		h.failed(w, r, err)
 		return
 	}
-	http.Redirect(w, r, b.URL()+"/chats", http.StatusSeeOther)
+	target := "/builder"
+	if b.ID != 0 {
+		target = b.URL() + "/chats"
+	}
+	http.Redirect(w, r, target, http.StatusSeeOther)
 }
 
 func (h *Handler) failed(w http.ResponseWriter, r *http.Request, err error) {

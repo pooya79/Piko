@@ -62,6 +62,7 @@ func (c Conversation) LatestRun() Run {
 	return c.Runs[len(c.Runs)-1]
 }
 
+// BotID is zero for a general Piko chat; associated chats retain a real Bot ID.
 type Chat struct {
 	ID, BotID            int64
 	Title                string
@@ -69,6 +70,9 @@ type Chat struct {
 }
 
 func (c Chat) URL() string {
+	if c.BotID == 0 {
+		return "/chats/" + strconv.FormatInt(c.ID, 10)
+	}
 	return "/bots/" + strconv.FormatInt(c.BotID, 10) + "/chats/" + strconv.FormatInt(c.ID, 10)
 }
 
@@ -112,8 +116,10 @@ func (s *Service) Create(ctx context.Context, botID int64, title string) (Chat, 
 	if err != nil {
 		return Chat{}, err
 	}
-	if _, err := s.bots.Get(ctx, botID); err != nil {
-		return Chat{}, err
+	if botID != 0 {
+		if _, err := s.bots.Get(ctx, botID); err != nil {
+			return Chat{}, err
+		}
 	}
 	title = strings.TrimSpace(title)
 	if !utf8.ValidString(title) || utf8.RuneCountInString(title) < 1 || utf8.RuneCountInString(title) > 80 {
@@ -127,8 +133,10 @@ func (s *Service) List(ctx context.Context, botID int64) ([]Chat, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := s.bots.Get(ctx, botID); err != nil {
-		return nil, err
+	if botID != 0 {
+		if _, err := s.bots.Get(ctx, botID); err != nil {
+			return nil, err
+		}
 	}
 	return s.repo.list(ctx, ownerID, botID)
 }

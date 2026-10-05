@@ -13,8 +13,8 @@ const appendOwnerBuilderMessage = `-- name: AppendOwnerBuilderMessage :one
 INSERT INTO builder_messages (chat_id, sequence, role, content, created_at)
 SELECT c.id, COALESCE((SELECT MAX(m.sequence) FROM builder_messages m WHERE m.chat_id = c.id), 0) + 1,
 ?1, ?2, ?3
-FROM builder_chats c JOIN bots b ON b.id = c.bot_id
-WHERE b.owner_id = ?4 AND b.id = ?5 AND c.id = ?6
+FROM builder_chats c
+WHERE c.owner_id = ?4 AND COALESCE(c.bot_id, 0) = CAST(?5 AS INTEGER) AND c.id = ?6
 RETURNING chat_id, sequence, role, content, created_at
 `
 
@@ -48,10 +48,10 @@ func (q *Queries) AppendOwnerBuilderMessage(ctx context.Context, arg AppendOwner
 }
 
 const createOwnerBuilderChat = `-- name: CreateOwnerBuilderChat :one
-INSERT INTO builder_chats (bot_id, title, created_at, updated_at)
-SELECT b.id, ?1, ?2, ?2
+INSERT INTO builder_chats (owner_id, bot_id, title, created_at, updated_at)
+SELECT b.owner_id, b.id, ?1, ?2, ?2
 FROM bots b WHERE b.owner_id = ?3 AND b.id = ?4
-RETURNING id, bot_id, title, created_at, updated_at
+RETURNING id, owner_id, bot_id, title, created_at, updated_at
 `
 
 type CreateOwnerBuilderChatParams struct {
@@ -61,6 +61,7 @@ type CreateOwnerBuilderChatParams struct {
 	BotID     int64
 }
 
+// Bot scope 0 denotes an unassociated Piko chat; storage keeps bot_id NULL.
 func (q *Queries) CreateOwnerBuilderChat(ctx context.Context, arg CreateOwnerBuilderChatParams) (BuilderChat, error) {
 	row := q.db.QueryRowContext(ctx, createOwnerBuilderChat,
 		arg.Title,
@@ -71,6 +72,33 @@ func (q *Queries) CreateOwnerBuilderChat(ctx context.Context, arg CreateOwnerBui
 	var i BuilderChat
 	err := row.Scan(
 		&i.ID,
+		&i.OwnerID,
+		&i.BotID,
+		&i.Title,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createOwnerPikoChat = `-- name: CreateOwnerPikoChat :one
+INSERT INTO builder_chats (owner_id, title, created_at, updated_at)
+VALUES (?1, ?2, ?3, ?3)
+RETURNING id, owner_id, bot_id, title, created_at, updated_at
+`
+
+type CreateOwnerPikoChatParams struct {
+	OwnerID   int64
+	Title     string
+	CreatedAt int64
+}
+
+func (q *Queries) CreateOwnerPikoChat(ctx context.Context, arg CreateOwnerPikoChatParams) (BuilderChat, error) {
+	row := q.db.QueryRowContext(ctx, createOwnerPikoChat, arg.OwnerID, arg.Title, arg.CreatedAt)
+	var i BuilderChat
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
 		&i.BotID,
 		&i.Title,
 		&i.CreatedAt,
@@ -80,8 +108,8 @@ func (q *Queries) CreateOwnerBuilderChat(ctx context.Context, arg CreateOwnerBui
 }
 
 const deleteOwnerBuilderChat = `-- name: DeleteOwnerBuilderChat :execrows
-DELETE FROM builder_chats WHERE builder_chats.id = ?1 AND builder_chats.bot_id = ?2
-AND EXISTS (SELECT 1 FROM bots b WHERE b.id = builder_chats.bot_id AND b.owner_id = ?3)
+DELETE FROM builder_chats WHERE builder_chats.id = ?1 AND COALESCE(builder_chats.bot_id, 0) = CAST(?2 AS INTEGER)
+AND builder_chats.owner_id = ?3
 `
 
 type DeleteOwnerBuilderChatParams struct {
@@ -99,8 +127,8 @@ func (q *Queries) DeleteOwnerBuilderChat(ctx context.Context, arg DeleteOwnerBui
 }
 
 const getOwnerBuilderChat = `-- name: GetOwnerBuilderChat :one
-SELECT c.id, c.bot_id, c.title, c.created_at, c.updated_at FROM builder_chats c JOIN bots b ON b.id = c.bot_id
-WHERE b.owner_id = ?1 AND b.id = ?2 AND c.id = ?3
+SELECT c.id, c.owner_id, c.bot_id, c.title, c.created_at, c.updated_at FROM builder_chats c
+WHERE c.owner_id = ?1 AND COALESCE(c.bot_id, 0) = CAST(?2 AS INTEGER) AND c.id = ?3
 `
 
 type GetOwnerBuilderChatParams struct {
@@ -114,6 +142,7 @@ func (q *Queries) GetOwnerBuilderChat(ctx context.Context, arg GetOwnerBuilderCh
 	var i BuilderChat
 	err := row.Scan(
 		&i.ID,
+		&i.OwnerID,
 		&i.BotID,
 		&i.Title,
 		&i.CreatedAt,
@@ -123,8 +152,8 @@ func (q *Queries) GetOwnerBuilderChat(ctx context.Context, arg GetOwnerBuilderCh
 }
 
 const listOwnerBuilderChats = `-- name: ListOwnerBuilderChats :many
-SELECT c.id, c.bot_id, c.title, c.created_at, c.updated_at FROM builder_chats c JOIN bots b ON b.id = c.bot_id
-WHERE b.owner_id = ?1 AND b.id = ?2
+SELECT c.id, c.owner_id, c.bot_id, c.title, c.created_at, c.updated_at FROM builder_chats c
+WHERE c.owner_id = ?1 AND COALESCE(c.bot_id, 0) = CAST(?2 AS INTEGER)
 ORDER BY c.id DESC
 `
 
@@ -144,6 +173,7 @@ func (q *Queries) ListOwnerBuilderChats(ctx context.Context, arg ListOwnerBuilde
 		var i BuilderChat
 		if err := rows.Scan(
 			&i.ID,
+			&i.OwnerID,
 			&i.BotID,
 			&i.Title,
 			&i.CreatedAt,
@@ -164,8 +194,8 @@ func (q *Queries) ListOwnerBuilderChats(ctx context.Context, arg ListOwnerBuilde
 
 const listOwnerBuilderMessages = `-- name: ListOwnerBuilderMessages :many
 SELECT m.chat_id, m.sequence, m.role, m.content, m.created_at FROM builder_messages m
-JOIN builder_chats c ON c.id = m.chat_id JOIN bots b ON b.id = c.bot_id
-WHERE b.owner_id = ?1 AND b.id = ?2 AND c.id = ?3
+JOIN builder_chats c ON c.id = m.chat_id
+WHERE c.owner_id = ?1 AND COALESCE(c.bot_id, 0) = CAST(?2 AS INTEGER) AND c.id = ?3
 ORDER BY m.sequence
 `
 
@@ -206,8 +236,8 @@ func (q *Queries) ListOwnerBuilderMessages(ctx context.Context, arg ListOwnerBui
 
 const touchOwnerBuilderChat = `-- name: TouchOwnerBuilderChat :exec
 UPDATE builder_chats SET updated_at = ?1
-WHERE builder_chats.id = ?2 AND builder_chats.bot_id = ?3
-AND EXISTS (SELECT 1 FROM bots b WHERE b.id = builder_chats.bot_id AND b.owner_id = ?4)
+WHERE builder_chats.id = ?2 AND COALESCE(builder_chats.bot_id, 0) = CAST(?3 AS INTEGER)
+AND builder_chats.owner_id = ?4
 `
 
 type TouchOwnerBuilderChatParams struct {

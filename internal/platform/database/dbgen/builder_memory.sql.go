@@ -11,8 +11,8 @@ import (
 
 const getOwnerBuilderSummary = `-- name: GetOwnerBuilderSummary :one
 SELECT s.chat_id, s.through_sequence, s.content FROM builder_summaries s
-JOIN builder_chats c ON c.id=s.chat_id JOIN bots b ON b.id=c.bot_id
-WHERE b.owner_id=?1 AND b.id=?2 AND c.id=?3
+JOIN builder_chats c ON c.id=s.chat_id
+WHERE c.owner_id=?1 AND COALESCE(c.bot_id,0)=CAST(?2 AS INTEGER) AND c.id=?3
 `
 
 type GetOwnerBuilderSummaryParams struct {
@@ -30,8 +30,8 @@ func (q *Queries) GetOwnerBuilderSummary(ctx context.Context, arg GetOwnerBuilde
 
 const listOwnerBuilderUnsummarizedMessages = `-- name: ListOwnerBuilderUnsummarizedMessages :many
 SELECT m.chat_id, m.sequence, m.role, m.content, m.created_at FROM builder_messages m
-JOIN builder_chats c ON c.id=m.chat_id JOIN bots b ON b.id=c.bot_id
-WHERE b.owner_id=?1 AND b.id=?2 AND c.id=?3
+JOIN builder_chats c ON c.id=m.chat_id
+WHERE c.owner_id=?1 AND COALESCE(c.bot_id,0)=CAST(?2 AS INTEGER) AND c.id=?3
 AND m.sequence > ?4
 ORDER BY m.sequence
 `
@@ -80,8 +80,8 @@ func (q *Queries) ListOwnerBuilderUnsummarizedMessages(ctx context.Context, arg 
 const saveOwnerBuilderSummary = `-- name: SaveOwnerBuilderSummary :execrows
 INSERT INTO builder_summaries (chat_id, through_sequence, content)
 SELECT c.id,?1,?2
-FROM builder_chats c JOIN bots b ON b.id=c.bot_id
-WHERE b.owner_id=?3 AND b.id=?4 AND c.id=?5
+FROM builder_chats c
+WHERE c.owner_id=?3 AND COALESCE(c.bot_id,0)=CAST(?4 AS INTEGER) AND c.id=?5
 ON CONFLICT(chat_id) DO UPDATE SET through_sequence=excluded.through_sequence,content=excluded.content
 WHERE builder_summaries.through_sequence < excluded.through_sequence
 `

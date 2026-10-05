@@ -26,6 +26,20 @@ func builderFixture(t *testing.T, config builder.Config, provider http.HandlerFu
 
 func builderFixtureWithLogLevel(t *testing.T, config builder.Config, logLevel string, provider http.HandlerFunc) (*App, *accountBrowser) {
 	t.Helper()
+	a, b := generalBuilderFixture(t, config, logLevel, provider)
+	if got := b.post("/bots/new", url.Values{"name": {"ربات گفتگو"}}); got.Code != 303 {
+		t.Fatal(got.Code)
+	}
+	for _, title := range []string{"گفتگوی اول", "گفتگوی دوم"} {
+		if got := b.post("/bots/1/chats", url.Values{"title": {title}}); got.Code != 303 {
+			t.Fatal(got.Code)
+		}
+	}
+	return a, b
+}
+
+func generalBuilderFixture(t *testing.T, config builder.Config, logLevel string, provider http.HandlerFunc) (*App, *accountBrowser) {
+	t.Helper()
 	_, path := testsupport.MigratedSQLite(t, t.Context())
 	fake := httptest.NewServer(streamingBuilderProvider(provider))
 	t.Cleanup(fake.Close)
@@ -40,14 +54,6 @@ func builderFixtureWithLogLevel(t *testing.T, config builder.Config, logLevel st
 	b.send("GET", "/register", nil)
 	if got := b.post("/register", registerValues("builder-owner@example.test", "مینا", "OwnerPassword123")); got.Code != 303 {
 		t.Fatal(got.Code)
-	}
-	if got := b.post("/bots/new", url.Values{"name": {"ربات گفتگو"}}); got.Code != 303 {
-		t.Fatal(got.Code)
-	}
-	for _, title := range []string{"گفتگوی اول", "گفتگوی دوم"} {
-		if got := b.post("/bots/1/chats", url.Values{"title": {title}}); got.Code != 303 {
-			t.Fatal(got.Code)
-		}
 	}
 	return a, b
 }

@@ -18,10 +18,14 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 func chatFromRow(row dbgen.BuilderChat) Chat {
-	return Chat{ID: row.ID, BotID: row.BotID, Title: row.Title, CreatedAt: time.Unix(row.CreatedAt, 0), UpdatedAt: time.Unix(row.UpdatedAt, 0)}
+	return Chat{ID: row.ID, BotID: row.BotID.Int64, Title: row.Title, CreatedAt: time.Unix(row.CreatedAt, 0), UpdatedAt: time.Unix(row.UpdatedAt, 0)}
 }
 
 func (r *Repository) create(ctx context.Context, ownerID, botID int64, title string) (Chat, error) {
+	if botID == 0 {
+		row, err := r.q.CreateOwnerPikoChat(ctx, dbgen.CreateOwnerPikoChatParams{OwnerID: ownerID, Title: title, CreatedAt: time.Now().Unix()})
+		return chatFromRow(row), storageError(err)
+	}
 	row, err := r.q.CreateOwnerBuilderChat(ctx, dbgen.CreateOwnerBuilderChatParams{OwnerID: ownerID, BotID: botID, Title: title, CreatedAt: time.Now().Unix()})
 	return chatFromRow(row), storageError(err)
 }

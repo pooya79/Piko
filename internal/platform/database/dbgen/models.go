@@ -113,7 +113,8 @@ type BuilderCall struct {
 
 type BuilderChat struct {
 	ID        int64
-	BotID     int64
+	OwnerID   int64
+	BotID     sql.NullInt64
 	Title     string
 	CreatedAt int64
 	UpdatedAt int64

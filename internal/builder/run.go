@@ -31,7 +31,7 @@ import (
 
 var (
 	ErrUnavailable = errors.New("builder generation unavailable")
-	ErrBusy        = errors.New("bot already has an active Builder run")
+	ErrBusy        = errors.New("chat scope already has an active Builder run")
 	ErrDailyLimit  = errors.New("daily Builder allowance exhausted")
 	ErrCallLimit   = errors.New("builder model call limit exhausted")
 	ErrRetry       = errors.New("builder request is no longer available for retry")
@@ -140,9 +140,13 @@ type Allowance struct {
 }
 
 func loadRuns(ctx context.Context, q *dbgen.Queries, ownerID, botID, chatID int64) ([]Run, error) {
-	draft, err := q.GetOwnerDraft(ctx, dbgen.GetOwnerDraftParams{OwnerID: ownerID, BotID: botID})
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, err
+	var draft dbgen.GetOwnerDraftRow
+	if botID != 0 {
+		var err error
+		draft, err = q.GetOwnerDraft(ctx, dbgen.GetOwnerDraftParams{OwnerID: ownerID, BotID: botID})
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return nil, err
+		}
 	}
 	rows, err := q.ListOwnerBuilderRuns(ctx, dbgen.ListOwnerBuilderRunsParams{OwnerID: ownerID, BotID: botID, ChatID: sql.NullInt64{Int64: chatID, Valid: true}})
 	if err != nil {
@@ -264,7 +268,12 @@ func (s *Service) send(ctx context.Context, botID, chatID int64, message string,
 		if s.stopping || s.work.Err() != nil || !s.Enabled() {
 			return ErrUnavailable
 		}
-		active, err := q.ActiveOwnerBuilderBot(ctx, dbgen.ActiveOwnerBuilderBotParams{OwnerID: ownerID, BotID: sql.NullInt64{Int64: botID, Valid: true}})
+		var active int64
+		if botID == 0 {
+			active, err = q.ActiveOwnerPikoChat(ctx, dbgen.ActiveOwnerPikoChatParams{OwnerID: ownerID, ChatID: sql.NullInt64{Int64: chatID, Valid: true}})
+		} else {
+			active, err = q.ActiveOwnerBuilderBot(ctx, dbgen.ActiveOwnerBuilderBotParams{OwnerID: ownerID, BotID: sql.NullInt64{Int64: botID, Valid: true}})
+		}
 		if err != nil {
 			return err
 		}
@@ -280,9 +289,11 @@ func (s *Service) send(ctx context.Context, botID, chatID int64, message string,
 		if count >= s.config.DailyRequests {
 			return ErrDailyLimit
 		}
-		draft, err = q.GetOwnerDraft(ctx, dbgen.GetOwnerDraftParams{OwnerID: ownerID, BotID: botID})
-		if err != nil {
-			return storageError(err)
+		if botID != 0 {
+			draft, err = q.GetOwnerDraft(ctx, dbgen.GetOwnerDraftParams{OwnerID: ownerID, BotID: botID})
+			if err != nil {
+				return storageError(err)
+			}
 		}
 		m, err = appendMessage(ctx, q, ownerID, botID, chatID, OwnerRole, message)
 		if err != nil {
@@ -369,12 +380,20 @@ func (s *Service) execute(work context.Context, run admittedRun) {
 			runSpan.SetStatus(codes.Error, "Builder run did not succeed")
 		}
 	}()
-	base, err := flow.Decode(run.draft)
-	if err != nil {
-		return
+	var candidate *draftCandidate
+	var tools []ai.ToolRef
+	system := productHelp
+	if run.botID != 0 {
+		base, err := flow.Decode(run.draft)
+		if err != nil {
+			return
+		}
+		candidate = &draftCandidate{base: base}
+		ctx = context.WithValue(ctx, candidateContextKey{}, candidate)
+		tools = s.tools
+		system = instructions + "\n" + run.draft + "\nThe current shared Draft above is authoritative. Historical memory and messages may describe superseded configuration; never restore it unless the owner explicitly requests it now."
 	}
-	candidate := &draftCandidate{base: base}
-	ctx = context.WithValue(ctx, candidateContextKey{}, candidate)
+	// General runs receive no Draft snapshot, candidate context or mutation tools.
 	messages, summary, err := s.modelMemory(ctx, run)
 	run.summary = summary
 	if err != nil {
@@ -388,8 +407,8 @@ func (s *Service) execute(work context.Context, run admittedRun) {
 	response, err := genkit.Generate(ctx, s.genkit,
 		ai.WithModel(openrouter.ModelRef(s.config.Model, nil)),
 		ai.WithConfig(openrouter.ChatConfig{ParallelToolCalls: &parallelTools}),
-		ai.WithSystem(instructions+"\n"+run.draft+"\nThe current shared Draft above is authoritative. Historical memory and messages may describe superseded configuration; never restore it unless the owner explicitly requests it now."), ai.WithMessages(messages...),
-		ai.WithTools(s.tools...), ai.WithUse(ai.MiddlewareFunc(s.sequentialDraftTools)),
+		ai.WithSystem(system), ai.WithMessages(messages...),
+		ai.WithTools(tools...), ai.WithUse(ai.MiddlewareFunc(s.sequentialDraftTools)),
 		ai.WithStreaming(func(_ context.Context, chunk *ai.ModelResponseChunk) error {
 			// Text only: never expose reasoning, tool arguments, Draft JSON or outputs.
 			return s.display(run.id, chunk.Text(), "")
@@ -408,6 +427,10 @@ func (s *Service) execute(work context.Context, run admittedRun) {
 		if part.IsToolRequest() {
 			return
 		}
+	}
+	if candidate == nil {
+		outcome = runOutcome{status: RunSucceeded, reply: response.Text()}
+		return
 	}
 	candidate.mu.Lock()
 	defer candidate.mu.Unlock()
@@ -462,7 +485,7 @@ func (s *Service) finish(run admittedRun, outcome *runOutcome) error {
 			}
 		}
 		params := dbgen.FinishOwnerBuilderRunParams{RunID: run.id, OwnerID: run.ownerID, FinishedAt: sql.NullInt64{Int64: s.now().Unix(), Valid: true}, Now: time.Now().UnixMilli()}
-		if outcome.status == RunSucceeded && outcome.candidate != nil {
+		if outcome.status == RunSucceeded && outcome.candidate != nil && run.botID != 0 {
 			owned := auth.WithUser(ctx, auth.User{ID: run.ownerID})
 			revision, err := s.bots.SaveDraftTx(owned, tx, run.botID, run.revision, *outcome.candidate)
 			if errors.Is(err, bot.ErrStaleDraft) {
@@ -488,7 +511,7 @@ func (s *Service) finish(run admittedRun, outcome *runOutcome) error {
 			}
 			return err
 		}
-		// The guarded transition above requires a live owned Bot/chat and lease.
+		// The guarded transition above requires a live owned chat, matching Bot association and lease.
 		// Deletion, lease loss or another terminal transition makes it a no-op.
 		role, content := outcome.message()
 		_, err = appendMessage(ctx, q, run.ownerID, run.botID, run.chatID, role, content)
