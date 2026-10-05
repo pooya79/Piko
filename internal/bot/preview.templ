@@ -29,6 +29,23 @@ templ previewContent(csrf string,b Bot,p Preview,message string) {
  <script src="/static/preview.js" defer></script>
  <div class="piko-section-heading"><div><p class="piko-draft-eyebrow">{ locale.T(ctx,"preview.badge") }</p><h1 class="piko-page-title">{ locale.T(ctx,"preview.title") }</h1></div><a class="piko-text-link" href={ templ.URL(b.URL()+"/draft") }>{ locale.T(ctx,"draft.title") }</a></div>
  <p class="piko-page-copy">{ locale.T(ctx,"preview.copy") }</p>
+ @PreviewPane(csrf,b,p,true,message)
+}
+
+// PreviewPane uses the same conversation and POST controls on the standalone
+// page and in the studio. The source snapshot never follows a Draft refresh.
+templ PreviewPane(csrf string,b Bot,p Preview,saved bool,message string) {
+ <section id="studio-preview" tabindex="-1" data-studio-preview data-preview-base={ b.URL()+"/preview" } data-preview-url={ previewURL(b,p) } aria-label={ locale.T(ctx,"preview.title") }>
+ <p class="piko-helper">{ locale.T(ctx,"preview.pane.copy") }</p>
+ <p class="piko-field-error" role="status" data-preview-load-error hidden>{ locale.T(ctx,"preview.error.load") } <button type="button" data-preview-retry class="piko-text-link">{ locale.T(ctx,"preview.retry") }</button></p>
+ if p.ID == "" {
+  if saved {
+   <form method="post" action={ templ.URL(b.URL()+"/preview") }><input type="hidden" name="csrf_token" value={ csrf }/><button id="preview-start" class="piko-primary-action" type="submit">{ locale.T(ctx,"preview.start") }</button></form>
+  } else {
+   <p class="piko-helper" role="status">{ locale.T(ctx,"preview.save.first") }</p>
+  }
+ } else {
+ @previewRevision(p)
  if message != "" {
   <p class="piko-field-error piko-bot-error" role="alert">{ message }</p>
  }
@@ -46,12 +63,38 @@ templ previewContent(csrf string,b Bot,p Preview,message string) {
  </ol>
  <form class="piko-preview-buttons" data-preview-revision={ strconv.FormatInt(p.Revision,10) } method="post" action={ templ.URL(b.URL()+"/preview/"+p.ID+"/choose") }><input type="hidden" name="csrf_token" value={ csrf }/><input type="hidden" name="revision" value={ strconv.FormatInt(p.Revision,10) }/>
  for _, choice := range p.Conversation.Choices {
-  <button class="piko-secondary-action" type="submit" name="choice" value={ choice.ID }><bdi dir="auto">{ choice.Label }</bdi></button>
+  <button id={ "preview-choice-"+choice.ID } class="piko-secondary-action" type="submit" name="choice" value={ choice.ID }><bdi dir="auto">{ choice.Label }</bdi></button>
  }
  </form>
  if p.Conversation.AcceptsAnswer {
  <form class="piko-draft-form piko-preview-answer" method="post" action={ templ.URL(b.URL()+"/preview/"+p.ID+"/choose") }><input type="hidden" name="csrf_token" value={ csrf }/><input type="hidden" name="revision" value={ strconv.FormatInt(p.Revision,10) }/><label class="piko-label" for="preview-answer">{ locale.T(ctx,"inquiry.answer") }</label><textarea class="piko-input piko-draft-textarea" id="preview-answer" name="answer" dir="auto" maxlength="2000"></textarea><button class="piko-primary-action" type="submit">{ locale.T(ctx,"inquiry.answer.send") }</button></form>
  }
  </section>
- <div class="piko-preview-footer"><form method="post" action={ templ.URL(b.URL()+"/preview/"+p.ID+"/restart") }><input type="hidden" name="csrf_token" value={ csrf }/><input type="hidden" name="revision" value={ strconv.FormatInt(p.Revision,10) }/><button class="piko-subtle-action" type="submit">@shell.Icon("arrow-clockwise")<span>{ locale.T(ctx,"preview.restart") }</span></button></form><p class="piko-helper">{ locale.T(ctx,"preview.restart.hint") }</p><a class="piko-text-link" href={ templ.URL(b.URL()+"/preview") }>{ locale.T(ctx,"preview.new") }</a></div>
+ <div class="piko-preview-footer"><form method="post" action={ templ.URL(b.URL()+"/preview/"+p.ID+"/restart") }><input type="hidden" name="csrf_token" value={ csrf }/><input type="hidden" name="revision" value={ strconv.FormatInt(p.Revision,10) }/><button class="piko-subtle-action" type="submit">@shell.Icon("arrow-clockwise")<span>{ locale.T(ctx,"preview.restart") }</span></button></form><form method="post" action={ templ.URL(b.URL()+"/preview") }><input type="hidden" name="csrf_token" value={ csrf }/><button class="piko-secondary-action" type="submit">{ locale.T(ctx,"preview.new") }</button></form><p class="piko-helper">{ locale.T(ctx,"preview.restart.hint") }</p></div>
+ }
+ </section>
+}
+
+func previewURL(b Bot,p Preview) string {
+ if p.ID == "" { return b.URL()+"/preview" }
+ return b.URL()+"/preview/"+p.ID
+}
+
+templ previewRevision(p Preview) {
+ <div data-preview-source-revision={ strconv.FormatInt(p.SourceRevision,10) } data-preview-draft-revision={ strconv.FormatInt(p.DraftRevision,10) } data-preview-stale={ strconv.FormatBool(p.Stale()) }>
+  <p class="piko-helper">
+   if p.SourceRevision > 0 {
+    { locale.T(ctx,"preview.source")+" "+locale.Digits(strconv.FormatInt(p.SourceRevision,10)) }
+   } else {
+    { locale.T(ctx,"preview.source.unknown") }
+   }
+  </p>
+  <p class="piko-field-error" role="status" data-preview-stale-notice hidden?={ !p.Stale() }>
+   if p.SourceRevision == 0 {
+    { locale.T(ctx,"preview.source.unverified") }
+   } else {
+    { locale.T(ctx,"preview.source.stale") }
+   }
+  </p>
+ </div>
 }

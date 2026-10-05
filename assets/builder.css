@@ -45,7 +45,7 @@
 .piko-studio-composer .piko-builder-composer { min-height: 3rem; height: 4rem; max-height: 9rem; margin: 0; border: 0; background: transparent; font-size: 13px; padding: 4px; }
 .piko-studio-composer-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .piko-studio-composer .piko-primary-action { display: inline-flex; align-items: center; gap: 7px; }
-.piko-studio-body { display: grid; grid-template-columns: minmax(0,1fr) minmax(260px,30%); min-height: 0; flex: 1; }
+.piko-studio-body { display: grid; grid-template-columns: minmax(0,1fr) minmax(320px,40%); min-height: 0; flex: 1; }
 .piko-studio-identity { display: flex; gap: 12px; align-items: center; min-width: 0; }
 .piko-studio-identity > div { min-width: 0; }
 .piko-studio-identity h1 { margin: 0; }
@@ -70,12 +70,12 @@
 .piko-studio-run-details summary { cursor: pointer; margin-bottom: 12px; }
 .piko-studio-scroll > .piko-submission-delete { max-width: 760px; margin-inline: auto; }
 .piko-studio-pane { min-width: 0; overflow-y: auto; border-inline-start: 1px solid var(--color-base-300); background: var(--color-base-100); }
-.piko-studio-pane > header { padding: 20px 24px; border-bottom: 1px solid var(--color-base-300); }
+.piko-studio-pane > header { padding: 16px 24px; border-bottom: 1px solid var(--color-base-300); }
 .piko-studio-pane h2 { font-size: 12px; font-weight: 600; }
 .piko-studio-pane-empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 50px 24px; }
 .piko-studio-pane-empty h3 { font-size: 15px; font-weight: 650; }
 .piko-studio-pane-empty p { margin-top: 10px; color: var(--piko-text-secondary); font-size: 12px; line-height: 2; }
-.piko-studio-pane-content { display: flex; flex-direction: column; gap: 14px; padding: 24px; }
+.piko-studio-pane-content { display: flex; flex-direction: column; gap: 12px; padding: 16px 24px; }
 .piko-studio-pane-content h3 { font-weight: 650; overflow-wrap: anywhere; }
 .piko-studio-pane-content .piko-page-copy { font-size: 12px; line-height: 2; }
 .piko-studio-pane-content > .piko-secondary-action { display: flex; gap: 10px; align-items: center; min-height: 44px; font-size: 12px; }
@@ -83,6 +83,27 @@
 .piko-studio-pane-content .piko-publication h2 { font-size: 13px; }
 .piko-studio-pane-content .piko-activation-confirm { font-size: 12px; }
 .piko-studio-switch { display: none; }
+/* The shared Telegram-style conversation fits the adjacent studio pane. */
+.piko-studio [data-studio-preview] { min-width: 0; font-size: 12px; }
+.piko-studio [data-studio-preview] > .piko-helper { margin-block: 10px; line-height: 1.9; }
+.piko-studio [data-preview-source-revision] { margin-block: 14px; }
+.piko-studio .piko-preview-chat { margin: 14px 0 0; border-radius: 14px; box-shadow: none; }
+.piko-studio .piko-preview-chat header { padding: 14px; gap: 10px; }
+.piko-studio .piko-preview-chat h2 { font-size: 13px; }
+.piko-studio .piko-preview-chat header .piko-empty-icon { width: 36px; height: 36px; margin: 0; }
+.piko-studio .piko-preview-transcript { padding: 14px; min-height: 10rem; max-height: 42dvh; gap: 12px; }
+.piko-studio .piko-preview-message { padding: 10px 12px; margin-inline-end: 16px; }
+.piko-studio .piko-preview-participant { margin-inline: 16px 0; }
+.piko-studio .piko-preview-message p { font-size: 12px; line-height: 1.9; }
+.piko-studio .piko-preview-message .piko-helper { font-size: 9px; }
+.piko-studio .piko-preview-buttons { padding: 12px; gap: 8px; grid-template-columns: repeat(auto-fit,minmax(110px,1fr)); }
+.piko-studio .piko-preview-buttons button { font-size: 11px; min-height: 44px; }
+.piko-studio .piko-preview-answer { padding: 14px; gap: 8px; }
+.piko-studio .piko-preview-answer textarea { min-height: 5rem; }
+.piko-studio .piko-preview-footer { margin: 14px 0 0; gap: 12px; }
+.piko-studio .piko-preview-footer button { min-height: 44px; font-size: 11px; }
+.piko-studio .piko-preview-footer .piko-helper { width: 100%; line-height: 1.9; font-size: 10px; }
+[data-studio-preview][aria-busy="true"] button[type="submit"] { opacity: .6; cursor: wait; }
 @media (max-width: 767px) {
  .piko-studio-heading { padding: 14px 18px; }
  .piko-studio-heading h1 { font-size: 16px; }

@@ -18,7 +18,8 @@ templ IndexPage(displayName,csrf string,chats []Chat,view ChatView) {
 }
 
 templ indexDocument(csrf string,chats []Chat,view ChatView) {
- <script src="/static/studio.js?v=studio2" defer></script>
+ <script src="/static/studio.js?v=studio3" defer></script>
+ <script src="/static/studio-preview.js?v=preview1" defer></script>
  <script src="/static/builder-status.js?v=studio2" defer></script>
  @indexContent(csrf,chats,view)
 }
@@ -278,14 +279,19 @@ templ savedChats(chats []Chat,currentID int64) {
 
 templ studioPane(csrf string,b bot.Bot,view ChatView) {
  <aside id="studio-pane" class="piko-studio-pane" aria-labelledby="studio-pane-title" tabindex="-1">
-  <header><span class="piko-small-label">@shell.Icon("squares-four")<h2 id="studio-pane-title">{ locale.T(ctx,"studio.pane.title") }</h2></span></header>
+  <header><span class="piko-small-label">@shell.Icon("squares-four")<h2 id="studio-pane-title">
+   if b.ID==0 {
+    { locale.T(ctx,"studio.pane.title") }
+   } else {
+    { locale.T(ctx,"preview.title") }
+   }
+  </h2></span></header>
   if b.ID==0 {
    <div class="piko-studio-pane-empty"><span class="piko-empty-icon">@shell.Icon("robot")</span><h3>{ locale.T(ctx,"studio.pane.empty.title") }</h3><p>{ locale.T(ctx,"studio.pane.empty.copy") }</p></div>
   } else {
-   <div class="piko-studio-pane-content"><h3><bdi dir="auto">{ b.Name }</bdi></h3><p class="piko-helper" data-draft-revision={ strconv.FormatInt(view.Revision,10) }>{ locale.T(ctx,"builder.revision")+" "+locale.Digits(strconv.FormatInt(view.Revision,10)) }</p>
+   <div class="piko-studio-pane-content"><p class="piko-helper" data-draft-revision={ strconv.FormatInt(view.Revision,10) }>{ locale.T(ctx,"builder.revision")+" "+locale.Digits(strconv.FormatInt(view.Revision,10)) }</p>
+    @bot.PreviewPane(csrf,b,bot.Preview{},view.Revision>0,"")
     <p class="piko-page-copy">{ locale.T(ctx,"studio.pane.copy") }</p>
-    <a id="studio-preview" class="piko-secondary-action" href={ templ.URL(b.URL()+"/preview") }>@shell.Icon("telegram-logo")
- { locale.T(ctx,"preview.title") }</a>
     <a id="studio-draft" class="piko-secondary-action" href={ templ.URL(b.URL()+"/draft") }>@shell.Icon("squares-four")
  { locale.T(ctx,"draft.title") }</a>
     <a id="studio-overview" class="piko-text-link" href={ templ.URL(b.URL()) }>{ locale.T(ctx,"studio.bot.overview") }</a>
@@ -326,7 +332,8 @@ func chatDeleteKey(c Chat) string {
 }
 
 templ chatDocument(csrf string,b bot.Bot,history Conversation,view ChatView) {
- <script src="/static/studio.js?v=studio2" defer></script>
+ <script src="/static/studio.js?v=studio3" defer></script>
+ <script src="/static/studio-preview.js?v=preview1" defer></script>
  <script src="/static/builder-status.js?v=studio2" defer></script>
  @chatContent(csrf,b,history,view)
 }

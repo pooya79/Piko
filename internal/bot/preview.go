@@ -16,10 +16,16 @@ var (
 )
 
 type Preview struct {
-	ID           string
-	Revision     int64
-	Conversation preview.Conversation
-	definition   flow.Definition
+	ID             string
+	Revision       int64
+	SourceRevision int64
+	DraftRevision  int64
+	Conversation   preview.Conversation
+	definition     flow.Definition
+}
+
+func (p Preview) Stale() bool {
+	return p.SourceRevision == 0 || p.SourceRevision != p.DraftRevision
 }
 
 func (s *Service) StartPreview(ctx context.Context, botID int64) (Preview, error) {
@@ -39,7 +45,7 @@ func (s *Service) StartPreview(ctx context.Context, botID int64) (Preview, error
 	if _, err = rand.Read(nonce); err != nil {
 		return Preview{}, err
 	}
-	p := Preview{ID: base64.RawURLEncoding.EncodeToString(nonce), Revision: 1, Conversation: state, definition: d}
+	p := Preview{ID: base64.RawURLEncoding.EncodeToString(nonce), Revision: 1, SourceRevision: snapshot.Revision, DraftRevision: snapshot.Revision, Conversation: state, definition: d}
 	ownerID, err := owner(ctx)
 	if err != nil {
 		return Preview{}, err

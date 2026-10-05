@@ -228,7 +228,7 @@ func TestUnconnectedUpgradePreservesPopulatedBotsAndLifecycleStates(t *testing.T
 	d.text("/start", 2)
 	d.press("درخواست", 1)
 	d.text("پیشرفت محفوظ", 1)
-	preview := d.b.post("/bots/1/preview", url.Values{}).Header().Get("Location")
+	preview := startLegacyPreview(t, d.a, d.b)
 	d.f.mu.Lock()
 	d.f.identityID = 222222
 	d.f.mu.Unlock()
@@ -307,13 +307,14 @@ func TestUnconnectedUpgradePreservesPopulatedBotsAndLifecycleStates(t *testing.T
 
 func TestUnconnectedRollbackRefusesToDiscardWorkAndRestoresForeignKeys(t *testing.T) {
 	a, b := unconnectedFixture(t)
-	// Exercise the Bot-table rebuild, independently of later migrations.
-	rollbackToMigration(t, a.db, "000011_unconnected_bots")
 	if got := b.post("/bots/new", url.Values{"name": {"کار محفوظ"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
+	preview := startLegacyPreview(t, a, b)
+	// Arrange retained work before removing columns used by today's server.
+	// Exercise the Bot-table rebuild, independently of later migrations.
+	rollbackToMigration(t, a.db, "000011_unconnected_bots")
 	before := renderedDraft(t, b.send("GET", "/bots/1/draft", nil).Body.String())
-	preview := b.post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	if err := database.Migrate(t.Context(), a.db, true); err == nil {
 		t.Fatal("rollback discarded an Unconnected Bot")
 	}

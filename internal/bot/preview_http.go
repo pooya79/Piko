@@ -23,6 +23,10 @@ func (h *Handler) PreviewLanding(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u, _ := auth.UserFromContext(r.Context())
+	if r.Header.Get("X-Piko-Preview") == "fragment" {
+		h.render(w, r, 200, PreviewPane(request.CookieValue(r, auth.CSRFCookie), b, Preview{}, snapshot.Revision > 0, ""))
+		return
+	}
 	h.render(w, r, 200, PreviewLandingPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, snapshot.Revision > 0))
 }
 
@@ -34,6 +38,10 @@ func (h *Handler) StartPreview(w http.ResponseWriter, r *http.Request) {
 	p, err := h.service.StartPreview(r.Context(), b.ID)
 	if errors.Is(err, ErrNoDraft) {
 		u, _ := auth.UserFromContext(r.Context())
+		if r.Header.Get("X-Piko-Preview") == "fragment" {
+			h.render(w, r, 409, PreviewPane(request.CookieValue(r, auth.CSRFCookie), b, Preview{}, false, ""))
+			return
+		}
 		h.render(w, r, 409, PreviewLandingPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, false))
 		return
 	}
@@ -99,5 +107,9 @@ func (h *Handler) previewPage(w http.ResponseWriter, r *http.Request, status int
 		return
 	}
 	u, _ := auth.UserFromContext(r.Context())
+	if r.Header.Get("X-Piko-Preview") == "fragment" {
+		h.render(w, r, status, PreviewPane(request.CookieValue(r, auth.CSRFCookie), b, p, true, message))
+		return
+	}
 	h.render(w, r, status, PreviewPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, p, message))
 }

@@ -483,7 +483,7 @@ func TestBuilderDraftOutcomeMigrationPreservesExistingReplyAndBotData(t *testing
 	d.text("/start", 2)
 	d.press("درخواست", 1)
 	d.text("پیشرفت پیشین", 1)
-	preview := d.b.post("/bots/1/preview", url.Values{}).Header().Get("Location")
+	preview := startLegacyPreview(t, d.a, d.b)
 	draft := renderedDraft(t, d.b.send("GET", "/bots/1/draft", nil).Body.String())
 	submission := d.b.send("GET", "/bots/1/submissions/1", nil).Body.String()
 	previewBody := d.b.send("GET", preview, nil).Body.String()

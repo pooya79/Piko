@@ -10,17 +10,18 @@ import (
 )
 
 const createOwnerPreview = `-- name: CreateOwnerPreview :execrows
-INSERT INTO bot_previews (id, bot_id, definition, conversation, expires_at)
-SELECT ?1, bots.id, ?2, ?3, unixepoch() + 86400
-FROM bots WHERE bots.owner_id = ?4 AND bots.id = ?5
+INSERT INTO bot_previews (id, bot_id, definition, conversation, source_revision, expires_at)
+SELECT ?1, bots.id, ?2, ?3, ?4, unixepoch() + 86400
+FROM bots WHERE bots.owner_id = ?5 AND bots.id = ?6
 `
 
 type CreateOwnerPreviewParams struct {
-	PreviewID    string
-	Definition   string
-	Conversation string
-	OwnerID      int64
-	BotID        int64
+	PreviewID      string
+	Definition     string
+	Conversation   string
+	SourceRevision int64
+	OwnerID        int64
+	BotID          int64
 }
 
 func (q *Queries) CreateOwnerPreview(ctx context.Context, arg CreateOwnerPreviewParams) (int64, error) {
@@ -28,6 +29,7 @@ func (q *Queries) CreateOwnerPreview(ctx context.Context, arg CreateOwnerPreview
 		arg.PreviewID,
 		arg.Definition,
 		arg.Conversation,
+		arg.SourceRevision,
 		arg.OwnerID,
 		arg.BotID,
 	)
@@ -50,8 +52,10 @@ func (q *Queries) DeleteExpiredPreviews(ctx context.Context) (int64, error) {
 }
 
 const getOwnerPreview = `-- name: GetOwnerPreview :one
-SELECT bot_previews.id, definition, conversation, revision FROM bot_previews
+SELECT bot_previews.id, bot_previews.definition, conversation, bot_previews.revision, source_revision,
+COALESCE(bot_drafts.revision, 0) AS draft_revision FROM bot_previews
 JOIN bots ON bots.id = bot_previews.bot_id
+LEFT JOIN bot_drafts ON bot_drafts.bot_id = bot_previews.bot_id
 WHERE bots.owner_id = ?1 AND bot_previews.bot_id = ?2 AND bot_previews.id = ?3 AND expires_at > unixepoch()
 `
 
@@ -62,10 +66,12 @@ type GetOwnerPreviewParams struct {
 }
 
 type GetOwnerPreviewRow struct {
-	ID           string
-	Definition   string
-	Conversation string
-	Revision     int64
+	ID             string
+	Definition     string
+	Conversation   string
+	Revision       int64
+	SourceRevision int64
+	DraftRevision  int64
 }
 
 func (q *Queries) GetOwnerPreview(ctx context.Context, arg GetOwnerPreviewParams) (GetOwnerPreviewRow, error) {
@@ -76,6 +82,8 @@ func (q *Queries) GetOwnerPreview(ctx context.Context, arg GetOwnerPreviewParams
 		&i.Definition,
 		&i.Conversation,
 		&i.Revision,
+		&i.SourceRevision,
+		&i.DraftRevision,
 	)
 	return i, err
 }

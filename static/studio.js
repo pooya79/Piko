@@ -48,6 +48,7 @@
       return () => { if (paneStates.get(name) === adapter) paneStates.delete(name); };
     },
     refresh: () => refreshStudio(),
+    whenCompositionEnds: () => waitForComposition(),
   };
   let queue = Promise.resolve();
   let composing = false;
@@ -170,6 +171,7 @@
       });
       document.getElementById(switcher.getAttribute('aria-controls')).focus({ preventScroll: true });
       restoreReading(studio);
+      document.dispatchEvent(new CustomEvent('piko:studio-view-updated'));
       return;
     }
     if (event.target.closest('.piko-studio-chat-picker summary')) return;

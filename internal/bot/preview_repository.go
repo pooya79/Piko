@@ -19,7 +19,7 @@ func (r *Repository) createPreview(ctx context.Context, ownerID, botID int64, p 
 	if err != nil {
 		return err
 	}
-	rows, err := r.q.CreateOwnerPreview(ctx, dbgen.CreateOwnerPreviewParams{OwnerID: ownerID, BotID: botID, PreviewID: p.ID, Definition: string(definition), Conversation: string(state)})
+	rows, err := r.q.CreateOwnerPreview(ctx, dbgen.CreateOwnerPreviewParams{OwnerID: ownerID, BotID: botID, PreviewID: p.ID, Definition: string(definition), Conversation: string(state), SourceRevision: p.SourceRevision})
 	if err == nil && rows != 1 {
 		return ErrNotFound
 	}
@@ -38,7 +38,7 @@ func (r *Repository) getPreview(ctx context.Context, ownerID, botID int64, id st
 	if err != nil {
 		return Preview{}, err
 	}
-	p := Preview{ID: row.ID, Revision: row.Revision, definition: d}
+	p := Preview{ID: row.ID, Revision: row.Revision, SourceRevision: row.SourceRevision, DraftRevision: row.DraftRevision, definition: d}
 	if err := json.Unmarshal([]byte(row.Conversation), &p.Conversation); err != nil {
 		return Preview{}, err
 	}

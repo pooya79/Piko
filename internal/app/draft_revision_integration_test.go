@@ -242,11 +242,15 @@ func TestDraftRevisionUpgradeRetainsOwnerAndBotData(t *testing.T) {
 	d.text("/start", 2)
 	d.press("درخواست", 1)
 	d.text("پیشرفت پیشین", 1)
-	preview := d.b.post("/bots/1/preview", url.Values{}).Header().Get("Location")
+	preview := startLegacyPreview(t, d.a, d.b)
 	before := renderedDraft(t, d.b.send("GET", "/bots/1/draft", nil).Body.String())
+	priorRevision := before.Get("draft_revision")
 	before.Set("draft_revision", "1") // Existing pre-revision Drafts begin at one.
 	submission := d.b.send("GET", "/bots/1/submissions/1", nil).Body.String()
 	previewBody := d.b.send("GET", preview, nil).Body.String()
+	// The pre-revision upgrade also changes the current Draft metadata shown
+	// alongside the retained legacy Preview, without changing its snapshot.
+	previewBody = strings.Replace(previewBody, `data-preview-draft-revision="`+priorRevision+`"`, `data-preview-draft-revision="1"`, 1)
 	stop()
 	legacy, err := database.Open(t.Context(), d.a.cfg.DatabasePath)
 	if err != nil {

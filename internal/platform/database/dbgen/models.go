@@ -55,12 +55,13 @@ type BotParticipant struct {
 }
 
 type BotPreview struct {
-	ID           string
-	BotID        int64
-	Definition   string
-	Conversation string
-	Revision     int64
-	ExpiresAt    int64
+	ID             string
+	BotID          int64
+	Definition     string
+	Conversation   string
+	Revision       int64
+	ExpiresAt      int64
+	SourceRevision int64
 }
 
 type BotPublication struct {
