@@ -16,17 +16,43 @@ templ settingsContent(csrf string, b Bot, warning bool) {
  @settingsControls(b, csrf)
 }
 
-templ ConnectionPage(displayName, csrf string, b Bot, warning bool) {
- @shell.Workspace(displayName, csrf, flowPage(ctx, b, "bot.connection.title"), connectionContent(csrf, b, warning))
+templ ConnectionPage(displayName, csrf string, b Bot, warning bool, key string, invalid bool) {
+ @shell.Workspace(displayName, csrf, flowPage(ctx, b, "bot.connection.title"), connectionContent(csrf, b, warning, key, invalid))
 }
 
-templ connectionContent(csrf string, b Bot, warning bool) {
+templ connectionContent(csrf string, b Bot, warning bool, key string, invalid bool) {
  <h1 class="piko-page-title">{ locale.T(ctx, "bot.connection.title") }</h1>
  <p class="piko-page-copy"><bdi dir="auto">{ b.Name }</bdi></p>
  @lifecycleNotice(warning)
  if b.Unconnected {
+  if key != "" {
+   <p class="piko-field-error" role="alert">{ locale.T(ctx,key) }</p>
+  }
   <section class="piko-card piko-draft-section piko-publication"><h2>{ locale.T(ctx, "bot.status.unconnected") }</h2><p>{ locale.T(ctx, "bot.unconnected.copy") }</p><a class="piko-primary-action" href={ templ.URL(b.URL()+"/connect") }>{ locale.T(ctx, "bot.connect.title") }</a></section>
  } else {
-  @connectionControls(b, csrf)
+  @connectionControls(b, csrf, key, invalid)
+  @connectionNextStep(b)
+ }
+ <p class="piko-page-copy"><a class="piko-text-link" href={ templ.URL(b.URL()+"/studio") }>{ locale.T(ctx, "bot.overview.change") }</a></p>
+}
+
+templ connectionNextStep(b Bot) {
+ if !b.Unconnected && !b.Disconnected && b.DeliveryState != "active" && b.DeliveryState != "paused" {
+  <section class="piko-card piko-draft-section piko-publication" aria-labelledby="connection-next-title">
+   <h2 id="connection-next-title">{ locale.T(ctx,"bot.connection.next") }</h2>
+   <p>{ locale.T(ctx,"bot.connection.separate") }</p>
+   if b.Paused {
+    <p class="piko-bot-warning">{ locale.T(ctx,"bot.connection.paused") }</p>
+   }
+   if b.DeliveryState == "activating" {
+    <p role="status">{ locale.T(ctx,"activate.busy") }</p>
+   } else if b.PublishedVersion > 0 {
+    <p>{ locale.T(ctx,"bot.connection.published") }</p>
+    <a class="piko-primary-action" href={ templ.URL(b.URL()+"/activate") }>{ locale.T(ctx,"activate.title") }</a>
+   } else {
+    <p>{ locale.T(ctx,"bot.connection.deploy") }</p>
+    <a class="piko-primary-action" href={ templ.URL(b.URL()+"#bot-deployment") }>{ locale.T(ctx,"deploy.title") }</a>
+   }
+  </section>
  }
 }

@@ -49,6 +49,7 @@ templ ConnectExistingPage(displayName, csrf string, bot Bot, message string, inv
 templ existingConnectContent(csrf string, bot Bot, message string, invalid bool, existingURL string) {
  <p class="piko-page-copy"><bdi dir="auto">{ bot.Name }</bdi></p>
  @connectContent(csrf, message, invalid, bot.URL()+"/connect", "bot.connect.existing.copy", existingURL)
+ <p class="piko-page-copy"><a class="piko-text-link" href={ templ.URL(bot.URL()+"/studio") }>{ locale.T(ctx,"bot.overview.change") }</a></p>
 }
 
 templ connectContent(csrf, message string, invalid bool, action, copyKey, existingURL string) {

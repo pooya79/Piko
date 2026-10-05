@@ -427,9 +427,9 @@ func ActionCards(csrf string, b Bot, proposals []ActionProposal) templ.Component
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var27 templ.SafeURL
-				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(b.URL()))
+				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(b.URL() + "/connection"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/action.templ`, Line: 49, Col: 101}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/action.templ`, Line: 49, Col: 115}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 				if templ_7745c5c3_Err != nil {
@@ -442,7 +442,7 @@ func ActionCards(csrf string, b Bot, proposals []ActionProposal) templ.Component
 				var templ_7745c5c3_Var28 string
 				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(locale.T(ctx, "lifecycle.reconnect.title"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/action.templ`, Line: 49, Col: 147}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bot/action.templ`, Line: 49, Col: 161}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 				if templ_7745c5c3_Err != nil {

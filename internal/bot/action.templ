@@ -46,7 +46,7 @@ templ ActionCards(csrf string,b Bot,proposals []ActionProposal) {
    } else if p.DeliveryState=="unconnected" {
     <p>{ locale.T(ctx,"deploy.connect") }</p><a class="piko-primary-action" href={ templ.URL(b.URL()+"/connect") }>{ locale.T(ctx,"bot.connect.title") }</a>
    } else if p.DeliveryState=="disconnected" {
-    <p>{ locale.T(ctx,"deploy.connect") }</p><a class="piko-primary-action" href={ templ.URL(b.URL()) }>{ locale.T(ctx,"lifecycle.reconnect.title") }</a>
+    <p>{ locale.T(ctx,"deploy.connect") }</p><a class="piko-primary-action" href={ templ.URL(b.URL()+"/connection") }>{ locale.T(ctx,"lifecycle.reconnect.title") }</a>
    } else {
     <p role="status">{ locale.T(ctx,"pause.unavailable") }</p>
    }

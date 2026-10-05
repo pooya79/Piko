@@ -108,3 +108,8 @@
 .piko-lifecycle-delete summary:focus-visible { outline:2px solid var(--color-primary); outline-offset:3px; }
 .piko-lifecycle-delete .piko-helper { @apply mt-3; }
 .piko-lifecycle-delete button { @apply border-error text-error; white-space:normal; }
+
+.piko-connection-identity { @apply mt-6 flex flex-wrap gap-x-8 gap-y-4 rounded-2xl border border-base-300 p-5; }
+.piko-connection-identity dt { @apply mb-2 text-sm text-muted; }
+.piko-connection-identity dd { @apply text-sm font-semibold; overflow-wrap:anywhere; }
+.piko-token-card { min-width:0; }

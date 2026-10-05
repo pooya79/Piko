@@ -76,6 +76,7 @@ templ detailContent(b Bot, csrf string, warning bool) {
    <div class="piko-overview-inbox"><h3>{ locale.T(ctx, "submission.title") }</h3><p class="piko-helper">{ locale.T(ctx, "submission.copy") }</p><a class="piko-text-link" href={ templ.URL(b.URL()+"/submissions") }>{ locale.T(ctx, "bot.overview.inbox") } @shell.Icon("caret-left")</a></div>
   </section>
  </div>
+ @connectionNextStep(b)
  <div class="piko-overview-grid piko-overview-operations">
   if !b.Unconnected && !b.Disconnected {
    @DeployControls(csrf,b)

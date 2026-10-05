@@ -7,17 +7,25 @@ import (
 )
 
 templ DeployControls(csrf string, b Bot) {
- <section class="piko-card piko-token-card piko-publication">
+ <section id="bot-deployment" class="piko-card piko-token-card piko-publication">
   <h2>{ locale.T(ctx,"deploy.title") }</h2>
   <p class="piko-helper">{ locale.T(ctx,"deploy.copy") }</p>
   if b.BuilderBusy {
    <p class="piko-bot-warning" role="status">{ locale.T(ctx,"deploy.busy") }</p>
   }
+  if b.Unconnected {
+   <p class="piko-helper">{ locale.T(ctx,"bot.unconnected.copy") }</p>
+   <a class="piko-primary-action" href={ templ.URL(b.URL()+"/connect") }>{ locale.T(ctx,"bot.connect.title") }</a>
+  } else if b.Disconnected {
+   <p class="piko-helper">{ locale.T(ctx,"lifecycle.disconnected.copy") }</p>
+   <a class="piko-primary-action" href={ templ.URL(b.URL()+"/connection") }>{ locale.T(ctx,"lifecycle.reconnect.title") }</a>
+  } else {
   <form method="post" action={ templ.URL(b.URL()+"/deploy") }>
    <input type="hidden" name="csrf_token" value={ csrf }/>
    <label class="piko-activation-confirm"><input id="deploy-operate" type="checkbox" name="operate" value="yes" required disabled?={ b.BuilderBusy }/> { locale.T(ctx,"activate.confirm") }</label>
    <button id="deploy-submit" class="piko-primary-action piko-deploy-action" type="submit" disabled?={ b.BuilderBusy }>{ locale.T(ctx,"deploy.title") }</button>
   </form>
+  }
  </section>
 }
 
@@ -40,7 +48,7 @@ templ deployContent(csrf string,result Deployment,key string) {
   if result.Bot.Unconnected {
    <a class="piko-primary-action" href={ templ.URL(result.Bot.URL()+"/connect") }>{ locale.T(ctx,"bot.connect.title") }</a>
   } else if result.Bot.Disconnected {
-   <a class="piko-primary-action" href={ templ.URL(result.Bot.URL()) }>{ locale.T(ctx,"lifecycle.reconnect.title") }</a>
+   <a class="piko-primary-action" href={ templ.URL(result.Bot.URL()+"/connection") }>{ locale.T(ctx,"lifecycle.reconnect.title") }</a>
   } else if key == "deploy.partial" {
    <a class="piko-primary-action" href={ templ.URL(result.Bot.URL()+"/activate") }>{ locale.T(ctx,"deploy.retry") }</a>
   }

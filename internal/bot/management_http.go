@@ -21,6 +21,27 @@ func (h *Handler) Connection(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	h.connectionPage(w, r, http.StatusOK, b, "", false)
+}
+
+func (h *Handler) connectionPage(w http.ResponseWriter, r *http.Request, status int, b Bot, key string, invalid bool) {
 	u, _ := auth.UserFromContext(r.Context())
-	h.render(w, r, http.StatusOK, ConnectionPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, r.URL.Query().Get("cleanup") == "unavailable"))
+	h.render(w, r, status, ConnectionPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, r.URL.Query().Get("cleanup") == "unavailable", key, invalid))
+}
+
+func (h *Handler) DisconnectForm(w http.ResponseWriter, r *http.Request) {
+	b, ok := h.requestedBot(w, r)
+	if !ok {
+		return
+	}
+	if b.Unconnected || b.Disconnected {
+		h.connectionPage(w, r, 409, b, "lifecycle.state.error", false)
+		return
+	}
+	h.disconnectPage(w, r, http.StatusOK, b, "")
+}
+
+func (h *Handler) disconnectPage(w http.ResponseWriter, r *http.Request, status int, b Bot, key string) {
+	u, _ := auth.UserFromContext(r.Context())
+	h.render(w, r, status, DisconnectPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, key))
 }

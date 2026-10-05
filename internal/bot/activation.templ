@@ -34,3 +34,31 @@ templ activationContent(csrf string,a Activation,message string) {
  <a class="piko-text-link" href={ templ.URL(a.Bot.URL()) }>{ locale.T(ctx,"activate.back") }</a>
  </section>
 }
+
+templ ActivationRecoveryPage(displayName, csrf string, b Bot, key string) {
+ @shell.Workspace(displayName,csrf,flowPage(ctx,b,"activate.title"),activationRecovery(b,key))
+}
+
+templ activationRecovery(b Bot, key string) {
+ <h1 class="piko-page-title">{ locale.T(ctx,"activate.title") }</h1>
+ <section class="piko-card piko-draft-section piko-activation">
+  <h2><bdi dir="auto">{ b.Name }</bdi></h2>
+  <p class="piko-field-error" role="alert">{ locale.T(ctx,key) }</p>
+  if b.Unconnected {
+   <a class="piko-primary-action" href={ templ.URL(b.URL()+"/connect") }>{ locale.T(ctx,"bot.connect.title") }</a>
+  } else if b.Disconnected {
+   <a class="piko-primary-action" href={ templ.URL(b.URL()+"/connection") }>{ locale.T(ctx,"lifecycle.reconnect.title") }</a>
+  } else if b.PublishedVersion > 0 {
+   <p>{ locale.T(ctx,"bot.connection.published") }</p>
+   if b.Paused {
+    <p class="piko-bot-warning">{ locale.T(ctx,"bot.connection.paused") }</p>
+   }
+   <a class="piko-primary-action" href={ templ.URL(b.URL()+"/activate") }>{ locale.T(ctx,"deploy.retry") }</a>
+   <a class="piko-text-link" href={ templ.URL(b.URL()+"/connection") }>{ locale.T(ctx,"bot.connection.title") }</a>
+  } else {
+   <a class="piko-primary-action" href={ templ.URL(b.URL()+"#bot-deployment") }>{ locale.T(ctx,"deploy.title") }</a>
+  }
+  <a class="piko-text-link" href={ templ.URL(b.URL()+"/studio") }>{ locale.T(ctx,"bot.overview.change") }</a>
+  <a class="piko-text-link" href={ templ.URL(b.URL()) }>{ locale.T(ctx,"activate.back") }</a>
+ </section>
+}
