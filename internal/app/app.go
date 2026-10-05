@@ -256,6 +256,7 @@ func buildRouter(db *sql.DB, mw webx.Middleware, limiter *webx.RateLimiter, ah *
 		r.With(limiter.MiddlewareStrict("bot-credentials", 10, time.Minute)).Post("/bots/{botID}/reconnect", bh.Reconnect)
 		r.Post("/bots/{botID}/disconnect", bh.Disconnect)
 		r.Post("/bots/{botID}/delete", bh.DeleteBot)
+		r.Post("/bots/{botID}/name", bh.Rename)
 		r.Get("/bots/{botID}/submissions", bh.Submissions)
 		r.Get("/bots/{botID}/submissions/{submissionID}", bh.Submission)
 		r.Post("/bots/{botID}/submissions/{submissionID}/delete", bh.DeleteSubmission)

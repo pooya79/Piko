@@ -84,6 +84,9 @@ type Service struct {
 	observability    *observability
 	shutdownDeadline time.Time
 	tools            []ai.ToolRef
+	initialTools     []ai.ToolRef
+	templateTool     ai.ToolRef
+	validationTool   ai.ToolRef
 	now              func() time.Time
 	mu               sync.Mutex
 	commitMu         sync.Mutex
@@ -109,6 +112,16 @@ func owner(ctx context.Context) (int64, error) {
 		return 0, bot.ErrUnauthorized
 	}
 	return u.ID, nil
+}
+
+// ResolveChat keeps pre-creation links usable after the one-way association.
+func (s *Service) ResolveChat(ctx context.Context, chatID int64) (Chat, error) {
+	ownerID, err := owner(ctx)
+	if err != nil {
+		return Chat{}, err
+	}
+	row, err := s.repo.q.ResolveOwnerChat(ctx, dbgen.ResolveOwnerChatParams{OwnerID: ownerID, ChatID: chatID})
+	return chatFromRow(row), storageError(err)
 }
 
 func (s *Service) Create(ctx context.Context, botID int64, title string) (Chat, error) {
@@ -156,6 +169,13 @@ func (s *Service) History(ctx context.Context, botID, chatID int64) (Conversatio
 	if err := recoverRuns(ctx, q); err != nil {
 		return Conversation{}, err
 	}
+	if botID == 0 {
+		chat, err := q.ResolveOwnerChat(ctx, dbgen.ResolveOwnerChatParams{OwnerID: ownerID, ChatID: chatID})
+		if err != nil {
+			return Conversation{}, storageError(err)
+		}
+		botID = chat.BotID.Int64
+	}
 	history, err := loadHistory(ctx, q, ownerID, botID, chatID)
 	if err != nil {
 		return Conversation{}, err
@@ -181,6 +201,13 @@ func (s *Service) Status(ctx context.Context, botID, chatID int64) (Run, error) 
 		}
 		defer func() { _ = tx.Rollback() }()
 		q := s.repo.q.WithTx(tx)
+		if botID == 0 {
+			chat, err := q.ResolveOwnerChat(ctx, dbgen.ResolveOwnerChatParams{OwnerID: ownerID, ChatID: chatID})
+			if err != nil {
+				return storageError(err)
+			}
+			botID = chat.BotID.Int64
+		}
 		if _, err := q.GetOwnerBuilderChat(ctx, dbgen.GetOwnerBuilderChatParams{OwnerID: ownerID, BotID: botID, ChatID: chatID}); err != nil {
 			return storageError(err)
 		}
@@ -268,6 +295,13 @@ func (s *Service) StopRun(ctx context.Context, botID, chatID, runID int64) error
 		}
 		defer func() { _ = tx.Rollback() }()
 		q := dbgen.New(tx)
+		if botID == 0 {
+			chat, err := q.ResolveOwnerChat(ctx, dbgen.ResolveOwnerChatParams{OwnerID: ownerID, ChatID: chatID})
+			if err != nil {
+				return storageError(err)
+			}
+			botID = chat.BotID.Int64
+		}
 		if _, err := q.GetOwnerBuilderRun(ctx, dbgen.GetOwnerBuilderRunParams{OwnerID: ownerID, BotID: botID, ChatID: chatID, RunID: runID}); err != nil {
 			return storageError(err)
 		}

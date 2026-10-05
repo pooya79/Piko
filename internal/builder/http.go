@@ -26,6 +26,7 @@ type ChatView struct {
 	Enabled              bool
 	Allowance            Allowance
 	Message, FeedbackKey string
+	RequestKey           string
 }
 
 func NewHandler(service *Service, bots *bot.Service, log *slog.Logger) *Handler {
@@ -49,7 +50,28 @@ func (h *Handler) Index(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) requestedBot(w http.ResponseWriter, r *http.Request) (bot.Bot, bool) {
 	if chi.URLParam(r, "botID") == "" {
-		return bot.Bot{}, true
+		if chi.URLParam(r, "chatID") == "" {
+			return bot.Bot{}, true
+		}
+		id, err := chatID(r)
+		if err != nil {
+			h.failed(w, r, err)
+			return bot.Bot{}, false
+		}
+		chat, err := h.service.ResolveChat(r.Context(), id)
+		if err != nil {
+			h.failed(w, r, err)
+			return bot.Bot{}, false
+		}
+		if chat.BotID == 0 {
+			return bot.Bot{}, true
+		}
+		b, err := h.bots.InspectDeployment(r.Context(), chat.BotID)
+		if err != nil {
+			h.failed(w, r, err)
+			return bot.Bot{}, false
+		}
+		return b, true
 	}
 	id, err := strconv.ParseInt(chi.URLParam(r, "botID"), 10, 64)
 	if err != nil || id < 1 {
@@ -158,6 +180,13 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request, b bot.Bot, id i
 		h.failed(w, r, err)
 		return
 	}
+	if b.ID == 0 && history.Chat.BotID != 0 {
+		b, err = h.bots.InspectDeployment(r.Context(), history.Chat.BotID)
+		if err != nil {
+			h.failed(w, r, err)
+			return
+		}
+	}
 	var revision int64
 	if b.ID != 0 {
 		draft, err := h.bots.LoadDraft(r.Context(), b.ID)
@@ -173,7 +202,11 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request, b bot.Bot, id i
 		h.failed(w, r, err)
 		return
 	}
-	h.render(w, r, status, ChatPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, history, ChatView{Revision: revision, Enabled: h.service.Enabled(), Allowance: allowance, Message: message, FeedbackKey: key}))
+	requestKey := r.PostForm.Get("request_key")
+	if requestKey == "" {
+		requestKey = strconv.FormatInt(id, 10) + ":" + strconv.FormatInt(history.LatestRun().ID, 10)
+	}
+	h.render(w, r, status, ChatPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, history, ChatView{Revision: revision, Enabled: h.service.Enabled(), Allowance: allowance, Message: message, FeedbackKey: key, RequestKey: requestKey}))
 }
 
 func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
@@ -186,12 +219,12 @@ func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
 		h.failed(w, r, err)
 		return
 	}
-	if err := r.ParseForm(); err != nil || len(r.PostForm["message"]) != 1 {
+	if err := r.ParseForm(); err != nil || len(r.PostForm["message"]) != 1 || len(r.PostForm["request_key"]) > 1 {
 		h.detail(w, r, b, id, 422, "", "builder.message.error")
 		return
 	}
 	message := r.PostForm.Get("message")
-	err = h.service.Send(r.Context(), b.ID, id, message)
+	err = h.service.SendRequest(r.Context(), b.ID, id, message, r.PostForm.Get("request_key"))
 	h.sent(w, r, b, id, message, err)
 }
 

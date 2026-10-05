@@ -284,6 +284,24 @@ func (q *Queries) ListOwnerBots(ctx context.Context, ownerID int64) ([]ListOwner
 	return items, nil
 }
 
+const renameOwnerBot = `-- name: RenameOwnerBot :execrows
+UPDATE bots SET name = ?1 WHERE owner_id = ?2 AND id = ?3
+`
+
+type RenameOwnerBotParams struct {
+	Name    string
+	OwnerID int64
+	BotID   int64
+}
+
+func (q *Queries) RenameOwnerBot(ctx context.Context, arg RenameOwnerBotParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, renameOwnerBot, arg.Name, arg.OwnerID, arg.BotID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const setOwnerBotPaused = `-- name: SetOwnerBotPaused :execrows
 UPDATE bots SET paused = ?3 WHERE bots.owner_id = ?1 AND bots.id = ?2
 AND bots.telegram_id IS NOT NULL AND length(bots.encrypted_token) > 0

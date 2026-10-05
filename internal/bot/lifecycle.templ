@@ -12,6 +12,15 @@ templ lifecycleControls(bot Bot, csrf string) {
  <section class="piko-lifecycle" aria-labelledby="lifecycle-title">
   <h2 id="lifecycle-title">{ locale.T(ctx,"lifecycle.title") }</h2>
   <div class="piko-connect-grid">
+   <section class="piko-card piko-token-card">
+    <h3>{ locale.T(ctx,"bot.name.edit") }</h3>
+    <form method="post" action={ templ.URL(bot.URL()+"/name") }>
+     <input type="hidden" name="csrf_token" value={ csrf }/>
+     <label class="piko-label" for="bot-name">{ locale.T(ctx,"bot.create.name") }</label>
+     <input class="piko-input" id="bot-name" name="name" value={ bot.Name } required maxlength="80"/>
+     <button class="piko-secondary-action" type="submit">{ locale.T(ctx,"bot.name.save") }</button>
+    </form>
+   </section>
    if !bot.Unconnected {
    <section class="piko-card piko-token-card">
     if bot.Disconnected {

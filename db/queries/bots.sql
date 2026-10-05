@@ -47,3 +47,6 @@ WHERE owner_id = ?1 AND id = ?2 AND telegram_id IS NULL;
 
 -- name: GetOwnerBotByTelegramID :one
 SELECT id FROM bots WHERE owner_id = ?1 AND telegram_id = ?2;
+
+-- name: RenameOwnerBot :execrows
+UPDATE bots SET name = sqlc.arg(name) WHERE owner_id = sqlc.arg(owner_id) AND id = sqlc.arg(bot_id);

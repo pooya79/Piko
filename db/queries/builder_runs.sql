@@ -5,11 +5,17 @@ SELECT COUNT(*) FROM builder_runs WHERE owner_id = sqlc.arg(owner_id) AND day = 
 SELECT COUNT(*) FROM builder_runs WHERE owner_id = sqlc.arg(owner_id) AND bot_id = sqlc.arg(bot_id) AND status = 'running';
 
 -- name: AdmitOwnerBuilderRun :one
-INSERT INTO builder_runs (owner_id,bot_id,chat_id,day,model,draft_revision,status,created_at,lease_until,request_sequence)
-SELECT c.owner_id,c.bot_id,c.id,sqlc.arg(day),sqlc.arg(model),sqlc.arg(draft_revision),'running',sqlc.arg(created_at),sqlc.arg(lease_until),sqlc.arg(request_sequence)
+INSERT INTO builder_runs (owner_id,bot_id,chat_id,day,model,draft_revision,status,created_at,lease_until,request_sequence,request_key)
+SELECT c.owner_id,c.bot_id,c.id,sqlc.arg(day),sqlc.arg(model),sqlc.arg(draft_revision),'running',sqlc.arg(created_at),sqlc.arg(lease_until),sqlc.arg(request_sequence),sqlc.arg(request_key)
 FROM builder_chats c
 WHERE c.owner_id=sqlc.arg(owner_id) AND COALESCE(c.bot_id,0)=CAST(sqlc.arg(bot_id) AS INTEGER) AND c.id=sqlc.arg(chat_id)
 RETURNING *;
+
+-- name: FindOwnerBuilderRequest :one
+SELECT r.id, m.content FROM builder_runs r
+JOIN builder_chats c ON c.id = r.chat_id AND c.owner_id = r.owner_id
+JOIN builder_messages m ON m.chat_id = c.id AND m.sequence = r.request_sequence
+WHERE r.owner_id = sqlc.arg(owner_id) AND r.chat_id = sqlc.arg(chat_id) AND r.request_key = sqlc.arg(request_key);
 
 -- name: GetOwnerInterruptedBuilderRequest :one
 SELECT m.content FROM builder_runs r

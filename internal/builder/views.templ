@@ -192,6 +192,7 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
   </p>
   <form method="post" action={ c.URL()+"/messages" }>
    <input type="hidden" name="csrf_token" value={ csrf }/>
+   <input type="hidden" name="request_key" value={ view.RequestKey }/>
    <label class="piko-label" for="builder-message">{ locale.T(ctx,"builder.message") }</label>
    <textarea id="builder-message" name="message" class="piko-input piko-builder-composer" maxlength="32768" required aria-describedby="builder-capabilities" disabled?={ latest.Status == RunRunning }>{ view.Message }</textarea>
    <button class="piko-primary-action" type="submit" disabled?={ latest.Status == RunRunning }>{ locale.T(ctx,"builder.send") }</button>

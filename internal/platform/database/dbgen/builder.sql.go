@@ -7,6 +7,7 @@ package dbgen
 
 import (
 	"context"
+	"database/sql"
 )
 
 const appendOwnerBuilderMessage = `-- name: AppendOwnerBuilderMessage :one
@@ -45,6 +46,43 @@ func (q *Queries) AppendOwnerBuilderMessage(ctx context.Context, arg AppendOwner
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const associateOwnerChat = `-- name: AssociateOwnerChat :execrows
+UPDATE builder_chats SET bot_id = ?1
+WHERE builder_chats.owner_id = ?2 AND builder_chats.id = ?3 AND builder_chats.bot_id IS NULL
+AND EXISTS (SELECT 1 FROM bots WHERE id = ?1 AND owner_id = ?2)
+`
+
+type AssociateOwnerChatParams struct {
+	BotID   sql.NullInt64
+	OwnerID int64
+	ChatID  int64
+}
+
+func (q *Queries) AssociateOwnerChat(ctx context.Context, arg AssociateOwnerChatParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, associateOwnerChat, arg.BotID, arg.OwnerID, arg.ChatID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const associateOwnerChatRuns = `-- name: AssociateOwnerChatRuns :exec
+UPDATE builder_runs SET bot_id = ?1
+WHERE builder_runs.owner_id = ?2 AND builder_runs.chat_id = ?3 AND builder_runs.bot_id IS NULL
+AND EXISTS (SELECT 1 FROM builder_chats c WHERE c.id = builder_runs.chat_id AND c.owner_id = builder_runs.owner_id AND c.bot_id = ?1)
+`
+
+type AssociateOwnerChatRunsParams struct {
+	BotID   sql.NullInt64
+	OwnerID int64
+	ChatID  sql.NullInt64
+}
+
+func (q *Queries) AssociateOwnerChatRuns(ctx context.Context, arg AssociateOwnerChatRunsParams) error {
+	_, err := q.db.ExecContext(ctx, associateOwnerChatRuns, arg.BotID, arg.OwnerID, arg.ChatID)
+	return err
 }
 
 const createOwnerBuilderChat = `-- name: CreateOwnerBuilderChat :one
@@ -232,6 +270,29 @@ func (q *Queries) ListOwnerBuilderMessages(ctx context.Context, arg ListOwnerBui
 		return nil, err
 	}
 	return items, nil
+}
+
+const resolveOwnerChat = `-- name: ResolveOwnerChat :one
+SELECT id, owner_id, bot_id, title, created_at, updated_at FROM builder_chats WHERE owner_id = ?1 AND id = ?2
+`
+
+type ResolveOwnerChatParams struct {
+	OwnerID int64
+	ChatID  int64
+}
+
+func (q *Queries) ResolveOwnerChat(ctx context.Context, arg ResolveOwnerChatParams) (BuilderChat, error) {
+	row := q.db.QueryRowContext(ctx, resolveOwnerChat, arg.OwnerID, arg.ChatID)
+	var i BuilderChat
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.BotID,
+		&i.Title,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const touchOwnerBuilderChat = `-- name: TouchOwnerBuilderChat :exec

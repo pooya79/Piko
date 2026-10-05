@@ -5,6 +5,19 @@ SELECT b.owner_id, b.id, sqlc.arg(title), sqlc.arg(created_at), sqlc.arg(created
 FROM bots b WHERE b.owner_id = sqlc.arg(owner_id) AND b.id = sqlc.arg(bot_id)
 RETURNING *;
 
+-- name: ResolveOwnerChat :one
+SELECT * FROM builder_chats WHERE owner_id = sqlc.arg(owner_id) AND id = sqlc.arg(chat_id);
+
+-- name: AssociateOwnerChat :execrows
+UPDATE builder_chats SET bot_id = sqlc.arg(bot_id)
+WHERE builder_chats.owner_id = sqlc.arg(owner_id) AND builder_chats.id = sqlc.arg(chat_id) AND builder_chats.bot_id IS NULL
+AND EXISTS (SELECT 1 FROM bots WHERE id = sqlc.arg(bot_id) AND owner_id = sqlc.arg(owner_id));
+
+-- name: AssociateOwnerChatRuns :exec
+UPDATE builder_runs SET bot_id = sqlc.arg(bot_id)
+WHERE builder_runs.owner_id = sqlc.arg(owner_id) AND builder_runs.chat_id = sqlc.arg(chat_id) AND builder_runs.bot_id IS NULL
+AND EXISTS (SELECT 1 FROM builder_chats c WHERE c.id = builder_runs.chat_id AND c.owner_id = builder_runs.owner_id AND c.bot_id = sqlc.arg(bot_id));
+
 -- name: ListOwnerBuilderChats :many
 SELECT c.* FROM builder_chats c
 WHERE c.owner_id = sqlc.arg(owner_id) AND COALESCE(c.bot_id, 0) = CAST(sqlc.arg(bot_id) AS INTEGER)

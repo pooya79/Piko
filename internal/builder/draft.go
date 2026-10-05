@@ -3,10 +3,12 @@ package builder
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/pooya79/Piko/internal/bot"
 	"github.com/pooya79/Piko/internal/bot/flow"
 	"github.com/pooya79/Piko/internal/bot/templates/booking"
 	"github.com/pooya79/Piko/internal/bot/templates/inquiry"
@@ -22,6 +24,40 @@ type draftCandidate struct {
 	base    flow.Definition
 	staged  *flow.Definition
 	invalid bool
+	name    string
+}
+
+type initialDraftInput struct {
+	Name       string `json:"name" jsonschema:"description=Recognizable suggested Persian workspace name, 1 to 80 characters"`
+	Definition string `json:"definition" jsonschema:"description=Complete validated supported Flow JSON"`
+}
+
+func (s *Service) initialDraftTools() []ai.ToolRef {
+	prepare := genkit.DefineTool(s.genkit, "prepare_bot", "Validate and stage an initial Bot Flow and suggested workspace name. No Bot is created until successful final completion. Use only for the explicitly authorized build request.", func(ctx *ai.ToolContext, input initialDraftInput) (validationResult, error) {
+		c, err := candidateFromContext(ctx)
+		if err != nil {
+			return validationResult{}, err
+		}
+		run, ok := ctx.Value(runContextKey{}).(admittedRun)
+		if !ok || run.botID != 0 {
+			return validationResult{}, ErrUnavailable
+		}
+		d, key := validateCandidate(input.Definition)
+		name := strings.TrimSpace(input.Name)
+		if bot.ValidateName(name) != nil {
+			key = "bot.create.name.error"
+		}
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		c.staged, c.name, c.invalid = nil, "", key != ""
+		if key == "" {
+			c.staged, c.name = &d, name
+		}
+		return validationResult{Valid: key == "", Staged: key == "", Error: key}, nil
+	})
+	// Initial generation can read approved Templates and validate repairs, but
+	// receives neither a shared-Draft read nor a replacement-Draft staging tool.
+	return []ai.ToolRef{s.templateTool, s.validationTool, prepare}
 }
 
 type draftInput struct {
@@ -51,7 +87,7 @@ func (s *Service) sequentialDraftTools(context.Context) (*ai.Hooks, error) {
 	return &ai.Hooks{WrapTool: func(ctx context.Context, params *ai.ToolParams, next ai.ToolNext) (*ai.MultipartToolResponse, error) {
 		run, ok := ctx.Value(runContextKey{}).(admittedRun)
 		if ok {
-			keys := map[string]string{"read_draft": "read.draft", "read_templates": "read.templates", "validate_draft": "validate.draft", "prepare_draft": "prepare.draft"}
+			keys := map[string]string{"read_draft": "read.draft", "read_templates": "read.templates", "validate_draft": "validate.draft", "prepare_draft": "prepare.draft", "prepare_bot": "prepare.draft"}
 			if key, ok := keys[params.Request.Name]; ok {
 				_ = s.display(run.id, "", "builder.progress."+key)
 			}
@@ -139,5 +175,6 @@ func (s *Service) draftTools() []ai.ToolRef {
 		}
 		return validationResult{Valid: key == "", Staged: key == "", Error: key}, nil
 	})
+	s.templateTool, s.validationTool = templates, validate
 	return []ai.ToolRef{read, templates, validate, prepare}
 }

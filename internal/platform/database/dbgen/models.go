@@ -146,6 +146,7 @@ type BuilderRun struct {
 	BeforeDefinition sql.NullString
 	AfterDefinition  sql.NullString
 	AfterRevision    sql.NullInt64
+	RequestKey       string
 }
 
 type BuilderSummary struct {

@@ -13,6 +13,25 @@ func (h *Handler) CreateForm(w http.ResponseWriter, r *http.Request) {
 	h.createPage(w, r, 200, "", "")
 }
 
+func (h *Handler) Rename(w http.ResponseWriter, r *http.Request) {
+	b, ok := h.requestedBot(w, r)
+	if !ok {
+		return
+	}
+	if r.ParseForm() != nil || len(r.PostForm["name"]) != 1 {
+		http.Error(w, locale.T(r.Context(), "bot.create.name.error"), http.StatusUnprocessableEntity)
+		return
+	}
+	if err := h.service.Rename(r.Context(), b.ID, r.PostForm.Get("name")); errors.Is(err, ErrBotName) {
+		http.Error(w, locale.T(r.Context(), "bot.create.name.error"), http.StatusUnprocessableEntity)
+		return
+	} else if err != nil {
+		h.failed(w, r)
+		return
+	}
+	http.Redirect(w, r, b.URL(), http.StatusSeeOther)
+}
+
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if r.ParseForm() != nil || len(r.PostForm["name"]) != 1 {
 		h.createPage(w, r, 422, "", "bot.create.name.error")
