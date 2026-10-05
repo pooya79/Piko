@@ -117,6 +117,24 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	h.list(w, r, b, 200, "", "")
 }
 
+// Studio opens saved work without creating a conversation on a GET request.
+func (h *Handler) Studio(w http.ResponseWriter, r *http.Request) {
+	b, ok := h.requestedBot(w, r)
+	if !ok {
+		return
+	}
+	chats, err := h.service.List(r.Context(), b.ID)
+	if err != nil {
+		h.failed(w, r, err)
+		return
+	}
+	if len(chats) == 0 {
+		h.list(w, r, b, 200, "", "")
+		return
+	}
+	http.Redirect(w, r, chats[0].URL(), http.StatusSeeOther)
+}
+
 func (h *Handler) list(w http.ResponseWriter, r *http.Request, b bot.Bot, status int, title, key string) {
 	chats, err := h.service.List(r.Context(), b.ID)
 	if err != nil {

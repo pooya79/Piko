@@ -16,6 +16,7 @@
 .piko-workspace-main:has(.piko-studio) > .piko-topbar { flex-shrink: 0; }
 .piko-dashboard-main:has(.piko-studio) { display: flex; flex-direction: column; flex: 1; min-height: 0; max-width: none; margin: 0; padding: 0; }
 .piko-dashboard-main:has(.piko-studio) > .piko-workspace-footer { display: none; }
+.piko-dashboard-main:has(.piko-studio) > .piko-bot-navigation { flex-shrink: 0; margin: 0; padding-inline: 32px; background: var(--color-base-100); }
 .piko-studio { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .piko-studio-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 32px; border-bottom: 1px solid var(--color-base-300); background: var(--color-base-100); }
 .piko-studio-heading h1 { font-size: 18px; font-weight: 700; margin-top: 5px; overflow-wrap: anywhere; }

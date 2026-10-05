@@ -19,7 +19,7 @@ func TestOwnerPublishesSavedDraftWithoutActivatingDelivery(t *testing.T) {
 		t.Fatalf("publish: %d", got.Code)
 	}
 	got := b.send(http.MethodGet, "/bots/1", nil)
-	if !strings.Contains(got.Body.String(), "نسخهٔ منتشرشده: ۱") || !strings.Contains(got.Body.String(), "فعال نشده") {
+	if !strings.Contains(got.Body.String(), "نسخهٔ منتشرشده: ۱") || !strings.Contains(got.Body.String(), `data-bot-state="published.inactive"`) {
 		t.Fatal("publication or delivery state missing")
 	}
 }

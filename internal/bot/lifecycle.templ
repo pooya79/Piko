@@ -8,9 +8,9 @@ templ lifecycleNotice(warning bool) {
  }
 }
 
-templ lifecycleControls(bot Bot, csrf string) {
+templ settingsControls(bot Bot, csrf string) {
  <section class="piko-lifecycle" aria-labelledby="lifecycle-title">
-  <h2 id="lifecycle-title">{ locale.T(ctx,"lifecycle.title") }</h2>
+  <h2 id="lifecycle-title">{ locale.T(ctx,"bot.settings.manage") }</h2>
   <div class="piko-connect-grid">
    <section class="piko-card piko-token-card">
     <h3>{ locale.T(ctx,"bot.name.edit") }</h3>
@@ -21,22 +21,7 @@ templ lifecycleControls(bot Bot, csrf string) {
      <button class="piko-secondary-action" type="submit">{ locale.T(ctx,"bot.name.save") }</button>
     </form>
    </section>
-   if !bot.Unconnected {
    <section class="piko-card piko-token-card">
-    if bot.Disconnected {
-     <h3>{ locale.T(ctx,"lifecycle.reconnect.title") }</h3><p class="piko-helper">{ locale.T(ctx,"lifecycle.reconnect.copy") }</p>
-     @lifecycleToken(bot.URL()+"/reconnect", csrf, "lifecycle.reconnect.submit")
-    } else {
-     <h3>{ locale.T(ctx,"lifecycle.replace.title") }</h3><p class="piko-helper">{ locale.T(ctx,"lifecycle.replace.copy") }</p>
-     @lifecycleToken(bot.URL()+"/replace-token", csrf, "lifecycle.replace.submit")
-    }
-   </section>
-   }
-   <section class="piko-card piko-token-card">
-    if !bot.Unconnected && !bot.Disconnected {
-     <h3>{ locale.T(ctx,"lifecycle.disconnect.title") }</h3><p class="piko-helper">{ locale.T(ctx,"lifecycle.disconnect.copy") }</p>
-     <form method="post" action={ templ.URL(bot.URL()+"/disconnect") }><input type="hidden" name="csrf_token" value={ csrf }/><button class="piko-secondary-action" type="submit">{ locale.T(ctx,"lifecycle.disconnect.submit") }</button></form>
-    }
     <details class="piko-lifecycle-delete">
      <summary>{ locale.T(ctx,"lifecycle.delete.title") }</summary>
      <p class="piko-helper">{ locale.T(ctx,"lifecycle.delete.copy") }</p>
@@ -59,4 +44,25 @@ templ lifecycleToken(action, csrf, submitKey string) {
   <p id="lifecycle-token-hint" class="piko-helper">{ locale.T(ctx,"bot.guide.secret") }</p>
   <button class="piko-primary-action" type="submit">{ locale.T(ctx,submitKey) }</button>
  </form>
+}
+
+templ connectionControls(bot Bot, csrf string) {
+ <div class="piko-connect-grid">
+  <section class="piko-card piko-token-card">
+   if bot.Disconnected {
+    <h2>{ locale.T(ctx,"lifecycle.reconnect.title") }</h2><p class="piko-helper">{ locale.T(ctx,"lifecycle.reconnect.copy") }</p>
+    @lifecycleToken(bot.URL()+"/reconnect", csrf, "lifecycle.reconnect.submit")
+   } else {
+    <h2>{ locale.T(ctx,"lifecycle.replace.title") }</h2><p class="piko-helper">{ locale.T(ctx,"lifecycle.replace.copy") }</p>
+    @lifecycleToken(bot.URL()+"/replace-token", csrf, "lifecycle.replace.submit")
+    <details class="piko-lifecycle-delete">
+     <summary>{ locale.T(ctx,"lifecycle.disconnect.title") }</summary><p class="piko-helper">{ locale.T(ctx,"lifecycle.disconnect.copy") }</p>
+     <form method="post" action={ templ.URL(bot.URL()+"/disconnect") }><input type="hidden" name="csrf_token" value={ csrf }/><button class="piko-secondary-action" type="submit">{ locale.T(ctx,"lifecycle.disconnect.submit") }</button></form>
+    </details>
+   }
+  </section>
+  if !bot.Disconnected {
+   @connectionObservation(bot)
+  }
+ </div>
 }

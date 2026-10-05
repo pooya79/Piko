@@ -1,0 +1,32 @@
+package bot
+
+import (
+ "github.com/pooya79/Piko/internal/locale"
+ "github.com/pooya79/Piko/internal/web/shell"
+)
+
+templ SettingsPage(displayName, csrf string, b Bot, warning bool) {
+ @shell.Workspace(displayName, csrf, flowPage(ctx, b, "bot.settings.title"), settingsContent(csrf, b, warning))
+}
+
+templ settingsContent(csrf string, b Bot, warning bool) {
+ <h1 class="piko-page-title">{ locale.T(ctx, "bot.settings.title") }</h1>
+ <p class="piko-page-copy"><bdi dir="auto">{ b.Name }</bdi></p>
+ @lifecycleNotice(warning)
+ @settingsControls(b, csrf)
+}
+
+templ ConnectionPage(displayName, csrf string, b Bot, warning bool) {
+ @shell.Workspace(displayName, csrf, flowPage(ctx, b, "bot.connection.title"), connectionContent(csrf, b, warning))
+}
+
+templ connectionContent(csrf string, b Bot, warning bool) {
+ <h1 class="piko-page-title">{ locale.T(ctx, "bot.connection.title") }</h1>
+ <p class="piko-page-copy"><bdi dir="auto">{ b.Name }</bdi></p>
+ @lifecycleNotice(warning)
+ if b.Unconnected {
+  <section class="piko-card piko-draft-section piko-publication"><h2>{ locale.T(ctx, "bot.status.unconnected") }</h2><p>{ locale.T(ctx, "bot.unconnected.copy") }</p><a class="piko-primary-action" href={ templ.URL(b.URL()+"/connect") }>{ locale.T(ctx, "bot.connect.title") }</a></section>
+ } else {
+  @connectionControls(b, csrf)
+ }
+}

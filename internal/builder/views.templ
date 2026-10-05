@@ -10,7 +10,7 @@ import (
 
 func page(ctx context.Context, b bot.Bot) shell.Page {
  if b.ID == 0 { return shell.Page{Title:locale.T(ctx,"piko.chat.title"),ActiveNav:shell.BuilderNav,Breadcrumbs:[]shell.Breadcrumb{{Label:locale.T(ctx,"piko.chat.title"),URL:"/builder"}}} }
- return shell.Page{Title:locale.T(ctx,"builder.title"),ActiveNav:shell.BuilderNav,Breadcrumbs:[]shell.Breadcrumb{{Label:locale.T(ctx,"workspace.bots"),URL:"/bots"},{Label:b.Name,URL:b.URL()},{Label:locale.T(ctx,"builder.title"),URL:b.URL()+"/chats"}}}
+ return shell.Page{Title:locale.T(ctx,"builder.title"),BotURL:b.URL(),BotSection:shell.BotStudio,ActiveNav:shell.BuilderNav,Breadcrumbs:[]shell.Breadcrumb{{Label:locale.T(ctx,"workspace.bots"),URL:"/bots"},{Label:b.Name,URL:b.URL()},{Label:locale.T(ctx,"builder.title"),URL:b.URL()+"/chats"}}}
 }
 
 templ IndexPage(displayName,csrf string,chats []Chat,view ChatView) {

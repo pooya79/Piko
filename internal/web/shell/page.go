@@ -18,6 +18,9 @@ type Page struct {
 	CreateBotURL string
 	BuilderURL   string
 	RecentBots   []BotLink
+	// BotURL is supplied only after the feature authorizes the requested Bot.
+	BotURL     string
+	BotSection BotNavSection
 }
 
 type navigationKey struct{}
@@ -33,6 +36,17 @@ const (
 	DashboardNav NavSection = ""
 	BotsNav      NavSection = "bots"
 	BuilderNav   NavSection = "builder"
+)
+
+type BotNavSection string
+
+const (
+	BotOverview    BotNavSection = "overview"
+	BotStudio      BotNavSection = "studio"
+	BotSubmissions BotNavSection = "submissions"
+	BotConnection  BotNavSection = "connection"
+	BotSettings    BotNavSection = "settings"
+	BotDraft       BotNavSection = "draft"
 )
 
 // BotLink contains only navigation identity, never inferred status or metrics.

@@ -51,7 +51,7 @@ func TestConnectExistingBotRetainsDraftAndPreviewWithoutActivation(t *testing.T)
 	if !reflect.DeepEqual(before, renderedDraft(t, b.send("GET", "/bots/1/draft", nil).Body.String())) {
 		t.Fatal("connection changed the shared Draft or revision")
 	}
-	page := b.send("GET", "/bots/1", nil).Body.String()
+	page := b.send("GET", "/bots/1", nil).Body.String() + b.send("GET", "/bots/1/connection", nil).Body.String()
 	for _, want := range []string{"Verified &lt;bot&gt;", "verified_bot", "123456", "تأیید شده", "فعال نشده", "۷", "از قبل تنظیم شده", "نسخهٔ منتشرشده: ۰"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("detail missing %q", want)
@@ -360,7 +360,7 @@ func TestConnectExistingRetainsOfflinePublicationAndUsesEncryptedTokenAfterResta
 		t.Fatal(got.Code)
 	}
 	page := b.send("GET", "/bots/1", nil).Body.String()
-	if !strings.Contains(page, "نسخهٔ منتشرشده: ۱") || !strings.Contains(page, "فعال نشده") {
+	if !strings.Contains(page, "نسخهٔ منتشرشده: ۱") || !strings.Contains(page, `data-bot-state="published.inactive"`) {
 		t.Fatal("connection republished or activated the offline publication")
 	}
 	// Storage inspection is limited to the credential encryption contract;

@@ -23,6 +23,9 @@ templ Workspace(displayName, csrf string, page Page, content templ.Component) {
     <div class="piko-workspace-main">
      @topbar(page)
      <main id="main-content" tabindex="-1" class="piko-dashboard-main">
+      if page.BotURL != "" {
+       @botNavigation(page)
+      }
       @content
       <footer class="piko-workspace-footer"><span>{ locale.T(ctx, "workspace.footer.brand") }</span><span>{ locale.T(ctx, "workspace.footer.purpose") }</span></footer>
      </main>
@@ -30,6 +33,25 @@ templ Workspace(displayName, csrf string, page Page, content templ.Component) {
    </div>
   </body>
  </html>
+}
+
+templ botNavigation(page Page) {
+ <nav class="piko-bot-navigation" aria-label={ locale.T(ctx, "bot.navigation") }>
+  @botNavigationLink(page, BotOverview, "bot.overview.title", "")
+  @botNavigationLink(page, BotStudio, "bot.studio.title", "/studio")
+  @botNavigationLink(page, BotSubmissions, "submission.title", "/submissions")
+  @botNavigationLink(page, BotConnection, "bot.connection.title", "/connection")
+  @botNavigationLink(page, BotSettings, "bot.settings.title", "/settings")
+  @botNavigationLink(page, BotDraft, "draft.title", "/draft")
+ </nav>
+}
+
+templ botNavigationLink(page Page, section BotNavSection, key, suffix string) {
+ <a href={ templ.URL(page.BotURL+suffix) }
+  if page.BotSection == section {
+   aria-current="page"
+  }
+ >{ locale.T(ctx, key) }</a>
 }
 
 templ Icon(name string) {

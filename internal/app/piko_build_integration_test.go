@@ -391,7 +391,7 @@ func TestPikoConversionKeepsPrivateMemorySharedDraftAndDeletionScope(t *testing.
 	if !strings.Contains(last, "سلام تازه") || strings.Contains(last, "حافظه خصوصی کلاس") || strings.Contains(last, "پرسش خصوصی کلاس") {
 		t.Fatal("shared Draft or private memory isolation lost")
 	}
-	detail := b.send("GET", "/bots/1", nil).Body.String()
+	detail := b.send("GET", "/bots/1/settings", nil).Body.String()
 	if !strings.Contains(detail, "شامل پیام\u200cهای عمومی پیش از ساخت ربات") {
 		t.Fatal("deletion confirmation omits general discussion")
 	}

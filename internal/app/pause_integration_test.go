@@ -29,7 +29,7 @@ func TestBotPauseRetainsQuestionsAndConfirmationWithoutSubmissions(t *testing.T)
 	}
 	d.text("/start", 1)
 	d.countSubmissions(0)
-	if page := d.b.send("GET", "/bots/1", nil); !strings.Contains(page.Body.String(), `action="/bots/1/resume"`) || !strings.Contains(page.Body.String(), "موقتاً متوقف") {
+	if page := d.b.send("GET", "/bots/1", nil); !strings.Contains(page.Body.String(), `action="/bots/1/resume"`) || !strings.Contains(page.Body.String(), `data-bot-state="paused"`) {
 		t.Fatal("persisted pause or resume control missing")
 	}
 	if got := d.b.post("/bots/1/resume", url.Values{}); got.Code != 303 {
@@ -104,7 +104,7 @@ func TestBotPauseSurvivesRestartAndKeepsOriginalInteractionVersion(t *testing.T)
 	d.a, d.b.router = restarted, restarted.server.Handler
 	runDeliveryApp(t, restarted)
 	for _, path := range []string{"/bots/1", "/bots", "/dashboard"} {
-		if page := d.b.send("GET", path, nil); page.Code != 200 || !strings.Contains(page.Body.String(), "موقتاً متوقف") {
+		if page := d.b.send("GET", path, nil); page.Code != 200 || !strings.Contains(page.Body.String(), `data-bot-state="paused"`) {
 			t.Fatalf("pause not retained on %s", path)
 		}
 	}
@@ -265,7 +265,7 @@ func TestBotPauseControlsRequireOwnerAuthenticationCSRFAndActiveDelivery(t *test
 			}
 		}
 	}
-	if page := d.b.send("GET", "/bots/1", nil); !strings.Contains(page.Body.String(), `action="/bots/1/pause"`) || strings.Contains(page.Body.String(), "موقتاً متوقف") {
+	if page := d.b.send("GET", "/bots/1", nil); !strings.Contains(page.Body.String(), `action="/bots/1/pause"`) || strings.Contains(page.Body.String(), `data-bot-state="paused"`) {
 		t.Fatal("rejected attempts changed pause state")
 	}
 	for _, action := range []string{"pause", "pause", "resume", "resume"} {
@@ -375,7 +375,7 @@ func TestBotPausePersistsThroughReactivationAndRejectsModeMismatch(t *testing.T)
 	if got := d.b.post("/bots/1/activate", url.Values{"operate": {"yes"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	if page := d.b.send("GET", "/bots/1", nil); !strings.Contains(page.Body.String(), "موقتاً متوقف") {
+	if page := d.b.send("GET", "/bots/1", nil); !strings.Contains(page.Body.String(), `data-bot-state="paused"`) {
 		t.Fatal("reactivation silently resumed a paused Bot")
 	}
 	if err := d.a.db.Close(); err != nil {
@@ -405,7 +405,7 @@ func TestBotPauseStorageFailurePreservesExistingState(t *testing.T) {
 	if got := d.b.post("/bots/1/pause", url.Values{}); got.Code != 500 {
 		t.Fatal(got.Code)
 	}
-	if page := d.b.send("GET", "/bots/1", nil); strings.Contains(page.Body.String(), "موقتاً متوقف") || !strings.Contains(page.Body.String(), `action="/bots/1/pause"`) {
+	if page := d.b.send("GET", "/bots/1", nil); strings.Contains(page.Body.String(), `data-bot-state="paused"`) || !strings.Contains(page.Body.String(), `action="/bots/1/pause"`) {
 		t.Fatal("failed pause changed persisted state")
 	}
 }

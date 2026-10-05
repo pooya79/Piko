@@ -220,7 +220,7 @@ func TestBotConnectionShowsDeliveryConflictAndIsolatesOwners(t *testing.T) {
 	if got.Code != 303 {
 		t.Fatalf("connect: %d", got.Code)
 	}
-	detail := b.send(http.MethodGet, "/bots/1", nil).Body.String()
+	detail := b.send(http.MethodGet, "/bots/1", nil).Body.String() + b.send(http.MethodGet, "/bots/1/connection", nil).Body.String()
 	for _, want := range []string{"از قبل تنظیم شده", "۱۲", "فعال نشده"} {
 		if !strings.Contains(detail, want) {
 			t.Errorf("missing delivery observation %q", want)
@@ -393,7 +393,7 @@ func TestBotConnectionVerifiesAndPersistsWithoutActivating(t *testing.T) {
 			t.Fatalf("saved Bot at %s: %d %s", path, page.Code, page.Body.String())
 		}
 	}
-	detail := b.send(http.MethodGet, "/bots/1", nil).Body.String()
+	detail := b.send(http.MethodGet, "/bots/1", nil).Body.String() + b.send(http.MethodGet, "/bots/1/connection", nil).Body.String()
 	for _, want := range []string{"mina_test_bot", "تأیید شده", "فعال نشده", "۷", "سرویس دیگری"} {
 		if !strings.Contains(detail, want) {
 			t.Errorf("detail missing %q", want)

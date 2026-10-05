@@ -1,4 +1,25 @@
 @layer components {
+ .piko-bot-navigation { @apply mb-7 flex flex-wrap gap-x-6 gap-y-1 border-b border-base-300; }
+ .piko-bot-navigation a { @apply inline-flex min-h-12 items-center border-b-2 border-transparent text-sm text-muted; }
+ .piko-bot-navigation a[aria-current="page"] { @apply border-primary font-bold text-primary; }
+ .piko-bot-navigation a:focus-visible, .piko-overview-operations summary:focus-visible { outline:2px solid var(--color-primary); outline-offset:3px; }
+ .piko-overview-heading { @apply mb-7 flex flex-wrap items-center justify-between gap-5; }
+ .piko-overview-grid { @apply grid gap-6; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); }
+ .piko-overview-state, .piko-overview-work { @apply space-y-5 p-7; min-width:0; overflow-wrap:anywhere; }
+ .piko-overview-state h2, .piko-overview-work h2 { @apply text-lg font-bold; }
+ .piko-overview-state > p, .piko-overview-work > p { @apply text-sm leading-8 text-muted; }
+ .piko-overview-status { @apply inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold; background:var(--piko-surface-lilac); }
+ [data-bot-state="active"] .piko-overview-status { background:var(--piko-surface-mint); }
+ .piko-overview-state .piko-bot-details { @apply grid gap-5 border-y border-base-300 py-5; grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .piko-overview-links { @apply flex flex-wrap items-center gap-5; }
+ .piko-overview-inbox { @apply space-y-3 border-t border-base-300 pt-5; }
+ .piko-overview-inbox h3 { @apply font-bold; }
+ .piko-overview-inbox > .piko-text-link { @apply inline-flex items-center gap-2; }
+ #bot-name { font-family: inherit; }
+ .piko-overview-operations summary { @apply cursor-pointer font-bold; }
+ .piko-overview-operations { @apply items-start; }
+ @media (max-width: 1023px) { .piko-overview-grid { grid-template-columns:1fr; } }
+ @media (max-width: 767px) { .piko-overview-state, .piko-overview-work { @apply p-5; } .piko-bot-navigation { @apply gap-x-4; } }
  .piko-template-catalog { @apply grid gap-4; grid-template-columns: repeat(3,minmax(0,1fr)); }
  .piko-template-catalog > div { @apply flex flex-col items-start gap-3 rounded-2xl border border-base-300 p-4; }
  .piko-template-catalog h3 { @apply font-bold; }
@@ -16,7 +37,7 @@
  .piko-token-card .piko-primary-action { @apply min-h-12 w-full text-sm; }
  .piko-connect-grid { @apply mt-8 grid gap-6; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); }
  .piko-bot-guide, .piko-token-card { @apply p-7; }
- .piko-bot-guide h2, .piko-token-card h2, .piko-bot-next h2 { @apply text-lg font-bold leading-8; }
+ .piko-bot-guide h2, .piko-token-card h2 { @apply text-lg font-bold leading-8; }
  .piko-bot-guide h2 { @apply mt-4; }
  .piko-bot-guide ol { @apply my-5 list-decimal space-y-4 ps-6 text-sm leading-7; }
  .piko-token-card form { @apply mt-5 space-y-4; }
@@ -41,7 +62,6 @@
  .piko-deploy-action:disabled { @apply cursor-not-allowed opacity-50; }
  .piko-activation-confirm { @apply flex items-start gap-3 text-sm leading-7; }
  .piko-activation-confirm input { @apply mt-2 shrink-0; accent-color: var(--color-primary); }
- .piko-bot-next { @apply mt-8 space-y-4; }
  .piko-draft-eyebrow { @apply mb-2 text-sm font-semibold text-primary; }
  .piko-draft-form { @apply mt-7 space-y-6; }
  .piko-draft-section { @apply space-y-4 p-7; min-width: 0; }

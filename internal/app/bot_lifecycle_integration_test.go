@@ -50,7 +50,7 @@ func TestBotLifecycleReplacementFencesAnEarlierActivation(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("activation did not finish")
 	}
-	if page := d.b.send("GET", "/bots/1", nil); !strings.Contains(page.Body.String(), "فعال نشده") {
+	if page := d.b.send("GET", "/bots/1", nil); !strings.Contains(page.Body.String(), `data-bot-state="published.inactive"`) {
 		t.Fatal("stale activation resumed replaced Bot")
 	}
 	if got := d.b.post("/bots/1/activate", url.Values{"operate": {"yes"}}); got.Code != 303 {
@@ -225,7 +225,7 @@ func TestBotReplacementPreservesIdentityAndRequiresActivation(t *testing.T) {
 	if got := d.b.post("/bots/1/replace-token", url.Values{"token": {replacementToken}}); got.Code != 303 {
 		t.Fatalf("replace token: %d", got.Code)
 	}
-	if page := d.b.send("GET", "/bots/1", nil); page.Code != 200 || !strings.Contains(page.Body.String(), "فعال نشده") || strings.Contains(page.Body.String(), replacementToken) {
+	if page := d.b.send("GET", "/bots/1", nil); page.Code != 200 || !strings.Contains(page.Body.String(), `data-bot-state="published.inactive"`) || strings.Contains(page.Body.String(), replacementToken) {
 		t.Fatal("replacement must retain the Bot, hide credentials and require explicit activation")
 	}
 	if got := webhook(d.a, d.secret, `{"update_id":900}`); got.Code != 401 {
@@ -518,7 +518,7 @@ func TestBotDisconnectRetainsSubmissionsAndReconnectsSameBot(t *testing.T) {
 			t.Fatalf("disconnected status missing: %s", path)
 		}
 	}
-	page := d.b.send("GET", "/bots/1", nil)
+	page := d.b.send("GET", "/bots/1/connection", nil)
 	if !strings.Contains(page.Body.String(), `action="/bots/1/reconnect"`) || strings.Contains(page.Body.String(), `action="/bots/1/replace-token"`) {
 		t.Fatal("distinct disconnected controls missing")
 	}

@@ -18,7 +18,18 @@ import (
 )
 
 func flowPage(ctx context.Context, b Bot, titleKey string) shell.Page {
-	return shell.Page{Title: locale.T(ctx, titleKey), ActiveNav: shell.BotsNav, Breadcrumbs: []shell.Breadcrumb{{Label: locale.T(ctx, "workspace.bots"), URL: "/bots"}, {Label: b.Name, URL: b.URL()}, {Label: locale.T(ctx, titleKey)}}}
+	var section shell.BotNavSection
+	switch titleKey {
+	case "draft.title":
+		section = shell.BotDraft
+	case "submission.title", "submission.detail":
+		section = shell.BotSubmissions
+	case "bot.connection.title", "bot.connect.title":
+		section = shell.BotConnection
+	case "bot.settings.title":
+		section = shell.BotSettings
+	}
+	return shell.Page{Title: locale.T(ctx, titleKey), BotURL: b.URL(), BotSection: section, ActiveNav: shell.BotsNav, Breadcrumbs: []shell.Breadcrumb{{Label: locale.T(ctx, "workspace.bots"), URL: "/bots"}, {Label: b.Name, URL: b.URL()}, {Label: locale.T(ctx, titleKey)}}}
 }
 
 func (h *Handler) requestedBot(w http.ResponseWriter, r *http.Request) (Bot, bool) {

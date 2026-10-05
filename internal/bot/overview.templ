@@ -1,0 +1,112 @@
+package bot
+
+import (
+ "strconv"
+ "github.com/pooya79/Piko/internal/locale"
+ "github.com/pooya79/Piko/internal/web/shell"
+)
+
+templ detailContent(b Bot, csrf string, warning bool) {
+ @lifecycleNotice(warning)
+ <header class="piko-overview-heading">
+  <div class="piko-bot-detail-heading"><span class="piko-empty-icon">@shell.Icon("robot")</span><div><h1 class="piko-page-title"><bdi dir="auto">{ b.Name }</bdi></h1>
+   if !b.Unconnected {
+    <p class="piko-page-copy"><bdi dir="ltr">{ "@" + b.Username }</bdi></p>
+   }
+  </div></div>
+  <a class="piko-primary-action" href={ templ.URL(b.URL()+"/studio") }>@shell.Icon("chat-circle-dots")<span>{ locale.T(ctx, "bot.overview.change") }</span></a>
+ </header>
+ <div class="piko-overview-grid">
+  <section class="piko-card piko-overview-state" data-bot-state={ overviewState(b) } aria-labelledby="bot-state-title">
+   <span class="piko-overview-status">@shell.Icon("robot")
+ { locale.T(ctx, overviewStatusKey(b)) }</span>
+   <h2 id="bot-state-title">{ locale.T(ctx, "bot.overview.state.title") }</h2>
+   <p>{ locale.T(ctx, "bot.overview.copy."+overviewState(b)) }</p>
+   <dl class="piko-bot-details"><div><dt>{ locale.T(ctx, "bot.identity.credentials") }</dt><dd>{ locale.T(ctx, credentialStatus(b)) }</dd></div><div><dt>{ locale.T(ctx, "publish.title") }</dt><dd>{ locale.T(ctx, "publish.version") + locale.Digits(strconv.FormatInt(b.PublishedVersion,10)) }</dd></div></dl>
+   if !b.Unconnected {
+    <p class="piko-helper">{ locale.T(ctx, "bot.identity.id") }: <bdi dir="ltr">{ strconv.FormatInt(b.TelegramID,10) }</bdi></p>
+   }
+   if b.DeliveryMode != "" {
+    <p class="piko-helper">{ locale.T(ctx, "delivery.mode."+string(b.DeliveryMode)) }</p>
+   }
+   if b.Paused && b.DeliveryState != "paused" {
+    <p class="piko-helper">{ locale.T(ctx, "deploy.paused") }</p>
+   }
+   if b.Unconnected {
+    <a class="piko-primary-action" href={ templ.URL(b.URL()+"/connect") }>@shell.Icon("telegram-logo")
+ { locale.T(ctx, "bot.connect.title") }</a>
+   } else if b.Disconnected {
+    <a class="piko-primary-action" href={ templ.URL(b.URL()+"/connection") }>{ locale.T(ctx, "lifecycle.reconnect.title") }</a>
+   } else if b.DeliveryState == "active" || b.DeliveryState == "paused" {
+    <form method="post"
+     if b.Paused {
+ action={ templ.URL(b.URL()+"/resume") }
+ } else {
+ action={ templ.URL(b.URL()+"/pause") }
+ }
+    ><input type="hidden" name="csrf_token" value={ csrf }/><button class="piko-secondary-action" type="submit">
+     if b.Paused {
+ { locale.T(ctx, "pause.resume") }
+ } else {
+ { locale.T(ctx, "pause.submit") }
+ }
+    </button></form>
+    <details class="piko-overview-pause-help"><summary>{ locale.T(ctx, "pause.title") }</summary><p class="piko-helper">{ locale.T(ctx, "pause.copy") }</p></details>
+   } else if b.PublishedVersion > 0 && b.DeliveryState != "activating" {
+    <a class="piko-primary-action" href={ templ.URL(b.URL()+"/activate") }>{ locale.T(ctx, "deploy.retry") }</a>
+   }
+   if b.DeliveryError {
+    <p class="piko-bot-warning" role="alert">
+     if b.DeliveryMode == PollingDelivery {
+ { locale.T(ctx, "delivery.polling.error") }
+ } else {
+ { locale.T(ctx, "delivery.error") }
+ }
+    </p>
+   }
+  </section>
+  <section class="piko-card piko-overview-work" aria-labelledby="bot-work-title">
+   <span class="piko-empty-icon">@shell.Icon("squares-four")</span>
+   <h2 id="bot-work-title">{ locale.T(ctx, "bot.overview.work.title") }</h2>
+   <p>{ locale.T(ctx, "bot.overview.work.copy") }</p>
+   <div class="piko-overview-links">
+    <a class="piko-secondary-action" href={ templ.URL(b.URL()+"/preview") }>{ locale.T(ctx, "preview.title") }</a>
+    <a class="piko-text-link" href={ templ.URL(b.URL()+"/draft") }>{ locale.T(ctx, "draft.title") }</a>
+   </div>
+   <div class="piko-overview-inbox"><h3>{ locale.T(ctx, "submission.title") }</h3><p class="piko-helper">{ locale.T(ctx, "submission.copy") }</p><a class="piko-text-link" href={ templ.URL(b.URL()+"/submissions") }>{ locale.T(ctx, "bot.overview.inbox") } @shell.Icon("caret-left")</a></div>
+  </section>
+ </div>
+ <div class="piko-overview-grid piko-overview-operations">
+  if !b.Unconnected && !b.Disconnected {
+   @DeployControls(csrf,b)
+  }
+  <details class="piko-card piko-draft-section piko-publication">
+   <summary>{ locale.T(ctx, "bot.overview.advanced") }</summary>
+   <p class="piko-helper">{ locale.T(ctx, "publish.copy") }</p><p class="piko-helper">{ locale.T(ctx, "publish.interactions") }</p>
+   if b.BuilderBusy {
+ <p class="piko-bot-warning" role="status">{ locale.T(ctx, "deploy.busy") }</p>
+ }
+   <form method="post" action={ templ.URL(b.URL()+"/publish") }><input type="hidden" name="csrf_token" value={ csrf }/><button class="piko-secondary-action" type="submit" disabled?={ b.BuilderBusy }>{ locale.T(ctx, "publish.submit") }</button></form>
+  </details>
+ </div>
+}
+
+templ connectionObservation(b Bot) {
+ <section class="piko-card piko-token-card"><h2>{ locale.T(ctx, "bot.delivery.title") }</h2><p class="piko-helper">{ locale.T(ctx, "bot.delivery.observed") }</p>
+  <dl class="piko-bot-details"><div><dt>{ locale.T(ctx, "bot.identity.id") }</dt><dd><bdi dir="ltr">{ strconv.FormatInt(b.TelegramID,10) }</bdi></dd></div></dl>
+  if b.HasWebhook && !b.WebhookIsPiko {
+   <p class="piko-bot-warning">@shell.Icon("warning-circle")
+ { locale.T(ctx, "bot.delivery.conflict") }</p>
+  } else if b.WebhookIsPiko {
+   <p>{ locale.T(ctx, "delivery.webhook.piko") }</p>
+  } else {
+   <p>{ locale.T(ctx, "bot.delivery.empty") }</p>
+  }
+  <p class="piko-page-copy">{ locale.T(ctx, "bot.delivery.pending") } <strong>{ locale.Digits(strconv.FormatInt(b.PendingUpdates,10)) }</strong></p>
+  <p class="piko-helper">{ locale.T(ctx, "bot.delivery.polling") }</p><p class="piko-helper">{ locale.T(ctx, "bot.connect.readonly") }</p>
+  <p class="piko-helper">{ locale.T(ctx, "bot.delivery.checked") }: <time datetime={ b.VerifiedAt.UTC().Format("2006-01-02T15:04:05Z") } data-persian-date>{ locale.Digits(b.VerifiedAt.Format("2006-01-02 15:04")) }</time></p>
+  if b.DeliveryMode != "" {
+ <p class="piko-helper">{ locale.T(ctx, "delivery.mode."+string(b.DeliveryMode)) }</p>
+ }
+ </section>
+}
