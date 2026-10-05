@@ -14,6 +14,10 @@ import (
 // SQLite as integration tests. No model or real Telegram credentials are used.
 func TestConnectionBrowserFixture(t *testing.T) {
 	addr := os.Getenv("PIKO_CONNECTION_BROWSER_ADDR")
+	settings := os.Getenv("PIKO_SETTINGS_BROWSER_ADDR")
+	if settings != "" {
+		addr = settings
+	}
 	if addr == "" {
 		t.Skip("set PIKO_CONNECTION_BROWSER_ADDR for manual browser verification")
 	}
@@ -30,6 +34,14 @@ func TestConnectionBrowserFixture(t *testing.T) {
 	}
 	if got := b.post("/bots/1/chats", url.Values{"title": {"گفتگوی محفوظ"}}); got.Code != 303 {
 		t.Fatal(got.Code)
+	}
+	if settings != "" {
+		if got := b.postDraft(t, "/bots/1/draft", combinedDraft()); got.Code != 303 {
+			t.Fatal(got.Code)
+		}
+		b.post("/bots/1/chats", url.Values{"title": {"گفتگوی دوم"}})
+		b.post("/chats", url.Values{})
+		b.post("/bots/new", url.Values{"name": {"ربات مستقل"}})
 	}
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {

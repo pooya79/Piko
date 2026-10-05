@@ -113,3 +113,34 @@
 .piko-connection-identity dt { @apply mb-2 text-sm text-muted; }
 .piko-connection-identity dd { @apply text-sm font-semibold; overflow-wrap:anywhere; }
 .piko-token-card { min-width:0; }
+
+.piko-settings-panel { @apply mt-7 px-7; }
+.piko-setting-row { @apply grid items-start gap-6 border-b border-base-300 py-7; grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+.piko-setting-row:last-child { border-bottom:0; }
+.piko-setting-row h2, .piko-delete-panel h2 { @apply mb-3 text-lg font-bold; }
+.piko-setting-row p, .piko-delete-panel > p { @apply text-sm leading-8 text-muted; overflow-wrap:anywhere; }
+.piko-setting-row form { @apply space-y-4; min-width:0; }
+.piko-setting-row > a { justify-self:start; }
+.piko-settings-danger h2 { @apply text-error; }
+.piko-danger-action { @apply border-error text-error; white-space:normal; }
+.piko-delete-panel { @apply mt-7 space-y-5 p-7; max-width:52rem; }
+.piko-delete-panel form { @apply space-y-5 border-t border-base-300 pt-5; }
+.piko-delete-scope { @apply list-disc space-y-3 ps-5 text-sm leading-8; }
+.piko-draft-sections { @apply mt-5 flex flex-wrap gap-4 text-sm; }
+.piko-draft-sections a { @apply rounded-lg border border-base-300 px-4 py-3; }
+.piko-draft-sections a:focus-visible { outline:2px solid var(--color-primary); outline-offset:3px; }
+.piko-draft-form > section { scroll-margin-top:2rem; }
+.piko-draft-savebar { @apply sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-base-300 bg-base-100 p-5; box-shadow:var(--piko-shadow); }
+.piko-draft-savebar > div { min-width:0; }
+.piko-draft-savebar p { @apply text-sm; }
+.piko-draft-savebar .piko-helper { @apply mt-2; max-width:46ch; }
+.piko-draft-form { scroll-padding-bottom:12rem; }
+.piko-draft-form :is(input,textarea,select,summary,button) { scroll-margin-bottom:12rem; }
+.piko-submission-delete summary:focus-visible { outline:2px solid var(--color-primary); outline-offset:3px; }
+@media (max-width:767px) {
+ .piko-settings-panel { @apply px-5; }
+ .piko-setting-row { grid-template-columns:1fr; }
+ .piko-delete-panel { @apply p-5; }
+ .piko-draft-savebar { @apply bottom-2 gap-3 p-4; }
+ .piko-draft-savebar .piko-primary-action { @apply w-full; }
+}

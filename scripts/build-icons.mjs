@@ -22,6 +22,7 @@ const icons = {
  "robot": ["regular", "robot"],
  "shield-check": ["regular", "shield-check"],
  "sign-out": ["regular", "sign-out"],
+ "sliders": ["regular", "sliders-horizontal"],
  "sparkle": ["regular", "sparkle"],
  "squares-four": ["regular", "squares-four"],
  "telegram-logo": ["regular", "telegram-logo"],

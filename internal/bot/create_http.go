@@ -15,17 +15,22 @@ func (h *Handler) Rename(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.ParseForm() != nil || len(r.PostForm["name"]) != 1 {
-		http.Error(w, locale.T(r.Context(), "bot.create.name.error"), http.StatusUnprocessableEntity)
+		h.settingsPage(w, r, 422, b, "", "bot.create.name.error")
 		return
 	}
 	if err := h.service.Rename(r.Context(), b.ID, r.PostForm.Get("name")); errors.Is(err, ErrBotName) {
-		http.Error(w, locale.T(r.Context(), "bot.create.name.error"), http.StatusUnprocessableEntity)
+		h.settingsPage(w, r, 422, b, r.PostForm.Get("name"), "bot.create.name.error")
 		return
 	} else if err != nil {
-		h.failed(w, r)
+		if errors.Is(err, ErrNotFound) {
+			h.draftError(w, r, err)
+			return
+		}
+		h.log.ErrorContext(r.Context(), "Bot name could not be saved")
+		h.settingsPage(w, r, 500, b, r.PostForm.Get("name"), "bot.error.save")
 		return
 	}
-	http.Redirect(w, r, b.URL(), http.StatusSeeOther)
+	http.Redirect(w, r, b.URL()+"/settings?saved=1", http.StatusSeeOther)
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {

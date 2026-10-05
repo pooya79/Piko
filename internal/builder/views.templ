@@ -302,7 +302,7 @@ templ studioPane(csrf string,b bot.Bot,history Conversation,view ChatView) {
 }
 
 templ deleteChat(csrf string,c Chat) {
- <details id={ "studio-delete-"+strconv.FormatInt(c.ID,10) } class="piko-submission-delete"><summary id={ "studio-delete-summary-"+strconv.FormatInt(c.ID,10) }>{ locale.T(ctx,"builder.delete") }</summary><p class="piko-helper">{ locale.T(ctx,chatDeleteKey(c)) }</p><form method="post" action={ c.URL()+"/delete" }><input type="hidden" name="csrf_token" value={ csrf }/><button id={ "studio-delete-confirm-"+strconv.FormatInt(c.ID,10) } class="piko-secondary-action" type="submit">{ locale.T(ctx,"builder.delete.confirm") }</button></form></details>
+ <details id={ "studio-delete-"+strconv.FormatInt(c.ID,10) } class="piko-submission-delete"><summary id={ "studio-delete-summary-"+strconv.FormatInt(c.ID,10) }>{ locale.T(ctx,"builder.delete") }</summary><p class="piko-helper"><bdi dir="auto">{ c.Title }</bdi></p><p class="piko-helper">{ locale.T(ctx,chatDeleteKey(c)) }</p><form method="post" action={ c.URL()+"/delete" }><input type="hidden" name="csrf_token" value={ csrf }/><button id={ "studio-delete-confirm-"+strconv.FormatInt(c.ID,10) } class="piko-secondary-action piko-danger-action" type="submit">{ locale.T(ctx,"builder.delete.confirm") }</button></form></details>
 }
 
 

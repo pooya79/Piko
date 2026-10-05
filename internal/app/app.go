@@ -253,6 +253,7 @@ func buildRouter(db *sql.DB, mw webx.Middleware, limiter *webx.RateLimiter, ah *
 		r.With(limiter.MiddlewareStrict("bot-connect", 10, time.Minute)).Post("/bots/connect", bh.Connect)
 		r.Get("/bots/{botID}", bh.Detail)
 		r.Get("/bots/{botID}/settings", bh.Settings)
+		r.Get("/bots/{botID}/settings/delete", bh.DeleteForm)
 		r.Get("/bots/{botID}/connection", bh.Connection)
 		r.Get("/bots/{botID}/connection/disconnect", bh.DisconnectForm)
 		r.Get("/bots/{botID}/studio", builderHandler.Studio)

@@ -5,15 +5,17 @@ import (
  "github.com/pooya79/Piko/internal/web/shell"
 )
 
-templ SettingsPage(displayName, csrf string, b Bot, warning bool) {
- @shell.Workspace(displayName, csrf, flowPage(ctx, b, "bot.settings.title"), settingsContent(csrf, b, warning))
+templ SettingsPage(displayName, csrf string, b Bot, name, key string, saved bool) {
+ @shell.Workspace(displayName, csrf, flowPage(ctx, b, "bot.settings.title"), settingsContent(csrf, b, name, key, saved))
 }
 
-templ settingsContent(csrf string, b Bot, warning bool) {
+templ settingsContent(csrf string, b Bot, name, key string, saved bool) {
  <h1 class="piko-page-title">{ locale.T(ctx, "bot.settings.title") }</h1>
  <p class="piko-page-copy"><bdi dir="auto">{ b.Name }</bdi></p>
- @lifecycleNotice(warning)
- @settingsControls(b, csrf)
+ if saved {
+  <p class="piko-draft-notice" role="status">{ locale.T(ctx,"bot.name.saved") }</p>
+ }
+ @settingsControls(b, csrf, name, key)
 }
 
 templ ConnectionPage(displayName, csrf string, b Bot, warning bool, key string, invalid bool) {

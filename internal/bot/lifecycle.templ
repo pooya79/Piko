@@ -12,31 +12,73 @@ templ lifecycleNotice(warning bool) {
  }
 }
 
-templ settingsControls(bot Bot, csrf string) {
- <section class="piko-lifecycle" aria-labelledby="lifecycle-title">
-  <h2 id="lifecycle-title">{ locale.T(ctx,"bot.settings.manage") }</h2>
-  <div class="piko-connect-grid">
-   <section class="piko-card piko-token-card">
-    <h3>{ locale.T(ctx,"bot.name.edit") }</h3>
-    <form method="post" action={ templ.URL(bot.URL()+"/name") }>
-     <input type="hidden" name="csrf_token" value={ csrf }/>
-     <label class="piko-label" for="bot-name">{ locale.T(ctx,"bot.create.name") }</label>
-     <input class="piko-input" id="bot-name" name="name" value={ bot.Name } required maxlength="80"/>
-     <button class="piko-secondary-action" type="submit">{ locale.T(ctx,"bot.name.save") }</button>
-    </form>
-   </section>
-   <section class="piko-card piko-token-card">
-    <details class="piko-lifecycle-delete">
-     <summary>{ locale.T(ctx,"lifecycle.delete.title") }</summary>
-     <p class="piko-helper">{ locale.T(ctx,"lifecycle.delete.copy") }</p>
-     <form method="post" action={ templ.URL(bot.URL()+"/delete") }>
-      <input type="hidden" name="csrf_token" value={ csrf }/>
-      <label class="piko-activation-confirm"><input type="checkbox" name="confirm_delete" value="yes" required/><span>{ locale.T(ctx,"lifecycle.delete.check") }</span></label>
-      <button class="piko-secondary-action" type="submit">{ locale.T(ctx,"lifecycle.delete.submit") }</button>
-     </form>
-    </details>
-   </section>
-  </div>
+templ settingsControls(bot Bot, csrf, name, key string) {
+ <div class="piko-card piko-settings-panel">
+  <section class="piko-setting-row" aria-labelledby="workspace-name-title">
+   <div><h2 id="workspace-name-title">{ locale.T(ctx,"bot.name.edit") }</h2><p>{ locale.T(ctx,"bot.name.hint") }</p></div>
+   <form method="post" action={ templ.URL(bot.URL()+"/name") }>
+    <input type="hidden" name="csrf_token" value={ csrf }/>
+    <label class="piko-label" for="bot-name">{ locale.T(ctx,"bot.create.name") }</label>
+    if key != "" {
+     <p id="bot-name-error" class="piko-field-error" role="alert">{ locale.T(ctx,key) }</p>
+    }
+    <input class="piko-input" id="bot-name" name="name" value={ name } dir="auto" required maxlength="80" autofocus?={ key!="" }
+     if key=="bot.create.name.error" {
+      aria-invalid="true"
+     }
+     if key!="" {
+      aria-describedby="bot-name-hint bot-name-error"
+     } else {
+      aria-describedby="bot-name-hint"
+     }
+    />
+    <p id="bot-name-hint" class="piko-helper">{ locale.T(ctx,"bot.name.limit") }</p>
+    <button class="piko-primary-action" type="submit">{ locale.T(ctx,"bot.name.save") }</button>
+   </form>
+  </section>
+  <section class="piko-setting-row" aria-labelledby="manual-settings-title">
+   <div><h2 id="manual-settings-title">{ locale.T(ctx,"draft.title") }</h2><p>{ locale.T(ctx,"bot.settings.draft.copy") }</p></div>
+   <a class="piko-secondary-action" href={ templ.URL(bot.URL()+"/draft") }>@shell.Icon("sliders")<span>{ locale.T(ctx,"bot.settings.draft.open") }</span></a>
+  </section>
+  <section class="piko-setting-row" aria-labelledby="connection-settings-title">
+   <div><h2 id="connection-settings-title">{ locale.T(ctx,"bot.connection.title") }</h2><p>{ locale.T(ctx,"bot.settings.connection.copy") }</p></div>
+   <a class="piko-secondary-action" href={ templ.URL(bot.URL()+"/connection") }>{ locale.T(ctx,"bot.connection.title") }</a>
+  </section>
+  <section class="piko-setting-row piko-settings-danger" aria-labelledby="delete-settings-title">
+   <div><h2 id="delete-settings-title">{ locale.T(ctx,"lifecycle.delete.title") }</h2><p>{ locale.T(ctx,"bot.settings.delete.copy") }</p></div>
+   <a class="piko-secondary-action piko-danger-action" href={ templ.URL(bot.URL()+"/settings/delete") }>{ locale.T(ctx,"lifecycle.delete.title") }</a>
+  </section>
+ </div>
+}
+
+templ DeletePage(displayName, csrf string, b Bot, key string) {
+ @shell.Workspace(displayName, csrf, flowPage(ctx,b,"bot.settings.title"), deleteContent(csrf,b,key))
+}
+
+templ deleteContent(csrf string, b Bot, key string) {
+ <h1 class="piko-page-title">{ locale.T(ctx,"lifecycle.delete.title") }</h1>
+ <p class="piko-page-copy"><bdi dir="auto">{ b.Name }</bdi></p>
+ <section class="piko-card piko-delete-panel" aria-labelledby="delete-scope-title">
+  <h2 id="delete-scope-title">{ locale.T(ctx,"lifecycle.delete.scope") }</h2>
+  <p>{ locale.T(ctx,"lifecycle.delete.copy") }</p>
+  <ul class="piko-delete-scope">
+   <li>{ locale.T(ctx,"lifecycle.delete.flows") }</li>
+   <li>{ locale.T(ctx,"lifecycle.delete.chats") }</li>
+   <li>{ locale.T(ctx,"lifecycle.delete.data") }</li>
+  </ul>
+  <p>{ locale.T(ctx,"lifecycle.delete.preserved") }</p>
+  <form method="post" action={ templ.URL(b.URL()+"/delete") }>
+   <input type="hidden" name="csrf_token" value={ csrf }/>
+   if key != "" {
+    <p id="delete-error" class="piko-field-error" role="alert">{ locale.T(ctx,key) }</p>
+   }
+   <label class="piko-activation-confirm"><input id="confirm-delete" type="checkbox" name="confirm_delete" value="yes" required autofocus?={ key!="" }
+    if key!="" {
+     aria-describedby="delete-error"
+    }
+   /><span>{ locale.T(ctx,"lifecycle.delete.check") } <bdi dir="auto">{ b.Name }</bdi></span></label>
+   <div class="piko-draft-actions"><button class="piko-secondary-action piko-danger-action" type="submit">{ locale.T(ctx,"lifecycle.delete.submit") }</button><a class="piko-text-link" href={ templ.URL(b.URL()+"/settings") }>{ locale.T(ctx,"lifecycle.delete.cancel") }</a></div>
+  </form>
  </section>
 }
 

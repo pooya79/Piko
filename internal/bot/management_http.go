@@ -12,8 +12,24 @@ func (h *Handler) Settings(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	h.settingsPage(w, r, http.StatusOK, b, b.Name, "")
+}
+
+func (h *Handler) settingsPage(w http.ResponseWriter, r *http.Request, status int, b Bot, name, key string) {
 	u, _ := auth.UserFromContext(r.Context())
-	h.render(w, r, http.StatusOK, SettingsPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, r.URL.Query().Get("cleanup") == "unavailable"))
+	h.render(w, r, status, SettingsPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, name, key, r.URL.Query().Get("saved") == "1"))
+}
+
+func (h *Handler) DeleteForm(w http.ResponseWriter, r *http.Request) {
+	b, ok := h.requestedBot(w, r)
+	if ok {
+		h.deletePage(w, r, http.StatusOK, b, "")
+	}
+}
+
+func (h *Handler) deletePage(w http.ResponseWriter, r *http.Request, status int, b Bot, key string) {
+	u, _ := auth.UserFromContext(r.Context())
+	h.render(w, r, status, DeletePage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, key))
 }
 
 func (h *Handler) Connection(w http.ResponseWriter, r *http.Request) {

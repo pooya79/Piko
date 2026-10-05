@@ -34,9 +34,9 @@ func TestBotManagementNavigationUsesOwnedDestinations(t *testing.T) {
 		}
 	}
 	settings := b.send("GET", "/bots/1/settings", nil).Body.String()
-	for _, action := range []string{"name", "delete"} {
-		if !strings.Contains(settings, `action="/bots/1/`+action+`"`) {
-			t.Errorf("settings missing %s", action)
+	for _, control := range []string{`action="/bots/1/name"`, `href="/bots/1/settings/delete"`} {
+		if !strings.Contains(settings, control) {
+			t.Errorf("settings missing %s", control)
 		}
 	}
 	if strings.Contains(b.send("GET", "/bots/1", nil).Body.String(), `name="token"`) {

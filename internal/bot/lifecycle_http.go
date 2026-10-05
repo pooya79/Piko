@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/pooya79/Piko/internal/bot/telegram"
-	"github.com/pooya79/Piko/internal/web"
 )
 
 func (h *Handler) ReplaceToken(w http.ResponseWriter, r *http.Request) {
@@ -66,13 +65,23 @@ func (h *Handler) removeBot(w http.ResponseWriter, r *http.Request, deleteData b
 		return
 	}
 	if deleteData && (r.ParseForm() != nil || len(r.PostForm["confirm_delete"]) != 1 || r.PostForm.Get("confirm_delete") != "yes") {
-		web.RenderError(w, r, 422, "lifecycle.delete.confirm")
+		h.deletePage(w, r, 422, b, "lifecycle.delete.confirm")
 		return
 	}
 	warning, err := h.service.Disconnect(r.Context(), b.ID, deleteData)
 	if err != nil {
 		if deleteData {
-			h.lifecycleError(w, r, err)
+			if errors.Is(err, ErrNotFound) {
+				h.draftError(w, r, err)
+				return
+			}
+			status, key := 500, "bot.error.save"
+			if errors.Is(err, ErrActivationBusy) {
+				status, key = 409, "activate.busy"
+			} else {
+				h.log.ErrorContext(r.Context(), "Bot deletion could not be saved")
+			}
+			h.deletePage(w, r, status, b, key)
 		} else {
 			h.disconnectFailure(w, r, err)
 		}
@@ -107,22 +116,4 @@ func (h *Handler) lifecycleRedirect(w http.ResponseWriter, r *http.Request, dest
 		destination += "?cleanup=unavailable"
 	}
 	http.Redirect(w, r, destination, http.StatusSeeOther)
-}
-func (h *Handler) lifecycleError(w http.ResponseWriter, r *http.Request, err error) {
-	switch {
-	case errors.Is(err, ErrUnconnected):
-		web.RenderError(w, r, 409, "bot.unconnected.error")
-	case errors.Is(err, ErrIdentity):
-		web.RenderError(w, r, 422, "lifecycle.identity.error")
-	case errors.Is(err, ErrDisconnected):
-		web.RenderError(w, r, 409, "lifecycle.state.error")
-	case errors.Is(err, ErrActivationBusy):
-		web.RenderError(w, r, 409, "activate.busy")
-	case errors.Is(err, telegram.ErrCredentials):
-		web.RenderError(w, r, 422, "bot.error.token")
-	case errors.Is(err, telegram.ErrUnavailable), errors.Is(err, telegram.ErrRejected):
-		web.RenderError(w, r, 503, "bot.error.telegram")
-	default:
-		h.draftError(w, r, err)
-	}
 }
