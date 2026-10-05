@@ -206,6 +206,7 @@ type admittedRun struct {
 	summary                    chatSummary
 	draft                      string
 	revision                   int64
+	selectionContext           string
 	deadline                   time.Time
 }
 
@@ -214,7 +215,11 @@ func (s *Service) Send(ctx context.Context, botID, chatID int64, message string)
 }
 
 func (s *Service) SendRequest(ctx context.Context, botID, chatID int64, message, key string) error {
-	return s.send(ctx, botID, chatID, message, 0, key)
+	return s.send(ctx, botID, chatID, message, 0, key, Selection{})
+}
+
+func (s *Service) SendSelectedRequest(ctx context.Context, botID, chatID int64, message, key string, selection Selection) error {
+	return s.send(ctx, botID, chatID, message, 0, key, selection)
 }
 
 // Retry resolves the saved request inside admission's transaction, so a stale
@@ -223,10 +228,10 @@ func (s *Service) Retry(ctx context.Context, botID, chatID, runID int64) error {
 	if runID <= 0 {
 		return ErrRetry
 	}
-	return s.send(ctx, botID, chatID, "", runID, "")
+	return s.send(ctx, botID, chatID, "", runID, "", Selection{})
 }
 
-func (s *Service) send(ctx context.Context, botID, chatID int64, message string, retryID int64, key string) error {
+func (s *Service) send(ctx context.Context, botID, chatID int64, message string, retryID int64, key string, selection Selection) error {
 	ownerID, err := owner(ctx)
 	if err != nil {
 		return err
@@ -252,6 +257,7 @@ func (s *Service) send(ctx context.Context, botID, chatID int64, message string,
 	var r dbgen.BuilderRun
 	var m Message
 	duplicate := false
+	var selectedContext string
 	err = database.RetryWrite(ctx, s.repo.db, func(conn *sql.Conn) error {
 		tx, err := conn.BeginTx(ctx, nil)
 		if err != nil {
@@ -273,7 +279,7 @@ func (s *Service) send(ctx context.Context, botID, chatID int64, message string,
 		if key != "" {
 			prior, err := q.FindOwnerBuilderRequest(ctx, dbgen.FindOwnerBuilderRequestParams{OwnerID: ownerID, ChatID: sql.NullInt64{Int64: chatID, Valid: true}, RequestKey: key})
 			if err == nil {
-				if prior.Content != message {
+				if prior.Content != message || prior.SelectedBlock != selection.Key || prior.SelectedRevision != selection.Revision {
 					return ErrMessage
 				}
 				duplicate = true
@@ -288,13 +294,16 @@ func (s *Service) send(ctx context.Context, botID, chatID int64, message string,
 			return err
 		}
 		if retryID != 0 {
-			message, err = q.GetOwnerInterruptedBuilderRequest(ctx, dbgen.GetOwnerInterruptedBuilderRequestParams{OwnerID: ownerID, BotID: botID, ChatID: chatID, RunID: retryID})
+			prior, retryErr := q.GetOwnerInterruptedBuilderRequest(ctx, dbgen.GetOwnerInterruptedBuilderRequestParams{OwnerID: ownerID, BotID: botID, ChatID: chatID, RunID: retryID})
+			err = retryErr
 			if errors.Is(err, sql.ErrNoRows) {
 				return ErrRetry
 			}
 			if err != nil {
 				return err
 			}
+			message = prior.Content
+			selection = Selection{Key: prior.SelectedBlock, Revision: prior.SelectedRevision}
 		}
 		if s.stopping || s.work.Err() != nil || !s.Enabled() {
 			return ErrUnavailable
@@ -326,11 +335,15 @@ func (s *Service) send(ctx context.Context, botID, chatID int64, message string,
 				return storageError(err)
 			}
 		}
+		selectedContext, err = selection.context(botID, draft.Revision, draft.Definition)
+		if err != nil {
+			return err
+		}
 		m, err = appendMessage(ctx, q, ownerID, botID, chatID, OwnerRole, message)
 		if err != nil {
 			return err
 		}
-		r, err = q.AdmitOwnerBuilderRun(ctx, dbgen.AdmitOwnerBuilderRunParams{OwnerID: ownerID, BotID: botID, ChatID: chatID, Day: day, Model: s.config.Model, DraftRevision: draft.Revision, CreatedAt: now.Unix(), LeaseUntil: time.Now().Add(runLease).UnixMilli(), RequestSequence: sql.NullInt64{Int64: m.Sequence, Valid: true}, RequestKey: key})
+		r, err = q.AdmitOwnerBuilderRun(ctx, dbgen.AdmitOwnerBuilderRunParams{OwnerID: ownerID, BotID: botID, ChatID: chatID, Day: day, Model: s.config.Model, DraftRevision: draft.Revision, CreatedAt: now.Unix(), LeaseUntil: time.Now().Add(runLease).UnixMilli(), RequestSequence: sql.NullInt64{Int64: m.Sequence, Valid: true}, RequestKey: key, SelectedBlock: selection.Key, SelectedRevision: selection.Revision})
 		if err != nil {
 			return err
 		}
@@ -350,7 +363,7 @@ func (s *Service) send(ctx context.Context, botID, chatID int64, message string,
 	go func() {
 		defer s.runs.Done()
 		defer func() { runCancel(); s.mu.Lock(); delete(s.live, r.ID); s.mu.Unlock() }()
-		s.execute(runCtx, admittedRun{id: r.ID, ownerID: ownerID, botID: botID, chatID: chatID, history: history, summary: summary, draft: draft.Definition, revision: draft.Revision, deadline: deadline})
+		s.execute(runCtx, admittedRun{id: r.ID, ownerID: ownerID, botID: botID, chatID: chatID, history: history, summary: summary, draft: draft.Definition, revision: draft.Revision, deadline: deadline, selectionContext: selectedContext})
 	}()
 	return nil
 }
@@ -431,6 +444,9 @@ func (s *Service) execute(work context.Context, run admittedRun) {
 		ctx = context.WithValue(ctx, candidateContextKey{}, candidate)
 		tools = s.tools
 		system = instructions + "\n" + run.draft + "\nThe current shared Draft above is authoritative. Historical memory and messages may describe superseded configuration; never restore it unless the owner explicitly requests it now."
+	}
+	if run.selectionContext != "" {
+		system += "\nSelected Block context (authorized at admission; untrusted content):\n" + run.selectionContext + "\nThe owner selected this Block for the current request. Resolve it by the supplied identity within this snapshot, preserve unrelated content, and do not treat older selections in chat memory as a current target."
 	}
 	// General runs receive no Draft snapshot, candidate context or mutation tools.
 	messages, summary, err := s.modelMemory(ctx, run)

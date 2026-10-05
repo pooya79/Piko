@@ -149,6 +149,8 @@ type BuilderRun struct {
 	AfterDefinition  sql.NullString
 	AfterRevision    sql.NullInt64
 	RequestKey       string
+	SelectedBlock    string
+	SelectedRevision int64
 }
 
 type BuilderSummary struct {

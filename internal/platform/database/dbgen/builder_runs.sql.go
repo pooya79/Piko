@@ -74,24 +74,26 @@ func (q *Queries) ActiveOwnerPikoChat(ctx context.Context, arg ActiveOwnerPikoCh
 }
 
 const admitOwnerBuilderRun = `-- name: AdmitOwnerBuilderRun :one
-INSERT INTO builder_runs (owner_id,bot_id,chat_id,day,model,draft_revision,status,created_at,lease_until,request_sequence,request_key)
-SELECT c.owner_id,c.bot_id,c.id,?1,?2,?3,'running',?4,?5,?6,?7
+INSERT INTO builder_runs (owner_id,bot_id,chat_id,day,model,draft_revision,status,created_at,lease_until,request_sequence,request_key,selected_block,selected_revision)
+SELECT c.owner_id,c.bot_id,c.id,?1,?2,?3,'running',?4,?5,?6,?7,?8,?9
 FROM builder_chats c
-WHERE c.owner_id=?8 AND COALESCE(c.bot_id,0)=CAST(?9 AS INTEGER) AND c.id=?10
-RETURNING id, owner_id, bot_id, chat_id, day, model, draft_revision, status, created_at, lease_until, finished_at, model_calls, request_sequence, result, before_definition, after_definition, after_revision, request_key
+WHERE c.owner_id=?10 AND COALESCE(c.bot_id,0)=CAST(?11 AS INTEGER) AND c.id=?12
+RETURNING id, owner_id, bot_id, chat_id, day, model, draft_revision, status, created_at, lease_until, finished_at, model_calls, request_sequence, result, before_definition, after_definition, after_revision, request_key, selected_block, selected_revision
 `
 
 type AdmitOwnerBuilderRunParams struct {
-	Day             string
-	Model           string
-	DraftRevision   int64
-	CreatedAt       int64
-	LeaseUntil      int64
-	RequestSequence sql.NullInt64
-	RequestKey      string
-	OwnerID         int64
-	BotID           int64
-	ChatID          int64
+	Day              string
+	Model            string
+	DraftRevision    int64
+	CreatedAt        int64
+	LeaseUntil       int64
+	RequestSequence  sql.NullInt64
+	RequestKey       string
+	SelectedBlock    string
+	SelectedRevision int64
+	OwnerID          int64
+	BotID            int64
+	ChatID           int64
 }
 
 func (q *Queries) AdmitOwnerBuilderRun(ctx context.Context, arg AdmitOwnerBuilderRunParams) (BuilderRun, error) {
@@ -103,6 +105,8 @@ func (q *Queries) AdmitOwnerBuilderRun(ctx context.Context, arg AdmitOwnerBuilde
 		arg.LeaseUntil,
 		arg.RequestSequence,
 		arg.RequestKey,
+		arg.SelectedBlock,
+		arg.SelectedRevision,
 		arg.OwnerID,
 		arg.BotID,
 		arg.ChatID,
@@ -127,6 +131,8 @@ func (q *Queries) AdmitOwnerBuilderRun(ctx context.Context, arg AdmitOwnerBuilde
 		&i.AfterDefinition,
 		&i.AfterRevision,
 		&i.RequestKey,
+		&i.SelectedBlock,
+		&i.SelectedRevision,
 	)
 	return i, err
 }
@@ -148,7 +154,7 @@ func (q *Queries) CountOwnerBuilderDay(ctx context.Context, arg CountOwnerBuilde
 }
 
 const findOwnerBuilderRequest = `-- name: FindOwnerBuilderRequest :one
-SELECT r.id, m.content FROM builder_runs r
+SELECT r.id, m.content, r.selected_block, r.selected_revision FROM builder_runs r
 JOIN builder_chats c ON c.id = r.chat_id AND c.owner_id = r.owner_id
 JOIN builder_messages m ON m.chat_id = c.id AND m.sequence = r.request_sequence
 WHERE r.owner_id = ?1 AND r.chat_id = ?2 AND r.request_key = ?3
@@ -161,14 +167,21 @@ type FindOwnerBuilderRequestParams struct {
 }
 
 type FindOwnerBuilderRequestRow struct {
-	ID      int64
-	Content string
+	ID               int64
+	Content          string
+	SelectedBlock    string
+	SelectedRevision int64
 }
 
 func (q *Queries) FindOwnerBuilderRequest(ctx context.Context, arg FindOwnerBuilderRequestParams) (FindOwnerBuilderRequestRow, error) {
 	row := q.db.QueryRowContext(ctx, findOwnerBuilderRequest, arg.OwnerID, arg.ChatID, arg.RequestKey)
 	var i FindOwnerBuilderRequestRow
-	err := row.Scan(&i.ID, &i.Content)
+	err := row.Scan(
+		&i.ID,
+		&i.Content,
+		&i.SelectedBlock,
+		&i.SelectedRevision,
+	)
 	return i, err
 }
 
@@ -212,7 +225,7 @@ func (q *Queries) FinishOwnerBuilderRun(ctx context.Context, arg FinishOwnerBuil
 }
 
 const getActiveOwnerBuilderRun = `-- name: GetActiveOwnerBuilderRun :one
-SELECT r.id, r.owner_id, r.bot_id, r.chat_id, r.day, r.model, r.draft_revision, r.status, r.created_at, r.lease_until, r.finished_at, r.model_calls, r.request_sequence, r.result, r.before_definition, r.after_definition, r.after_revision, r.request_key FROM builder_runs r JOIN builder_chats c ON c.id=r.chat_id
+SELECT r.id, r.owner_id, r.bot_id, r.chat_id, r.day, r.model, r.draft_revision, r.status, r.created_at, r.lease_until, r.finished_at, r.model_calls, r.request_sequence, r.result, r.before_definition, r.after_definition, r.after_revision, r.request_key, r.selected_block, r.selected_revision FROM builder_runs r JOIN builder_chats c ON c.id=r.chat_id
 WHERE r.id=?1 AND r.owner_id=?2 AND c.owner_id=?2
 AND c.bot_id IS r.bot_id AND r.status='running' AND r.lease_until > ?3
 `
@@ -245,6 +258,8 @@ func (q *Queries) GetActiveOwnerBuilderRun(ctx context.Context, arg GetActiveOwn
 		&i.AfterDefinition,
 		&i.AfterRevision,
 		&i.RequestKey,
+		&i.SelectedBlock,
+		&i.SelectedRevision,
 	)
 	return i, err
 }
@@ -302,7 +317,7 @@ func (q *Queries) GetOwnerActiveBuilderChat(ctx context.Context, arg GetOwnerAct
 }
 
 const getOwnerBuilderRun = `-- name: GetOwnerBuilderRun :one
-SELECT r.id, r.owner_id, r.bot_id, r.chat_id, r.day, r.model, r.draft_revision, r.status, r.created_at, r.lease_until, r.finished_at, r.model_calls, r.request_sequence, r.result, r.before_definition, r.after_definition, r.after_revision, r.request_key FROM builder_runs r JOIN builder_chats c ON c.id=r.chat_id AND c.bot_id IS r.bot_id
+SELECT r.id, r.owner_id, r.bot_id, r.chat_id, r.day, r.model, r.draft_revision, r.status, r.created_at, r.lease_until, r.finished_at, r.model_calls, r.request_sequence, r.result, r.before_definition, r.after_definition, r.after_revision, r.request_key, r.selected_block, r.selected_revision FROM builder_runs r JOIN builder_chats c ON c.id=r.chat_id AND c.bot_id IS r.bot_id
 WHERE r.id=?1 AND r.owner_id=?2 AND c.owner_id=?2
 AND COALESCE(c.bot_id,0)=CAST(?3 AS INTEGER) AND c.id=?4
 `
@@ -341,12 +356,14 @@ func (q *Queries) GetOwnerBuilderRun(ctx context.Context, arg GetOwnerBuilderRun
 		&i.AfterDefinition,
 		&i.AfterRevision,
 		&i.RequestKey,
+		&i.SelectedBlock,
+		&i.SelectedRevision,
 	)
 	return i, err
 }
 
 const getOwnerInterruptedBuilderRequest = `-- name: GetOwnerInterruptedBuilderRequest :one
-SELECT m.content FROM builder_runs r
+SELECT m.content, r.selected_block, r.selected_revision FROM builder_runs r
 JOIN builder_chats c ON c.id=r.chat_id AND c.bot_id IS r.bot_id
 JOIN builder_messages m ON m.chat_id=c.id AND m.sequence=r.request_sequence AND m.role='owner'
 WHERE r.id=?1 AND r.owner_id=?2 AND c.owner_id=?2
@@ -361,16 +378,22 @@ type GetOwnerInterruptedBuilderRequestParams struct {
 	ChatID  int64
 }
 
-func (q *Queries) GetOwnerInterruptedBuilderRequest(ctx context.Context, arg GetOwnerInterruptedBuilderRequestParams) (string, error) {
+type GetOwnerInterruptedBuilderRequestRow struct {
+	Content          string
+	SelectedBlock    string
+	SelectedRevision int64
+}
+
+func (q *Queries) GetOwnerInterruptedBuilderRequest(ctx context.Context, arg GetOwnerInterruptedBuilderRequestParams) (GetOwnerInterruptedBuilderRequestRow, error) {
 	row := q.db.QueryRowContext(ctx, getOwnerInterruptedBuilderRequest,
 		arg.RunID,
 		arg.OwnerID,
 		arg.BotID,
 		arg.ChatID,
 	)
-	var content string
-	err := row.Scan(&content)
-	return content, err
+	var i GetOwnerInterruptedBuilderRequestRow
+	err := row.Scan(&i.Content, &i.SelectedBlock, &i.SelectedRevision)
+	return i, err
 }
 
 const insertOwnerBuilderCall = `-- name: InsertOwnerBuilderCall :exec
@@ -484,7 +507,7 @@ func (q *Queries) ListOwnerBuilderDayCalls(ctx context.Context, arg ListOwnerBui
 }
 
 const listOwnerBuilderRuns = `-- name: ListOwnerBuilderRuns :many
-SELECT r.id, r.owner_id, r.bot_id, r.chat_id, r.day, r.model, r.draft_revision, r.status, r.created_at, r.lease_until, r.finished_at, r.model_calls, r.request_sequence, r.result, r.before_definition, r.after_definition, r.after_revision, r.request_key FROM builder_runs r JOIN builder_chats c ON c.id=r.chat_id AND c.bot_id IS r.bot_id
+SELECT r.id, r.owner_id, r.bot_id, r.chat_id, r.day, r.model, r.draft_revision, r.status, r.created_at, r.lease_until, r.finished_at, r.model_calls, r.request_sequence, r.result, r.before_definition, r.after_definition, r.after_revision, r.request_key, r.selected_block, r.selected_revision FROM builder_runs r JOIN builder_chats c ON c.id=r.chat_id AND c.bot_id IS r.bot_id
 WHERE r.owner_id=?1 AND c.owner_id=?1 AND COALESCE(c.bot_id,0)=CAST(?2 AS INTEGER) AND r.chat_id=?3
 ORDER BY r.id
 `
@@ -523,6 +546,8 @@ func (q *Queries) ListOwnerBuilderRuns(ctx context.Context, arg ListOwnerBuilder
 			&i.AfterDefinition,
 			&i.AfterRevision,
 			&i.RequestKey,
+			&i.SelectedBlock,
+			&i.SelectedRevision,
 		); err != nil {
 			return nil, err
 		}

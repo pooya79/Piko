@@ -1345,5 +1345,131 @@
   },
   "studio.bot.chat.empty.title": {
     "other": "طرح ربات را با پیکو تغییر بده"
+  },
+  "flow.title": {
+    "other": "جریان ربات"
+  },
+  "flow.copy": {
+    "other": "نقشهٔ پیش‌نویس ذخیره‌شده؛ برای بررسی، یک بلوک را باز کنید. ویرایش از طریق گفتگو یا تنظیم دستی انجام می‌شود."
+  },
+  "flow.empty": {
+    "other": "هنوز پیش‌نویسی ذخیره نشده است."
+  },
+  "flow.zoom.in": {
+    "other": "بزرگ‌نمایی"
+  },
+  "flow.zoom.out": {
+    "other": "کوچک‌نمایی"
+  },
+  "flow.zoom.reset": {
+    "other": "اندازهٔ اصلی"
+  },
+  "flow.kind.welcome": {
+    "other": "پیام خوش‌آمد"
+  },
+  "flow.kind.menu": {
+    "other": "منو"
+  },
+  "flow.kind.message": {
+    "other": "پیام"
+  },
+  "flow.kind.question": {
+    "other": "پرسش"
+  },
+  "flow.kind.review": {
+    "other": "بررسی پاسخ‌ها"
+  },
+  "flow.kind.ack": {
+    "other": "تأیید دریافت"
+  },
+  "flow.next": {
+    "other": "ادامه"
+  },
+  "flow.return.menu": {
+    "other": "بازگشت به منو"
+  },
+  "flow.answer": {
+    "other": "پاسخ معتبر ← ادامه"
+  },
+  "flow.skip": {
+    "other": "رد کردن ← ادامه"
+  },
+  "flow.back": {
+    "other": "بازگشت"
+  },
+  "flow.cancel.restart": {
+    "other": "لغو بدون ارسال ← شروع دوباره با خوش‌آمد و منو"
+  },
+  "flow.restart": {
+    "other": "شروع دوباره با خوش‌آمد و منو"
+  },
+  "flow.edit": {
+    "other": "ویرایش پاسخ"
+  },
+  "flow.confirm": {
+    "other": "تأیید و ارسال"
+  },
+  "flow.change": {
+    "other": "این بخش را با پیکو تغییر بده"
+  },
+  "flow.selected": {
+    "other": "بخش انتخاب‌شده برای تغییر"
+  },
+  "flow.clear": {
+    "other": "لغو انتخاب"
+  },
+  "flow.stale": {
+    "other": "پیش‌نویس تغییر کرده یا بلوک حذف شده است. بخش را در جریان تازه دوباره انتخاب کنید؛ درخواست ارسال نشد."
+  },
+  "flow.refreshed": {
+    "other": "جزئیات بخش انتخاب‌شده از پیش‌نویس تازه به‌روز شد."
+  },
+  "flow.required": {
+    "other": "پاسخ الزامی"
+  },
+  "flow.optional": {
+    "other": "پاسخ اختیاری؛ امکان رد کردن"
+  },
+  "flow.limit": {
+    "other": "حداکثر نویسه"
+  },
+  "flow.min": {
+    "other": "حداقل"
+  },
+  "flow.max": {
+    "other": "حداکثر"
+  },
+  "flow.paths": {
+    "other": "مسیرهای مجاز"
+  },
+  "flow.identity": {
+    "other": "شناسه"
+  },
+  "flow.form": {
+    "other": "فرم"
+  },
+  "flow.type.short.text": {
+    "other": "متن کوتاه"
+  },
+  "flow.type.long.text": {
+    "other": "متن بلند"
+  },
+  "flow.type.phone": {
+    "other": "شماره تماس"
+  },
+  "flow.type.number": {
+    "other": "عدد"
+  },
+  "flow.type.single.choice": {
+    "other": "انتخاب یک گزینه"
+  },
+  "flow.type.date": {
+    "other": "تاریخ شمسی"
+  },
+  "flow.edit.return": {
+    "other": "هنگام ویرایش: پاسخ معتبر یا بازگشت ← بررسی پاسخ‌ها"
+  },
+  "flow.edit.skip": {
+    "other": "هنگام ویرایش: رد کردن ← بررسی پاسخ‌ها"
   }
 }

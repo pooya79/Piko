@@ -95,9 +95,7 @@ func TestPreviewSourceRevisionMigrationPreservesLegacySnapshotAndProgress(t *tes
 	path := b.post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	b.post(path+"/choose", url.Values{"choice": {"2"}, "revision": {"1"}})
 	// Model a populated pre-upgrade file without inventing historical revisions.
-	if err := database.Migrate(t.Context(), a.db, true); err != nil {
-		t.Fatal(err)
-	}
+	rollbackToMigration(t, a.db, "000019_piko_chat_starts")
 	if err := database.Migrate(t.Context(), a.db, false); err != nil {
 		t.Fatal(err)
 	}

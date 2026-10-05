@@ -71,7 +71,7 @@
     if (!next) throw new Error('studio unavailable');
     return next;
   }
-  function applyFragment(next, acceptedMessage) {
+  function applyFragment(next, acceptedMessage, acceptedSelection) {
     const studio = root();
     const signature = next.outerHTML;
     const oldKey = key();
@@ -98,7 +98,7 @@
     input.setSelectionRange(state.start, state.end, state.direction);
     input.scrollTop = state.scroll;
     next.querySelectorAll('details[id]').forEach(detail => { detail.open = state.details[detail.id] || false; });
-    for (const [name, snapshot] of paneSnapshots) paneStates.get(name)?.restore(next, snapshot);
+    for (const [name, snapshot] of paneSnapshots) paneStates.get(name)?.restore(next, snapshot, { message: acceptedMessage, selection: acceptedSelection });
     let focus = state.focusID ? document.getElementById(state.focusID) : null;
     if (state.focusInStudio && (!focus || focus.disabled)) {
       focus = state.view === 'pane' ? next.querySelector('#studio-pane') : input;
@@ -151,7 +151,8 @@
         const next = await readFragment(response);
         // Preserve an active composition until its text is committed by the IME.
         await waitForComposition();
-        applyFragment(next, response.headers.get('X-Piko-Accepted') === 'true' ? message : undefined);
+        const accepted = response.headers.get('X-Piko-Accepted') === 'true';
+        applyFragment(next, accepted ? message : undefined, accepted && message !== undefined ? { key: body.get('selected_block'), revision: body.get('selected_revision') } : undefined);
       } finally {
         posting = false;
         button.removeAttribute('aria-disabled');

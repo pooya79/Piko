@@ -18,8 +18,9 @@ templ IndexPage(displayName,csrf string,chats []Chat,view ChatView) {
 }
 
 templ indexDocument(csrf string,chats []Chat,view ChatView) {
- <script src="/static/studio.js?v=studio3" defer></script>
+ <script src="/static/studio.js?v=studio4" defer></script>
  <script src="/static/studio-preview.js?v=preview1" defer></script>
+ <script src="/static/studio-flow.js?v=flow1" defer></script>
  <script src="/static/builder-status.js?v=studio2" defer></script>
  @indexContent(csrf,chats,view)
 }
@@ -62,7 +63,11 @@ templ example(kind,icon string) {
 templ composer(csrf,action string,view ChatView,running bool) {
  <section class="piko-studio-composer">
   if view.FeedbackKey!="" {
- <p class="piko-field-error" role="alert">{ locale.T(ctx,view.FeedbackKey) }</p>
+ <p class="piko-field-error" role="alert"
+ if view.FeedbackKey=="flow.stale" {
+ data-flow-stale-feedback
+ }
+ >{ locale.T(ctx,view.FeedbackKey) }</p>
  }
   <p class="piko-helper" id="builder-capabilities">{ locale.T(ctx,"studio.composer.hint") }</p>
   if !view.Enabled {
@@ -75,6 +80,9 @@ templ composer(csrf,action string,view ChatView,running bool) {
   >
    <input type="hidden" name="csrf_token" value={ csrf }/>
    <input type="hidden" name="request_key" value={ view.RequestKey }/>
+ <input type="hidden" name="selected_block" value={ view.Selection.Key }/>
+ <input type="hidden" name="selected_revision" value={ selectionRevision(view.Selection) }/>
+ <p class="piko-helper" data-flow-request hidden?={ view.Selection.Key=="" }>{ locale.T(ctx,"flow.selected") } <bdi dir="ltr" data-flow-request-label>{ view.Selection.Key }</bdi><span data-flow-request-stale hidden>{ locale.T(ctx,"flow.stale") }</span><button id="flow-clear-selection" type="button" data-flow-clear class="piko-text-link">{ locale.T(ctx,"flow.clear") }</button></p>
    <label class="piko-label" for="builder-message">{ locale.T(ctx,"builder.message") }</label>
    <textarea id="builder-message" name="message" dir="auto" class="piko-input piko-builder-composer" maxlength="32768" required
     if !view.Enabled {
@@ -283,14 +291,16 @@ templ studioPane(csrf string,b bot.Bot,view ChatView) {
    if b.ID==0 {
     { locale.T(ctx,"studio.pane.title") }
    } else {
-    { locale.T(ctx,"preview.title") }
+    { locale.T(ctx,"studio.pane.title") }
    }
   </h2></span></header>
   if b.ID==0 {
    <div class="piko-studio-pane-empty"><span class="piko-empty-icon">@shell.Icon("robot")</span><h3>{ locale.T(ctx,"studio.pane.empty.title") }</h3><p>{ locale.T(ctx,"studio.pane.empty.copy") }</p></div>
   } else {
    <div class="piko-studio-pane-content"><p class="piko-helper" data-draft-revision={ strconv.FormatInt(view.Revision,10) }>{ locale.T(ctx,"builder.revision")+" "+locale.Digits(strconv.FormatInt(view.Revision,10)) }</p>
-    @bot.PreviewPane(csrf,b,bot.Preview{},view.Revision>0,"")
+    <nav class="piko-pane-tabs" aria-label={ locale.T(ctx,"studio.views") }><button id="studio-tab-preview" type="button" data-pane-tab="preview" aria-controls="studio-preview-panel" aria-pressed="true">{ locale.T(ctx,"preview.title") }</button><button id="studio-tab-flow" type="button" data-pane-tab="flow" aria-controls="studio-flow-panel" aria-pressed="false">{ locale.T(ctx,"flow.title") }</button></nav>
+    <section id="studio-preview-panel" data-pane-panel="preview">@bot.PreviewPane(csrf,b,bot.Preview{},view.Revision>0,"")</section>
+    <section id="studio-flow-panel" data-pane-panel="flow">@flowCanvas(b,view)</section>
     <p class="piko-page-copy">{ locale.T(ctx,"studio.pane.copy") }</p>
     <a id="studio-draft" class="piko-secondary-action" href={ templ.URL(b.URL()+"/draft") }>@shell.Icon("squares-four")
  { locale.T(ctx,"draft.title") }</a>
@@ -332,8 +342,9 @@ func chatDeleteKey(c Chat) string {
 }
 
 templ chatDocument(csrf string,b bot.Bot,history Conversation,view ChatView) {
- <script src="/static/studio.js?v=studio3" defer></script>
+ <script src="/static/studio.js?v=studio4" defer></script>
  <script src="/static/studio-preview.js?v=preview1" defer></script>
+ <script src="/static/studio-flow.js?v=flow1" defer></script>
  <script src="/static/builder-status.js?v=studio2" defer></script>
  @chatContent(csrf,b,history,view)
 }
@@ -350,4 +361,8 @@ templ savedBots(bots []bot.Bot) {
 
 templ connectionFeedback() {
  <p class="piko-helper" data-builder-connection data-reconnecting={ locale.T(ctx,"builder.stream.reconnecting") } data-unavailable={ locale.T(ctx,"builder.stream.unavailable") }></p>
+}
+
+func selectionRevision(s Selection) string {
+ if s.Key=="" { return "" }; return strconv.FormatInt(s.Revision,10)
 }

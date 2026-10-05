@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/pooya79/Piko/internal/auth"
 	"github.com/pooya79/Piko/internal/bot"
+	"github.com/pooya79/Piko/internal/bot/flow"
 	"github.com/pooya79/Piko/internal/locale"
 	"github.com/pooya79/Piko/internal/web"
 	"github.com/pooya79/Piko/internal/web/request"
@@ -23,6 +24,8 @@ type Handler struct {
 }
 
 type ChatView struct {
+	Selection            Selection
+	Canvas               flow.Canvas
 	Revision             int64
 	Enabled              bool
 	Allowance            Allowance
@@ -238,6 +241,7 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request, b bot.Bot, id i
 		}
 	}
 	var revision int64
+	var canvas flow.Canvas
 	if b.ID != 0 {
 		draft, err := h.bots.LoadDraft(r.Context(), b.ID)
 		if err != nil {
@@ -245,6 +249,9 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request, b bot.Bot, id i
 			return
 		}
 		revision = draft.Revision
+		if revision > 0 {
+			canvas = flow.ProjectCanvas(draft.Definition)
+		}
 	}
 	u, _ := auth.UserFromContext(r.Context())
 	allowance, err := h.service.Allowance(r.Context())
@@ -264,7 +271,7 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request, b bot.Bot, id i
 		h.failed(w, r, err)
 		return
 	}
-	view := ChatView{Revision: revision, Enabled: h.service.Enabled(), Allowance: allowance, Message: message, FeedbackKey: key, RequestKey: requestKey, Chats: chats, DraftKey: strconv.FormatInt(u.ID, 10) + ":" + strconv.FormatInt(id, 10)}
+	view := ChatView{Canvas: canvas, Revision: revision, Enabled: h.service.Enabled(), Allowance: allowance, Message: message, FeedbackKey: key, RequestKey: requestKey, Chats: chats, DraftKey: strconv.FormatInt(u.ID, 10) + ":" + strconv.FormatInt(id, 10)}
 	if b.ID != 0 {
 		view.ActiveChat, err = h.service.ActiveChat(r.Context(), b.ID)
 		if err != nil {
@@ -278,6 +285,10 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request, b bot.Bot, id i
 				return
 			}
 		}
+	}
+	if status != http.StatusOK {
+		view.Selection.Key = r.PostForm.Get("selected_block")
+		view.Selection.Revision, _ = strconv.ParseInt(r.PostForm.Get("selected_revision"), 10, 64)
 	}
 	view.Bots, err = h.bots.List(r.Context())
 	if err != nil {
@@ -307,7 +318,19 @@ func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	message := r.PostForm.Get("message")
-	err = h.service.SendRequest(r.Context(), b.ID, id, message, r.PostForm.Get("request_key"))
+	selection := Selection{Key: r.PostForm.Get("selected_block")}
+	if len(r.PostForm["selected_block"]) > 1 || len(r.PostForm["selected_revision"]) > 1 {
+		h.detail(w, r, b, id, 422, message, "builder.message.error")
+		return
+	}
+	if selection.Key != "" || r.PostForm.Get("selected_revision") != "" {
+		selection.Revision, err = strconv.ParseInt(r.PostForm.Get("selected_revision"), 10, 64)
+		if err != nil || selection.Revision < 1 || selection.Key == "" || len(selection.Key) > 1024 {
+			h.detail(w, r, b, id, 422, message, "builder.message.error")
+			return
+		}
+	}
+	err = h.service.SendSelectedRequest(r.Context(), b.ID, id, message, r.PostForm.Get("request_key"), selection)
 	h.sent(w, r, b, id, message, err)
 }
 
@@ -378,6 +401,8 @@ func (h *Handler) Undo(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) sent(w http.ResponseWriter, r *http.Request, b bot.Bot, id int64, message string, err error) {
 	switch {
+	case errors.Is(err, ErrSelection):
+		h.detail(w, r, b, id, 409, message, "flow.stale")
 	case errors.Is(err, ErrRetry):
 		h.detail(w, r, b, id, 409, "", "builder.retry.unavailable")
 	case errors.Is(err, ErrMessage):

@@ -1,0 +1,93 @@
+package builder
+
+import (
+	"github.com/pooya79/Piko/internal/bot"
+	"github.com/pooya79/Piko/internal/bot/flow"
+	"github.com/pooya79/Piko/internal/locale"
+	"strconv"
+ "net/url"
+	"strings"
+)
+
+templ flowCanvas(b bot.Bot, view ChatView) {
+	<section data-studio-flow data-flow-bot={ strconv.FormatInt(b.ID, 10) } data-flow-revision={ strconv.FormatInt(view.Revision, 10) } data-flow-zoom="100" aria-label={ locale.T(ctx, "flow.title") }>
+		<p class="piko-helper">{ locale.T(ctx,"flow.copy") }</p>
+		<p role="status" data-flow-notice hidden>{ locale.T(ctx,"flow.refreshed") }</p>
+		<p role="status" data-flow-stale hidden>{ locale.T(ctx,"flow.stale") }</p>
+		if view.Revision==0 {
+			<p>{ locale.T(ctx,"flow.empty") }</p>
+		} else {
+			<div class="piko-flow-tools"><button id="flow-zoom-out" type="button" data-flow-zoom-action="out" class="piko-secondary-action" aria-label={ locale.T(ctx, "flow.zoom.out") }>−</button><button id="flow-zoom-reset" type="button" data-flow-zoom-action="reset" class="piko-secondary-action" aria-label={ locale.T(ctx, "flow.zoom.reset") }><output data-flow-zoom-value>۱۰۰٪</output></button><button id="flow-zoom-in" type="button" data-flow-zoom-action="in" class="piko-secondary-action" aria-label={ locale.T(ctx, "flow.zoom.in") }>+</button></div>
+			<div class="piko-flow-viewport" tabindex="0" aria-label={ locale.T(ctx, "flow.title") }>
+				<div class="piko-flow-map">
+					<div class="piko-flow-start">
+						for _,n:=range view.Canvas.Start {
+							@flowBlock(n)
+						}
+					</div>
+					<div class="piko-flow-branches">
+						for _,branch:=range view.Canvas.Branches {
+							<section class="piko-flow-branch">
+								<h3><bdi dir="auto">{ branch.Label }</bdi></h3>
+								for _,n:=range branch.Blocks {
+									@flowBlock(n)
+								}
+							</section>
+						}
+					</div>
+				</div>
+			</div>
+		}
+	</section>
+}
+
+templ flowBlock(n flow.CanvasBlock) {
+	<details id={ "flow-" + n.Key } class="piko-flow-block" data-flow-key={ n.Key }>
+		<summary><span class="piko-small-label">{ locale.T(ctx,"flow.kind."+n.Kind) }</span><strong><bdi dir="auto">{ n.Text }</bdi></strong></summary>
+		<div class="piko-flow-details">
+			<p class="piko-helper">
+				{ locale.T(ctx,"flow.identity")+": " }<bdi dir="ltr">{ n.ID }</bdi>
+				if n.FormID!="" {
+					{ " · "+locale.T(ctx,"flow.form")+": " }<bdi dir="ltr">{ n.FormID }</bdi>
+				}
+			</p>
+			<p class="piko-builder-text"><bdi dir="auto">{ n.Text }</bdi></p>
+			if n.Question!=nil {
+				<p><bdi dir="auto">{ n.Question.Label }</bdi> · { locale.T(ctx,"flow.type."+strings.ReplaceAll(n.Question.Type,"_",".")) }</p>
+				if n.Question.Required {
+					<p>{ locale.T(ctx,"flow.required") }</p>
+				} else {
+					<p>{ locale.T(ctx,"flow.optional") }</p>
+				}
+				if n.Question.MaxLength>0 {
+					<p>{ locale.T(ctx,"flow.limit")+": "+locale.Digits(strconv.Itoa(n.Question.MaxLength)) }</p>
+				}
+				for _,option:=range n.Question.Options {
+					<p><bdi dir="auto">{ option }</bdi></p>
+				}
+				if n.Question.Number!=nil {
+					<p>{ locale.T(ctx,"flow.min")+": " }<bdi dir="ltr">{ n.Question.Number.Min }</bdi>{ " · "+locale.T(ctx,"flow.max")+": " }<bdi dir="ltr">{ n.Question.Number.Max }</bdi></p>
+				}
+				if n.Question.Date!=nil {
+					<p>{ locale.T(ctx,"flow.min")+": " }<bdi dir="ltr">{ n.Question.Date.Min }</bdi>{ " · "+locale.T(ctx,"flow.max")+": " }<bdi dir="ltr">{ n.Question.Date.Max }</bdi></p>
+				}
+			}
+			<p class="piko-small-label">{ locale.T(ctx,"flow.paths") }</p>
+			<ul>
+				for _,edge:=range n.Edges {
+					<li>
+						<a href={ templ.URL("#flow-" + url.QueryEscape(edge.Target)) } class="piko-text-link">
+							if edge.LabelKey!="" {
+								{ locale.T(ctx,edge.LabelKey) }
+							}
+							if edge.Label!="" {
+								<bdi dir="auto">{ edge.Label }</bdi>
+							}
+						</a>
+					</li>
+				}
+			</ul>
+			<button id={ "flow-change-" + n.Key } type="button" data-flow-change={ n.Key } class="piko-secondary-action">{ locale.T(ctx,"flow.change") }</button>
+		</div>
+	</details>
+}

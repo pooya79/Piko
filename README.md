@@ -45,6 +45,14 @@ The Dashboard uses the saved Display name in its greeting and account identity, 
 
 Workspace pages pass a `shell.Page` to `shell.Workspace`. The zero value retains the Dashboard identity; authenticated application routes inject real owner-authorized Bot navigation. A renderer without supplied navigation still leaves Bot links disabled. Feature handlers supply a plain-text title, ordered breadcrumbs, the active Dashboard/Bot section, and owner-authorized recent Bot links. Set `BotsURL` and individual link URLs only for implemented destinations; an omitted Bot URL leaves navigation disabled or renders its name as text. The final breadcrumb identifies the current page without a link. The shell itself supplies no Bot persistence, status, or metrics. The domain glossary and ADRs 0002–0006 are already tracked for subsequent Bot tickets.
 
+## Inspecting the saved Flow
+
+The Bot studio has adjacent Preview and Flow views. Flow maps the current saved Draft's welcome/menu, message replies, sequential Questions, review and acknowledgement. Open a Block for its text, answer rules and supported transitions; use the zoom controls and keyboard-accessible links to inspect larger Flows. This canvas is read-only. **Change this with Piko** focuses the composer with a separate selected-Block reference and preserves unsent text.
+
+Requests and interrupted retries validate that reference against the owner-authorized Draft within admission's immediate transaction. Any intervening Draft revision requires a fresh selection; removed Blocks cannot be silently retargeted. Committed refreshes preserve inspection zoom and surviving Block identities and update their details; streamed prose never changes the graph. The manual editor remains available.
+
+Apply forward migration `000021_builder_block_selection` before starting this version against existing SQLite files. It adds selection metadata to Builder runs, defaulting historical requests to no selection, while preserving accounts, Bots, Drafts, chat history and accounting. Rollback removes only that metadata; stop the server and use matching older binaries afterward. Selected-Block context cannot be recovered after rollback, so do not replay those requests on older binaries; make a new explicit request instead. Preserve databases and encryption keys.
+
 ## Building before connecting Telegram
 
 Choose **Create Bot** from the Dashboard or Bot list, or visit `/bots/new`. Supply only a workspace name (1–80 characters); Piko atomically saves an owner-owned Unconnected Bot and a validated starter Draft at revision one, then opens its manual editor. Configure approved Blocks and Templates, save through the same revision-aware boundary, and use the existing isolated Preview. Creation, editing, Preview and local deletion require no Telegram request; Preview confirmation creates no real Submissions. Owner authorization, POST/CSRF, Persian RTL, themes and responsive navigation apply throughout.
