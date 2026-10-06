@@ -129,13 +129,13 @@ func TestConversationalFailedOrDestructiveProposalsNeverBecomeActionable(t *test
 					t.Fatal(err)
 				}
 			}
-			before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode()
+			before := b.LoadDraft(t, 1).Encode()
 			b.Post("/bots/1/chats/1/messages", url.Values{"message": {"عملیات"}})
 			page := fixture.WaitBuilder(t, b, "/bots/1/chats/1", "failed")
 			if strings.Contains(page, `data-action-proposal=`) || strings.Contains(page, "private failure") {
 				t.Fatal("failed or unsupported action persisted")
 			}
-			if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode(); after != before {
+			if after := b.LoadDraft(t, 1).Encode(); after != before {
 				t.Fatal("failed operational turn changed Draft")
 			}
 			f.Mu.Lock()
@@ -169,9 +169,9 @@ func TestConversationalProposalRejectsInterveningDraftBeforeCompletion(t *testin
 	case <-time.After(3 * time.Second):
 		t.Fatal("proposal not staged")
 	}
-	draft := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
-	if got := b.Post("/bots/1/draft", draft); got.Code != 303 {
-		t.Fatal(got.Code)
+	draft := b.LoadDraft(t, 1)
+	if err := b.SaveDraft(t, 1, draft); err != nil {
+		t.Fatal(err)
 	}
 	release <- struct{}{}
 	page := fixture.WaitBuilder(t, b, "/bots/1/chats/1", "failed")
@@ -374,7 +374,10 @@ func TestConversationalActionsRejectChangedStateIncludingPauseABA(t *testing.T) 
 			var gotCode int
 			switch change {
 			case "draft":
-				gotCode = b.Post("/bots/1/draft", fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())).Code
+				if err := b.SaveDraft(t, 1, b.LoadDraft(t, 1)); err != nil {
+					t.Fatal(err)
+				}
+				gotCode = http.StatusSeeOther
 			case "publication":
 				gotCode = b.Post("/bots/1/publish", url.Values{}).Code
 			case "credentials":

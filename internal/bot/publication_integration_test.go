@@ -14,8 +14,8 @@ func TestOwnerPublishesSavedDraftWithoutActivatingDelivery(t *testing.T) {
 	if got := b.Post("/bots/1/publish", url.Values{}); got.Code != 422 {
 		t.Fatalf("missing Draft: %d", got.Code)
 	}
-	if got := b.PostDraft(t, "/bots/1/draft", url.Values{"definition": {fixture.StructuredDraft}}); got.Code != 303 {
-		t.Fatalf("save: %d", got.Code)
+	if err := b.SaveDraft(t, 1, url.Values{"definition": {fixture.StructuredDraft}}); err != nil {
+		t.Fatal(err)
 	}
 	if got := b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatalf("publish: %d", got.Code)
@@ -28,8 +28,8 @@ func TestOwnerPublishesSavedDraftWithoutActivatingDelivery(t *testing.T) {
 
 func TestPublicationValidatesStoredDraftAndKeepsExistingVersion(t *testing.T) {
 	a, b := fixture.DraftFixture(t)
-	if got := b.PostDraft(t, "/bots/1/draft", url.Values{"definition": {fixture.StructuredDraft}}); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, url.Values{"definition": {fixture.StructuredDraft}}); err != nil {
+		t.Fatal(err)
 	}
 	if got := b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)

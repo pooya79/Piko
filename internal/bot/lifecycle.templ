@@ -36,10 +36,6 @@ templ settingsControls(bot Bot, csrf, name, key string) {
     <button class="piko-primary-action" type="submit">{ locale.T(ctx,"bot.name.save") }</button>
    </form>
   </section>
-  <section class="piko-setting-row" aria-labelledby="manual-settings-title">
-   <div><h2 id="manual-settings-title">{ locale.T(ctx,"draft.title") }</h2><p>{ locale.T(ctx,"bot.settings.draft.copy") }</p></div>
-   <a class="piko-secondary-action" href={ templ.URL(bot.URL()+"/draft") }>@shell.Icon("sliders")<span>{ locale.T(ctx,"bot.settings.draft.open") }</span></a>
-  </section>
   <section class="piko-setting-row" aria-labelledby="connection-settings-title">
    <div><h2 id="connection-settings-title">{ locale.T(ctx,"bot.connection.title") }</h2><p>{ locale.T(ctx,"bot.settings.connection.copy") }</p></div>
    <a class="piko-secondary-action" href={ templ.URL(bot.URL()+"/connection") }>{ locale.T(ctx,"bot.connection.title") }</a>

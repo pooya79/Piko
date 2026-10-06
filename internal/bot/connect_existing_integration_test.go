@@ -32,10 +32,10 @@ func TestConnectExistingBotRetainsDraftAndPreviewWithoutActivation(t *testing.T)
 	if got := b.Post("/bots/new", url.Values{"name": {"ایدهٔ من"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	if got := b.Post("/bots/1/draft", fixture.DraftAtRevision(fixture.InquiryDraft(), "1")); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, fixture.DraftAtRevision(fixture.InquiryDraft(), "1")); err != nil {
+		t.Fatal(err)
 	}
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	before := b.LoadDraft(t, 1)
 	preview := b.Post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	if got := b.Post(preview+"/choose", url.Values{"revision": {"1"}, "choice": {"inquiry"}}); got.Code != 303 {
 		t.Fatal(got.Code)
@@ -49,7 +49,7 @@ func TestConnectExistingBotRetainsDraftAndPreviewWithoutActivation(t *testing.T)
 	if got := b.Post("/bots/1/connect", url.Values{"token": {" " + fixture.TestBotToken + " "}}); got.Code != 303 || got.Header().Get("Location") != "/bots/1" {
 		t.Fatalf("connection: %d", got.Code)
 	}
-	if !reflect.DeepEqual(before, fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())) {
+	if !reflect.DeepEqual(before, b.LoadDraft(t, 1)) {
 		t.Fatal("connection changed the shared Draft or revision")
 	}
 	page := b.Send("GET", "/bots/1", nil).Body.String() + b.Send("GET", "/bots/1/connection", nil).Body.String()
@@ -78,7 +78,7 @@ func TestConnectExistingBotRetainsDraftAndPreviewWithoutActivation(t *testing.T)
 	}
 	t.Cleanup(func() { _ = restarted.DB.Close() })
 	b.Router = restarted.Handler
-	if !reflect.DeepEqual(before, fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())) {
+	if !reflect.DeepEqual(before, b.LoadDraft(t, 1)) {
 		t.Fatal("restart lost the retained Draft")
 	}
 	if got := b.Post(preview+"/choose", url.Values{"revision": {"2"}, "answer": {"پیشرفت محفوظ"}}); got.Code != 303 {
@@ -97,8 +97,8 @@ func TestConnectExistingDuplicatePreservesBothBotsAndLinksOnlyWithinOwner(t *tes
 			if got := b.Post("/bots/connect", url.Values{"token": {fixture.TestBotToken}}); got.Code != 303 {
 				t.Fatal(got.Code)
 			}
-			if got := b.Post("/bots/1/draft", fixture.DraftAtRevision(fixture.WelcomeDraft(), "0")); got.Code != 303 {
-				t.Fatal(got.Code)
+			if err := b.SaveDraft(t, 1, fixture.DraftAtRevision(fixture.WelcomeDraft(), "0")); err != nil {
+				t.Fatal(err)
 			}
 			if disconnected {
 				if got := b.Post("/bots/1/disconnect", url.Values{}); got.Code != 303 {
@@ -108,8 +108,9 @@ func TestConnectExistingDuplicatePreservesBothBotsAndLinksOnlyWithinOwner(t *tes
 			if got := b.Post("/bots/new", url.Values{"name": {"پیش\u200cنویس دوم"}}); got.Code != 303 {
 				t.Fatal(got.Code)
 			}
+			beforeDraft := b.LoadDraft(t, 2).Encode()
 			before := map[string]string{}
-			for _, path := range []string{"/bots/1", "/bots/1/draft", "/bots/2", "/bots/2/draft"} {
+			for _, path := range []string{"/bots/1", "/bots/2"} {
 				before[path] = b.Send("GET", path, nil).Body.String()
 			}
 			got := b.Post("/bots/2/connect", url.Values{"token": {fixture.ReplacementToken}})
@@ -120,6 +121,9 @@ func TestConnectExistingDuplicatePreservesBothBotsAndLinksOnlyWithinOwner(t *tes
 				if got := b.Send("GET", path, nil); got.Body.String() != body {
 					t.Fatalf("duplicate changed retained work at %s", path)
 				}
+			}
+			if after := b.LoadDraft(t, 2).Encode(); after != beforeDraft {
+				t.Fatal("duplicate changed retained Draft")
 			}
 			other := fixture.NewAccountBrowser(t, a.Handler)
 			other.Send("GET", "/register", nil)
@@ -184,7 +188,7 @@ func TestConnectExistingFailuresPreserveSavedWorkAndClearToken(t *testing.T) {
 			}
 			preview := b.Post("/bots/1/preview", url.Values{}).Header().Get("Location")
 			before := map[string]string{}
-			for _, path := range []string{"/bots/1", "/bots/1/draft", preview} {
+			for _, path := range []string{"/bots/1", preview} {
 				before[path] = b.Send("GET", path, nil).Body.String()
 			}
 			got := b.Post("/bots/1/connect", url.Values{"token": tc.Tokens})
@@ -325,10 +329,10 @@ func TestConnectExistingSlowVerificationRetainsConcurrentDraftEditAndRejectsStal
 	case <-time.After(3 * time.Second):
 		t.Fatal("verification did not start")
 	}
-	if got := b.Post("/bots/1/draft", fixture.DraftAtRevision(fixture.InquiryDraft(), "1")); got.Code != 303 {
-		t.Fatal("verification locked or lost a Draft edit")
+	if err := b.SaveDraft(t, 1, fixture.DraftAtRevision(fixture.InquiryDraft(), "1")); err != nil {
+		t.Fatal(err)
 	}
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	before := b.LoadDraft(t, 1)
 	if got := b.Post("/bots/1/connect", url.Values{"token": {fixture.ReplacementToken}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
@@ -345,7 +349,7 @@ func TestConnectExistingSlowVerificationRetainsConcurrentDraftEditAndRejectsStal
 	if page := b.Send("GET", "/bots/1", nil); !strings.Contains(page.Body.String(), "654321") || strings.Contains(page.Body.String(), "123456") {
 		t.Fatal("stale connection changed identity")
 	}
-	if !reflect.DeepEqual(before, fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())) {
+	if !reflect.DeepEqual(before, b.LoadDraft(t, 1)) {
 		t.Fatal("connection discarded a concurrent Draft edit")
 	}
 }
@@ -416,7 +420,7 @@ func TestConnectExistingVerificationCannotRecreateDeletedBotOrClaimReservedIdent
 			})
 			b.Post("/bots/new", url.Values{"name": {"ربات نخست"}})
 			b.Post("/bots/new", url.Values{"name": {"ربات دوم"}})
-			before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+			before := b.LoadDraft(t, 1)
 			done := make(chan *httptest.ResponseRecorder, 1)
 			go func() { done <- b.Post("/bots/1/connect", url.Values{"token": {fixture.TestBotToken}}) }()
 			released := false
@@ -458,7 +462,7 @@ func TestConnectExistingVerificationCannotRecreateDeletedBotOrClaimReservedIdent
 					t.Fatal("connection recreated deleted Bot")
 				}
 			} else {
-				if !reflect.DeepEqual(before, fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())) {
+				if !reflect.DeepEqual(before, b.LoadDraft(t, 1)) {
 					t.Fatal("concurrent duplicate changed Draft")
 				}
 				if page := b.Send("GET", "/bots/1", nil); !strings.Contains(page.Body.String(), "هنوز متصل نشده") {

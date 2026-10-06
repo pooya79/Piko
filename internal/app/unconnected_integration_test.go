@@ -43,7 +43,7 @@ func TestUnconnectedUpgradePreservesPopulatedBotsAndLifecycleStates(t *testing.T
 		t.Fatal(got.Code)
 	}
 	before := map[string]string{}
-	for _, path := range []string{"/account", "/bots/1/draft", "/bots/1/submissions/1", preview, "/bots/2"} {
+	for _, path := range []string{"/account", "/bots/1/submissions/1", preview, "/bots/2"} {
 		before[path] = d.b.Send("GET", path, nil).Body.String()
 	}
 	stop()
@@ -69,7 +69,7 @@ func TestUnconnectedUpgradePreservesPopulatedBotsAndLifecycleStates(t *testing.T
 			t.Fatalf("upgrade altered retained data: %s", path)
 		}
 	}
-	if got := d.b.Post("/bots/new", url.Values{"name": {"ربات بدون اتصال"}}); got.Code != 303 || got.Header().Get("Location") != "/bots/3/draft" {
+	if got := d.b.Post("/bots/new", url.Values{"name": {"ربات بدون اتصال"}}); got.Code != 303 || got.Header().Get("Location") != "/bots/3/studio" {
 		t.Fatal("upgraded installation cannot create an Unconnected Bot")
 	}
 	for _, path := range []string{"/bots", "/dashboard"} {

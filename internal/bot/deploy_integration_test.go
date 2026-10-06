@@ -18,12 +18,12 @@ import (
 
 func TestDeployGuidesConnectionWithoutChangingDraftOrChats(t *testing.T) {
 	_, b := fixture.BuilderFixture(t, builder.Config{}, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(500) })
-	before := b.Send("GET", "/bots/1/draft", nil).Body.String()
+	before := b.DraftText(t, 1)
 	got := b.Post("/bots/1/deploy", url.Values{"operate": {"yes"}})
 	if got.Code != 409 || !strings.Contains(got.Body.String(), `href="/bots/1/connect"`) {
 		t.Fatalf("connection guidance: %d %s", got.Code, got.Body.String())
 	}
-	if after := b.Send("GET", "/bots/1/draft", nil).Body.String(); after != before {
+	if after := b.DraftText(t, 1); after != before {
 		t.Fatal("Deploy changed the Unconnected Draft")
 	}
 	if page := b.Send("GET", "/bots/1/chats/1", nil); page.Code != 200 || !strings.Contains(page.Body.String(), "گفتگوی اول") {
@@ -49,10 +49,10 @@ func TestDeployFirstActivationAndCompatibleDeliveryPreservePause(t *testing.T) {
 		t.Fatal(got.Code)
 	}
 	// Saving a new Draft must not update the immutable live version.
-	draft := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	draft := b.LoadDraft(t, 1)
 	draft.Set("welcome", "پیش\u200cنویس بررسی\u200cشده")
-	if got := b.Post("/bots/1/draft", draft); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, draft); err != nil {
+		t.Fatal(err)
 	}
 	deploy("3")
 	page := b.Send("GET", "/bots/1", nil).Body.String()

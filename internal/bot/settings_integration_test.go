@@ -71,21 +71,23 @@ func TestWorkspaceNameRequiresOwnerPOSTAndCSRF(t *testing.T) {
 	}
 }
 
-func TestManualSettingsRemainSharedUnpublishedAndAvailableToFreshPreview(t *testing.T) {
+func TestDraftChangesRemainSharedUnpublishedAndAvailableToFreshPreview(t *testing.T) {
 	a, b := fixture.DraftFixture(t)
-	b.PostDraft(t, "/bots/1/draft", fixture.CombinedDraft())
+	if err := b.SaveDraft(t, 1, fixture.CombinedDraft()); err != nil {
+		t.Fatal(err)
+	}
 	fixture.SeedBotChat(t, a.DB, 1, "تنظیمات مشترک")
-	loaded := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
-	stale := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	loaded := b.LoadDraft(t, 1)
+	stale := b.LoadDraft(t, 1)
 	loaded.Set("welcome", "سلام از تنظیمات دستی")
-	if got := b.Post("/bots/1/draft", loaded); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, loaded); err != nil {
+		t.Fatal(err)
 	}
 	stale.Set("welcome", "تغییر قدیمی")
-	if got := b.Post("/bots/1/draft", stale); got.Code != 409 || !strings.Contains(got.Body.String(), "تغییر قدیمی") {
-		t.Fatal("stale manual configuration overwrote shared Draft")
+	if err := b.SaveDraft(t, 1, stale); err == nil {
+		t.Fatal("stale candidate overwrote shared Draft")
 	}
-	current := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	current := b.LoadDraft(t, 1)
 	loaded.Set("draft_revision", "2")
 	if !reflect.DeepEqual(current, loaded) {
 		t.Fatal("manual save lost retained Forms or menu order")
@@ -122,7 +124,7 @@ func TestBotDeletionRemovesConvertedDiscussionAndAllAttachedChatsOnly(t *testing
 	fixture.WaitBuilder(t, b, converted, "succeeded")
 	b.Post(converted+"/messages", url.Values{"message": {"ربات بساز"}})
 	page := fixture.WaitBuilder(t, b, converted, "succeeded")
-	if !strings.Contains(page, "گفتگوی عمومی پیش از ساخت") || !strings.Contains(page, `href="/bots/1/draft"`) {
+	if !strings.Contains(page, "گفتگوی عمومی پیش از ساخت") || !strings.Contains(page, `href="/bots/1/studio"`) {
 		t.Fatal("fixture did not retain earlier discussion on conversion")
 	}
 	attached := fixture.SeedBotChat(t, a.DB, 1, "گفتگوی دوم")
@@ -131,11 +133,11 @@ func TestBotDeletionRemovesConvertedDiscussionAndAllAttachedChatsOnly(t *testing
 	fixture.WaitBuilder(t, b, general, "succeeded")
 	b.Post("/bots/new", url.Values{"name": {"ربات محفوظ"}})
 	otherChat := fixture.SeedBotChat(t, a.DB, 2, "گفتگوی محفوظ")
-	beforeOther := fixture.RenderedDraft(t, b.Send("GET", "/bots/2/draft", nil).Body.String())
+	beforeOther := b.LoadDraft(t, 2)
 	if got := b.Post("/bots/1/delete", url.Values{"confirm_delete": {"yes"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	for _, path := range []string{converted, "/bots/1/chats/1", attached, "/bots/1/draft"} {
+	for _, path := range []string{converted, "/bots/1/chats/1", attached} {
 		if got := b.Send("GET", path, nil); got.Code != 404 {
 			t.Fatalf("deleted Bot retained discussion or Draft: %s", path)
 		}
@@ -146,7 +148,7 @@ func TestBotDeletionRemovesConvertedDiscussionAndAllAttachedChatsOnly(t *testing
 	if got := b.Send("GET", otherChat, nil); got.Code != 200 {
 		t.Fatal("Bot deletion removed another Bot's chat")
 	}
-	if got := fixture.RenderedDraft(t, b.Send("GET", "/bots/2/draft", nil).Body.String()); !reflect.DeepEqual(got, beforeOther) {
+	if got := b.LoadDraft(t, 2); !reflect.DeepEqual(got, beforeOther) {
 		t.Fatal("Bot deletion changed another Draft")
 	}
 }

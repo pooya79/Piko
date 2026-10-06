@@ -25,7 +25,7 @@ func TestBuilderUndoLeavesLivePublicationInteractionsAndSubmissionsIntact(t *tes
 	d.text("/start", 2)
 	d.press("درخواست", 1)
 	d.text("تعامل فعال", 1)
-	before := fixture.RenderedDraft(t, d.b.Send("GET", "/bots/1/draft", nil).Body.String())
+	before := d.b.LoadDraft(t, 1)
 	submission := d.b.Send("GET", "/bots/1/submissions/1", nil).Body.String()
 	var calls atomic.Int64
 	fake := httptest.NewServer(fixture.StreamingBuilderProvider(func(w http.ResponseWriter, r *http.Request) {
@@ -52,7 +52,7 @@ func TestBuilderUndoLeavesLivePublicationInteractionsAndSubmissionsIntact(t *tes
 		t.Fatal(got.Code)
 	}
 	before.Set("draft_revision", "4")
-	if after := fixture.RenderedDraft(t, d.b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(before, after) {
+	if after := d.b.LoadDraft(t, 1); !reflect.DeepEqual(before, after) {
 		t.Fatal("Undo failed to restore Form configuration")
 	}
 	if page := d.b.Send("GET", "/bots/1", nil).Body.String(); page != botPage {

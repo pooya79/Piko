@@ -187,7 +187,7 @@ func TestBotDisconnectedCredentialsRemainRemovedAfterRestart(t *testing.T) {
 	if got := d.b.Post("/bots/1/reconnect", url.Values{"token": {fixture.ReplacementToken}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	if page := d.b.Send("GET", "/bots/1/draft", nil); page.Code != 200 || !strings.Contains(page.Body.String(), "نام شما چیست؟") {
+	if !strings.Contains(d.b.DraftText(t, 1), "نام شما چیست؟") {
 		t.Fatal("restart/reconnect lost retained settings")
 	}
 }
@@ -206,7 +206,7 @@ func TestBotLifecycleStorageFailurePreservesDataAndAllowsRetry(t *testing.T) {
 			if got := d.b.Post("/bots/1/"+action, url.Values{"confirm_delete": {"yes"}}); got.Code != 500 || strings.Contains(got.Body.String(), "private storage failure") {
 				t.Fatalf("failure: %d", got.Code)
 			}
-			if page := d.b.Send("GET", "/bots/1/draft", nil); page.Code != 200 || !strings.Contains(page.Body.String(), "نام شما چیست؟") {
+			if !strings.Contains(d.b.DraftText(t, 1), "نام شما چیست؟") {
 				t.Fatal("failed lifecycle removed settings")
 			}
 			if _, err := d.a.db.Exec(`DROP TRIGGER reject_lifecycle`); err != nil {
@@ -230,7 +230,7 @@ func TestBotReplacementPreservesIdentityAndRequiresActivation(t *testing.T) {
 	if got := webhook(d.a, d.Secret, `{"update_id":900}`); got.Code != 401 {
 		t.Fatal("replacement left old delivery accepting updates")
 	}
-	if page := d.b.Send("GET", "/bots/1/draft", nil); page.Code != 200 || !strings.Contains(page.Body.String(), "نام شما چیست؟") {
+	if !strings.Contains(d.b.DraftText(t, 1), "نام شما چیست؟") {
 		t.Fatal("replacement lost configuration")
 	}
 	if got := d.b.Post("/bots/1/activate", url.Values{"operate": {"yes"}}); got.Code != 303 {
@@ -393,7 +393,7 @@ func TestBotConfirmedDeletionRemovesPikoDataAndPreservesOtherBots(t *testing.T) 
 	if got := d.b.Post("/bots/1/delete", url.Values{"confirm_delete": {"yes"}}); got.Code != 303 || got.Header().Get("Location") != "/bots" {
 		t.Fatalf("delete: %d", got.Code)
 	}
-	for _, path := range []string{"/bots/1", "/bots/1/draft", "/bots/1/submissions", "/bots/1/submissions/1", preview} {
+	for _, path := range []string{"/bots/1", "/bots/1/submissions", "/bots/1/submissions/1", preview} {
 		if got := d.b.Send("GET", path, nil); got.Code != 404 {
 			t.Fatalf("deleted data reachable: %s %d", path, got.Code)
 		}

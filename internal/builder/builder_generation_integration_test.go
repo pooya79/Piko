@@ -44,7 +44,7 @@ func TestBuilderProviderFailuresKeepSafeDurableOutcomesAndReportedUsage(t *testi
 				w.WriteHeader(tc.code)
 				_, _ = w.Write([]byte(tc.body))
 			})
-			before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+			before := b.LoadDraft(t, 1)
 			if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {"درخواست"}}); got.Code != 303 {
 				t.Fatal(got.Code)
 			}
@@ -56,7 +56,7 @@ func TestBuilderProviderFailuresKeepSafeDurableOutcomesAndReportedUsage(t *testi
 			if strings.Contains(page, "test-server-key") || strings.Contains(page, "private upstream") || !strings.Contains(page, `data-total-tokens="`+tc.total+`"`) || !strings.Contains(page, `data-cost="`+tc.cost+`"`) {
 				t.Fatal("feedback or reported accounting wrong")
 			}
-			if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); before.Encode() != after.Encode() {
+			if after := b.LoadDraft(t, 1); before.Encode() != after.Encode() {
 				t.Fatal("conversational request changed Draft")
 			}
 			if got := b.Post("/bots/1/chats/2/messages", url.Values{"message": {"دوباره"}}); got.Code != 429 || calls.Load() != 1 {
@@ -131,8 +131,8 @@ func TestBuilderWithoutCredentialsKeepsHistoryAndManualFeaturesAvailable(t *test
 	if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {"درخواست"}}); got.Code != 503 || !strings.Contains(got.Body.String(), `data-admitted="0"`) {
 		t.Fatal("disabled request admitted")
 	}
-	if got := b.Post("/bots/1/draft", fixture.DraftAtRevision(fixture.InquiryDraft(), "1")); got.Code != 303 {
-		t.Fatal("manual Draft disabled")
+	if err := b.SaveDraft(t, 1, fixture.DraftAtRevision(fixture.InquiryDraft(), "1")); err != nil {
+		t.Fatal(err)
 	}
 	if got := b.Post("/bots/1/preview", url.Values{}); got.Code != 303 {
 		t.Fatal("Preview disabled")
@@ -202,8 +202,8 @@ func TestBuilderAdmissionIsBusyWithoutLockingDraftAndRetainsAllowanceAfterReject
 	if got := b.Post("/bots/1/chats/2/messages", url.Values{"message": {"درخواست ردشده"}}); got.Code != 409 || !strings.Contains(got.Body.String(), `data-admitted="1"`) {
 		t.Fatal("busy request was admitted or unclear")
 	}
-	if got := b.Post("/bots/1/draft", fixture.DraftAtRevision(fixture.InquiryDraft(), "1")); got.Code != 303 {
-		t.Fatal("provider I/O held a write transaction")
+	if err := b.SaveDraft(t, 1, fixture.DraftAtRevision(fixture.InquiryDraft(), "1")); err != nil {
+		t.Fatal(err)
 	}
 	// Releasing through a separate channel avoids closing twice in deferred cleanup.
 	release <- struct{}{}
@@ -336,8 +336,8 @@ func TestBuilderRepliesUseOwnHistoryAndCurrentDraftAndSurviveRestart(t *testing.
 		if turn.message == "ادامه اول" {
 			v := fixture.InquiryDraft()
 			v.Set("welcome", "پیش نویس تازه")
-			if got := b.Post("/bots/1/draft", fixture.DraftAtRevision(v, "1")); got.Code != 303 {
-				t.Fatal(got.Code)
+			if err := b.SaveDraft(t, 1, fixture.DraftAtRevision(v, "1")); err != nil {
+				t.Fatal(err)
 			}
 		}
 		if got := b.Post(turn.path+"/messages", url.Values{"message": {turn.message}}); got.Code != 303 {

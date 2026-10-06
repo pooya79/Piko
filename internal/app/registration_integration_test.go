@@ -61,15 +61,15 @@ func TestRegistrationTelegramReviewsEditsAndStoresExactAnswersOncePerAttempt(t *
 	d.press("رد کردن", 4)
 	d.press("ارسال", 1)
 	d.countSubmissions(2)
-	other := fixture.NewAccountBrowser(t, d.a.server.Handler)
+	other := fixture.NewAccountBrowser(t, d.a.server.Handler, d.a.cfg.DatabasePath)
 	other.Send("GET", "/register", nil)
 	other.Post("/register", fixture.RegisterValues("registration-other@example.test", "Other", "OwnerPassword123"))
-	for _, path := range []string{"/bots/1/draft", "/bots/1/preview", "/bots/1/submissions", "/bots/1/submissions/1"} {
+	for _, path := range []string{"/bots/1/preview", "/bots/1/submissions", "/bots/1/submissions/1"} {
 		if got := other.Send("GET", path, nil); got.Code != 404 {
 			t.Fatalf("other owner accessed %s: %d", path, got.Code)
 		}
 	}
-	if got := other.PostDraft(t, "/bots/1/draft", fixture.RegistrationDraft()); got.Code != 404 {
-		t.Fatal("cross-owner Registration save")
+	if err := other.SaveDraft(t, 1, fixture.RegistrationDraft()); err == nil {
+		t.Fatal("rejected Draft change was accepted")
 	}
 }

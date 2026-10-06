@@ -10,38 +10,10 @@ import (
 	fixture "github.com/pooya79/Piko/internal/testsupport/httpfixture"
 )
 
-func TestOwnerSavesAndLoadsWelcomeMenuDraft(t *testing.T) {
-	a, b := fixture.DraftFixture(t)
-	if got := b.Send(http.MethodGet, "/bots/1/draft", nil); got.Code != 200 {
-		t.Fatalf("configure: %d", got.Code)
-	}
-	if got := b.PostDraft(t, "/bots/1/draft", fixture.WelcomeDraft()); got.Code != 303 {
-		t.Fatalf("save: %d", got.Code)
-	}
-	if err := a.DB.Close(); err != nil {
-		t.Fatal(err)
-	}
-	restarted, err := fixture.New(t.Context(), a.Config)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = restarted.DB.Close() })
-	b.Router = restarted.Handler
-	got := b.Send(http.MethodGet, "/bots/1/draft", nil)
-	for _, want := range []string{"سلام &lt;دوست&gt;", "چه چیزی می\u200cخواهی؟", "ساعت کار", "Call 02112345678"} {
-		if got.Code != 200 || !strings.Contains(got.Body.String(), want) {
-			t.Fatalf("saved Draft missing %q: %d", want, got.Code)
-		}
-	}
-	if got := b.Send(http.MethodGet, "/bots/1", nil); !strings.Contains(got.Body.String(), "فعال نشده") {
-		t.Fatal("saving activated Bot")
-	}
-}
-
 func TestPreviewRunsConfiguredMenuAndRestartsOnlyTestState(t *testing.T) {
 	_, b := fixture.DraftFixture(t)
-	if got := b.PostDraft(t, "/bots/1/draft", fixture.WelcomeDraft()); got.Code != 303 {
-		t.Fatalf("save: %d", got.Code)
+	if err := b.SaveDraft(t, 1, fixture.WelcomeDraft()); err != nil {
+		t.Fatal(err)
 	}
 	started := b.Post("/bots/1/preview", url.Values{})
 	if started.Code != 303 {
@@ -70,7 +42,7 @@ func TestPreviewRunsConfiguredMenuAndRestartsOnlyTestState(t *testing.T) {
 	if strings.Contains(got, "Call 02112345678") || strings.Contains(got, "شنبه تا پنجشنبه، ۹ تا ۱۷") || !strings.Contains(got, "سلام &lt;دوست&gt;") {
 		t.Fatal("restart did not clear test conversation")
 	}
-	if got := b.Send(http.MethodGet, "/bots/1/draft", nil); !strings.Contains(got.Body.String(), "Call 02112345678") {
+	if !strings.Contains(b.DraftText(t, 1), "Call 02112345678") {
 		t.Fatal("Preview restart changed saved Draft")
 	}
 	if got := b.Send(http.MethodGet, "/bots/1", nil); !strings.Contains(got.Body.String(), "فعال نشده") {
@@ -78,94 +50,10 @@ func TestPreviewRunsConfiguredMenuAndRestartsOnlyTestState(t *testing.T) {
 	}
 }
 
-func TestInvalidDraftDefinitionsPreserveSavedConfiguration(t *testing.T) {
-	_, b := fixture.DraftFixture(t)
-	if got := b.PostDraft(t, "/bots/1/draft", fixture.WelcomeDraft()); got.Code != 303 {
-		t.Fatal("initial save failed")
-	}
-	for _, tc := range []struct{ name, definition string }{
-		{"unsupported version", strings.Replace(fixture.StructuredDraft, `"version":1`, `"version":3`, 1)},
-		{"script Block", strings.Replace(fixture.StructuredDraft, `"type":"message"`, `"type":"script"`, 1)},
-		{"unknown executable field", strings.Replace(fixture.StructuredDraft, `"text":"Hello"`, `"text":"Hello","script":"alert(1)"`, 1)},
-		{"missing destination", strings.Replace(fixture.StructuredDraft, `"target":"reply"`, `"target":"missing"`, 1)},
-		{"menu destination loop", strings.Replace(fixture.StructuredDraft, `"target":"reply"`, `"target":"menu"`, 1)},
-		{"welcome destination loop", strings.Replace(fixture.StructuredDraft, `"target":"reply"`, `"target":"welcome"`, 1)},
-		{"duplicate Block ID", strings.Replace(fixture.StructuredDraft, `"id":"reply"`, `"id":"welcome"`, 1)},
-		{"empty welcome", strings.Replace(fixture.StructuredDraft, `"text":"Hello"`, `"text":" "`, 1)},
-		{"trailing JSON", fixture.StructuredDraft + ` {}`},
-		{"malformed JSON", `{"version":1`},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			got := b.PostDraft(t, "/bots/1/draft", url.Values{"definition": {tc.definition}})
-			if got.Code != 422 || !strings.Contains(got.Body.String(), `role="alert"`) {
-				t.Fatalf("invalid definition: %d", got.Code)
-			}
-			if saved := b.Send(http.MethodGet, "/bots/1/draft", nil); !strings.Contains(saved.Body.String(), "Call 02112345678") {
-				t.Fatal("invalid definition replaced saved Draft")
-			}
-		})
-	}
-}
-
-func TestDraftSettingsValidateChoicesAndTextBounds(t *testing.T) {
-	_, b := fixture.DraftFixture(t)
-	for _, tc := range []struct {
-		name   string
-		change func(url.Values)
-	}{
-		{"no choices", func(v url.Values) { v.Del("choice_label"); v.Del("choice_message") }},
-		{"incomplete choice", func(v url.Values) { v["choice_message"][0] = "" }},
-		{"duplicate labels", func(v url.Values) { v["choice_label"][1] = v["choice_label"][0] }},
-		{"too many choices", func(v url.Values) {
-			v["choice_label"] = []string{"1", "2", "3", "4", "5", "6", "7"}
-			v["choice_message"] = []string{"a", "b", "c", "d", "e", "f", "g"}
-		}},
-		{"mismatched fields", func(v url.Values) { v["choice_message"] = []string{"a"} }},
-		{"welcome too long", func(v url.Values) { v.Set("welcome", strings.Repeat("س", 2001)) }},
-		{"menu too long", func(v url.Values) { v.Set("menu_prompt", strings.Repeat("س", 2001)) }},
-		{"label too long", func(v url.Values) { v["choice_label"][0] = strings.Repeat("س", 81) }},
-		{"message too long", func(v url.Values) { v["choice_message"][0] = strings.Repeat("س", 2001) }},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			values := fixture.WelcomeDraft()
-			tc.change(values)
-			got := b.PostDraft(t, "/bots/1/draft", values)
-			if got.Code != 422 || !strings.Contains(got.Body.String(), `role="alert"`) {
-				t.Fatalf("settings validation: %d", got.Code)
-			}
-		})
-	}
-	values := fixture.WelcomeDraft()
-	values.Set("welcome", strings.Repeat("س", 2000))
-	values["choice_label"][0] = strings.Repeat("س", 80)
-	values["choice_label"] = append(values["choice_label"], "")
-	values["choice_message"] = append(values["choice_message"], "")
-	if got := b.PostDraft(t, "/bots/1/draft", values); got.Code != 303 {
-		t.Fatalf("valid bounds and unused fields: %d", got.Code)
-	}
-}
-
-func TestDraftTextBoundsRemainReadableAfterJSONEscaping(t *testing.T) {
-	_, b := fixture.DraftFixture(t)
-	values := url.Values{"welcome": {strings.Repeat("<", 2000)}, "menu_prompt": {strings.Repeat("&", 2000)}, "choice_label": {"1", "2", "3", "4", "5", "6"}, "choice_message": {}}
-	for range 6 {
-		values["choice_message"] = append(values["choice_message"], strings.Repeat(">", 2000))
-	}
-	if got := b.PostDraft(t, "/bots/1/draft", values); got.Code != 303 {
-		t.Fatalf("valid text save: %d", got.Code)
-	}
-	if got := b.Send(http.MethodGet, "/bots/1/draft", nil); got.Code != 200 || !strings.Contains(got.Body.String(), strings.Repeat("&lt;", 2000)) {
-		t.Fatalf("escaped valid Draft cannot load: %d", got.Code)
-	}
-	if got := b.Post("/bots/1/preview", url.Values{}); got.Code != 303 {
-		t.Fatalf("escaped valid Draft cannot Preview: %d", got.Code)
-	}
-}
-
 func TestStructuredDraftRunsThroughSamePreviewEngine(t *testing.T) {
 	_, b := fixture.DraftFixture(t)
-	if got := b.PostDraft(t, "/bots/1/draft", url.Values{"definition": {fixture.StructuredDraft}}); got.Code != 303 {
-		t.Fatalf("structured save: %d", got.Code)
+	if err := b.SaveDraft(t, 1, url.Values{"definition": {fixture.StructuredDraft}}); err != nil {
+		t.Fatal(err)
 	}
 	started := b.Post("/bots/1/preview", url.Values{})
 	path := started.Header().Get("Location")
@@ -179,8 +67,8 @@ func TestStructuredDraftRunsThroughSamePreviewEngine(t *testing.T) {
 
 func TestPreviewInstancesAndDraftSnapshotsStayIsolatedAcrossRestart(t *testing.T) {
 	a, b := fixture.DraftFixture(t)
-	if got := b.PostDraft(t, "/bots/1/draft", fixture.WelcomeDraft()); got.Code != 303 {
-		t.Fatal("save failed")
+	if err := b.SaveDraft(t, 1, fixture.WelcomeDraft()); err != nil {
+		t.Fatal(err)
 	}
 	first := b.Post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	second := b.Post("/bots/1/preview", url.Values{}).Header().Get("Location")
@@ -193,8 +81,8 @@ func TestPreviewInstancesAndDraftSnapshotsStayIsolatedAcrossRestart(t *testing.T
 	updated := fixture.WelcomeDraft()
 	updated.Set("welcome", "پیام تازه")
 	updated["choice_message"][1] = "پاسخ تازه"
-	if got := b.PostDraft(t, "/bots/1/draft", updated); got.Code != 303 {
-		t.Fatal("edit failed")
+	if err := b.SaveDraft(t, 1, updated); err != nil {
+		t.Fatal(err)
 	}
 	if err := a.DB.Close(); err != nil {
 		t.Fatal(err)
@@ -225,13 +113,13 @@ func TestPreviewInstancesAndDraftSnapshotsStayIsolatedAcrossRestart(t *testing.T
 
 func TestDraftAndPreviewRequireOwnerAuthenticationCSRFAndPOST(t *testing.T) {
 	a, b := fixture.DraftFixture(t)
-	if got := b.PostDraft(t, "/bots/1/draft", fixture.WelcomeDraft()); got.Code != 303 {
-		t.Fatal("save failed")
+	if err := b.SaveDraft(t, 1, fixture.WelcomeDraft()); err != nil {
+		t.Fatal(err)
 	}
 	path := b.Post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	visitor := fixture.NewAccountBrowser(t, a.Handler)
-	gets := []string{"/bots/1/draft", "/bots/1/preview", path}
-	posts := []string{"/bots/1/draft", "/bots/1/preview", path + "/choose", path + "/restart"}
+	gets := []string{"/bots/1/preview", path}
+	posts := []string{"/bots/1/preview", path + "/choose", path + "/restart"}
 	for _, p := range gets {
 		if got := visitor.Send(http.MethodGet, p, nil); got.Code != 303 {
 			t.Errorf("anonymous GET %s: %d", p, got.Code)
@@ -272,14 +160,16 @@ func TestDraftAndPreviewRequireOwnerAuthenticationCSRFAndPOST(t *testing.T) {
 			t.Errorf("other owner POST %s: %d", p, got.Code)
 		}
 	}
-	if got := b.Send(http.MethodGet, "/bots/1/draft", nil); !strings.Contains(got.Body.String(), "Call 02112345678") {
+	if !strings.Contains(b.DraftText(t, 1), "Call 02112345678") {
 		t.Fatal("unauthorized mutation changed Draft")
 	}
 }
 
 func TestPreviewRejectsInvalidAndStaleChoicesWithoutChangingState(t *testing.T) {
 	_, b := fixture.DraftFixture(t)
-	b.PostDraft(t, "/bots/1/draft", fixture.WelcomeDraft())
+	if err := b.SaveDraft(t, 1, fixture.WelcomeDraft()); err != nil {
+		t.Fatal(err)
+	}
 	path := b.Post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	if got := b.Post(path+"/choose", url.Values{"choice": {"unknown"}, "revision": {"1"}}); got.Code != 422 {
 		t.Fatalf("invalid choice: %d", got.Code)
@@ -300,7 +190,9 @@ func TestPreviewRejectsInvalidAndStaleChoicesWithoutChangingState(t *testing.T) 
 
 func TestConcurrentPreviewChoicesAcceptOnlyOneRevision(t *testing.T) {
 	_, b := fixture.DraftFixture(t)
-	b.PostDraft(t, "/bots/1/draft", fixture.WelcomeDraft())
+	if err := b.SaveDraft(t, 1, fixture.WelcomeDraft()); err != nil {
+		t.Fatal(err)
+	}
 	path := b.Post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	start := make(chan struct{})
 	statuses := make(chan int, 2)
@@ -324,13 +216,14 @@ func TestConcurrentPreviewChoicesAcceptOnlyOneRevision(t *testing.T) {
 
 func TestDraftAndPreviewStorageFailuresPreserveSavedState(t *testing.T) {
 	a, b := fixture.DraftFixture(t)
-	b.PostDraft(t, "/bots/1/draft", fixture.WelcomeDraft())
+	if err := b.SaveDraft(t, 1, fixture.WelcomeDraft()); err != nil {
+		t.Fatal(err)
+	}
 	path := b.Post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	for _, tc := range []struct {
 		table, path string
 		values      url.Values
 	}{
-		{"bot_drafts", "/bots/1/draft", url.Values{"definition": {fixture.StructuredDraft}, "draft_revision": {"1"}}},
 		{"bot_previews", path + "/choose", url.Values{"choice": {"2"}, "revision": {"1"}}},
 	} {
 		if _, err := a.DB.Exec("CREATE TRIGGER fail_update BEFORE UPDATE ON " + tc.table + " BEGIN SELECT RAISE(ABORT, 'private-configuration'); END"); err != nil {
@@ -344,7 +237,7 @@ func TestDraftAndPreviewStorageFailuresPreserveSavedState(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if got := b.Send(http.MethodGet, "/bots/1/draft", nil); !strings.Contains(got.Body.String(), "Call 02112345678") {
+	if !strings.Contains(b.DraftText(t, 1), "Call 02112345678") {
 		t.Fatal("failed save changed Draft")
 	}
 	if got := b.Send(http.MethodGet, path, nil); strings.Contains(got.Body.String(), "Call 02112345678") {
@@ -365,13 +258,13 @@ func TestDraftMigrationPreservesExistingBotAndOwnerSession(t *testing.T) {
 	if err := database.Migrate(t.Context(), a.DB, false); err != nil {
 		t.Fatal(err)
 	}
-	if got := b.PostDraft(t, "/bots/1/draft", fixture.WelcomeDraft()); got.Code != 303 {
-		t.Fatalf("forward migration: %d", got.Code)
+	if err := b.SaveDraft(t, 1, fixture.WelcomeDraft()); err != nil {
+		t.Fatal(err)
 	}
 	if err := database.Migrate(t.Context(), a.DB, false); err != nil {
 		t.Fatal(err)
 	}
-	if got := b.Send(http.MethodGet, "/bots/1/draft", nil); !strings.Contains(got.Body.String(), "Call 02112345678") {
+	if !strings.Contains(b.DraftText(t, 1), "Call 02112345678") {
 		t.Fatal("migration reapplication lost Draft")
 	}
 }

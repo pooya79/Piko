@@ -36,8 +36,8 @@ func TestConnectionBrowserFixture(t *testing.T) {
 	}
 	fixture.SeedBotChat(t, a.db, 1, "گفتگوی محفوظ")
 	if settings != "" {
-		if got := b.PostDraft(t, "/bots/1/draft", fixture.CombinedDraft()); got.Code != 303 {
-			t.Fatal(got.Code)
+		if err := b.SaveDraft(t, 1, fixture.CombinedDraft()); err != nil {
+			t.Fatal(err)
 		}
 		fixture.SeedBotChat(t, a.db, 1, "گفتگوی دوم")
 		b.Post("/chats", url.Values{})

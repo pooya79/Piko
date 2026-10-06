@@ -100,7 +100,7 @@ func (h *Handler) Publish(w http.ResponseWriter, r *http.Request) {
 			web.RenderError(w, r, 422, "publish.error.draft")
 			return
 		}
-		h.draftError(w, r, err)
+		h.botError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, b.URL(), http.StatusSeeOther)

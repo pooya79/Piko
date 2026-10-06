@@ -18,9 +18,10 @@ import (
 )
 
 type Browser struct {
-	Router http.Handler
-	Jar    *cookiejar.Jar
-	Base   *url.URL
+	Router       http.Handler
+	DatabasePath string
+	Jar          *cookiejar.Jar
+	Base         *url.URL
 }
 
 func AccountTestRouter(t *testing.T, db *sql.DB) (http.Handler, *auth.Service) {
@@ -32,14 +33,18 @@ func AccountTestRouter(t *testing.T, db *sql.DB) (http.Handler, *auth.Service) {
 	return httpapp.Router(db, mw, web.NewRateLimiter(db, logger, mw.ClientIP), auth.NewHandler(credentials, accounts, logger, false), TestBotService(t, db), nil), credentials
 }
 
-func NewAccountBrowser(t *testing.T, router http.Handler) *Browser {
+func NewAccountBrowser(t *testing.T, router http.Handler, databasePath ...string) *Browser {
 	t.Helper()
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	base, _ := url.Parse("http://example.test")
-	return &Browser{Router: router, Jar: jar, Base: base}
+	b := &Browser{Router: router, Jar: jar, Base: base}
+	if len(databasePath) > 0 {
+		b.DatabasePath = databasePath[0]
+	}
+	return b
 }
 
 func (b *Browser) Cookie(name string) string {

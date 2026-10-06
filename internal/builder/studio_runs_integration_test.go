@@ -86,8 +86,8 @@ func TestStudioProvisionalCandidateAndConflictKeepCommittedDraft(t *testing.T) {
 	if pane := fixture.ChangesPane(t, provisional); strings.Contains(pane, `data-change-action=`) || strings.Contains(pane, `/runs/1/undo`) {
 		t.Fatal("provisional candidate leaked into Changes")
 	}
-	if got := b.Post("/bots/1/draft", fixture.DraftAtRevision(fixture.InquiryDraft(), "1")); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, fixture.DraftAtRevision(fixture.InquiryDraft(), "1")); err != nil {
+		t.Fatal(err)
 	}
 	release <- struct{}{}
 	fixture.WaitBuilder(t, b, "/bots/1/chats/1", "failed")

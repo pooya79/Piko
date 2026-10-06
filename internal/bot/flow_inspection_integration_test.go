@@ -14,8 +14,8 @@ func TestFlowTabInspectsDraftOutsideStudio(t *testing.T) {
 	if page.Code != 200 || !strings.Contains(page.Body.String(), `data-flow-view="draft"`) || !strings.Contains(page.Body.String(), `data-flow-revision="0"`) {
 		t.Fatalf("empty Flow tab: status %d", page.Code)
 	}
-	if got := b.PostDraft(t, "/bots/1/draft", fixture.InquiryDraft()); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, fixture.InquiryDraft()); err != nil {
+		t.Fatal(err)
 	}
 	page = b.Send("GET", "/bots/1/flow", nil)
 	for _, want := range []string{`data-flow-revision="1"`, `data-flow-key="question:aW5xdWlyeQ:bmFtZQ"`, "نام شما چیست؟", `href="/bots/1/flow?view=published"`, `id="flow-open-piko"`, `href="/bots/1/studio"`} {
@@ -34,11 +34,15 @@ func TestFlowViewsKeepDraftSeparateFromPublishedAndOwnerScoped(t *testing.T) {
 	if page := b.Send("GET", "/bots/1/flow?view=published", nil); page.Code != 200 || !strings.Contains(page.Body.String(), `data-flow-revision="0"`) {
 		t.Fatal("unpublished Bot should have an empty Published view")
 	}
-	b.PostDraft(t, "/bots/1/draft", fixture.WelcomeDraft())
+	if err := b.SaveDraft(t, 1, fixture.WelcomeDraft()); err != nil {
+		t.Fatal(err)
+	}
 	if got := b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	b.PostDraft(t, "/bots/1/draft", fixture.InquiryDraft())
+	if err := b.SaveDraft(t, 1, fixture.InquiryDraft()); err != nil {
+		t.Fatal(err)
+	}
 	draft := b.Send("GET", "/bots/1/flow", nil).Body.String()
 	published := b.Send("GET", "/bots/1/flow?view=published", nil).Body.String()
 	if !strings.Contains(draft, "نام شما چیست؟") || !strings.Contains(draft, `data-flow-revision="2"`) {

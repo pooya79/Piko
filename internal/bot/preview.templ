@@ -19,7 +19,7 @@ templ previewLanding(csrf string,b Bot,saved bool) {
  } else {
   <p class="piko-helper" role="status">{ locale.T(ctx,"preview.save.first") }</p>
  }
- <a class="piko-text-link" href={ templ.URL(b.URL()+"/draft") }>{ locale.T(ctx,"draft.title") }</a></section>
+ <a class="piko-text-link" href={ templ.URL(b.URL()+"/studio") }>{ locale.T(ctx,"bot.studio.title") }</a></section>
 }
 
 templ PreviewPage(displayName,csrf string,b Bot,p Preview,message string) {
@@ -28,7 +28,7 @@ templ PreviewPage(displayName,csrf string,b Bot,p Preview,message string) {
 
 templ previewContent(csrf string,b Bot,p Preview,message string) {
  <script src="/static/preview.js" defer></script>
- <div class="piko-section-heading"><div><p class="piko-draft-eyebrow">{ locale.T(ctx,"preview.badge") }</p><h1 class="piko-page-title">{ locale.T(ctx,"preview.title") }</h1></div><a class="piko-text-link" href={ templ.URL(b.URL()+"/draft") }>{ locale.T(ctx,"draft.title") }</a></div>
+ <div class="piko-section-heading"><div><p class="piko-draft-eyebrow">{ locale.T(ctx,"preview.badge") }</p><h1 class="piko-page-title">{ locale.T(ctx,"preview.title") }</h1></div><a class="piko-text-link" href={ templ.URL(b.URL()+"/studio") }>{ locale.T(ctx,"bot.studio.title") }</a></div>
  <p class="piko-page-copy">{ locale.T(ctx,"preview.copy") }</p>
  @PreviewPane(csrf,b,p,true,message)
 }

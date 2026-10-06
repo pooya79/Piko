@@ -22,9 +22,13 @@ func TestFlowBrowserFixture(t *testing.T) {
 	fake := &fixture.TelegramFake{}
 	a, b, _ := botFixture(t, fake.ServeHTTP)
 	b.Post("/bots/new", url.Values{"name": {"ربات آزمایش جریان"}})
-	b.PostDraft(t, "/bots/1/draft", fixture.WelcomeDraft())
+	if err := b.SaveDraft(t, 1, fixture.WelcomeDraft()); err != nil {
+		t.Fatal(err)
+	}
 	b.Post("/bots/1/publish", url.Values{})
-	b.PostDraft(t, "/bots/1/draft", fixture.CombinedDraft())
+	if err := b.SaveDraft(t, 1, fixture.CombinedDraft()); err != nil {
+		t.Fatal(err)
+	}
 	fixture.SeedBotChat(t, a.db, 1, "گفتگوی اول")
 	fixture.SeedBotChat(t, a.db, 1, "گفتگوی دوم")
 	b.Post("/bots/new", url.Values{"name": {"ربات خالی"}})
@@ -43,8 +47,8 @@ func TestFlowBrowserFixture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := b.PostDraft(t, "/bots/3/draft", url.Values{"definition": {string(data)}}); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 3, url.Values{"definition": {string(data)}}); err != nil {
+		t.Fatal(err)
 	}
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {

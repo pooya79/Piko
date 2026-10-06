@@ -12,7 +12,9 @@ import (
 
 func TestStudioPreviewUsesInteractiveFragmentsWithValidationAndIsolation(t *testing.T) {
 	a, b := fixture.DraftFixture(t)
-	b.PostDraft(t, "/bots/1/draft", fixture.InquiryDraft())
+	if err := b.SaveDraft(t, 1, fixture.InquiryDraft()); err != nil {
+		t.Fatal(err)
+	}
 	fixture.SeedBotChat(t, a.DB, 1, "آزمایش گفتگو")
 	studio := fixture.StudioRequest(b, "GET", "/bots/1/chats/1", nil)
 	if studio.Code != 200 || !strings.Contains(studio.Body.String(), `data-studio-preview`) || !strings.Contains(studio.Body.String(), `action="/bots/1/preview"`) {
@@ -60,7 +62,9 @@ func TestStudioPreviewUsesInteractiveFragmentsWithValidationAndIsolation(t *test
 
 func TestPreviewSourceRevisionMigrationPreservesLegacySnapshotAndProgress(t *testing.T) {
 	a, b := fixture.DraftFixture(t)
-	b.PostDraft(t, "/bots/1/draft", fixture.WelcomeDraft())
+	if err := b.SaveDraft(t, 1, fixture.WelcomeDraft()); err != nil {
+		t.Fatal(err)
+	}
 	path := b.Post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	b.Post(path+"/choose", url.Values{"choice": {"2"}, "revision": {"1"}})
 	// Model a populated pre-upgrade file without inventing historical revisions.
@@ -93,7 +97,9 @@ func TestPreviewSourceRevisionMigrationPreservesLegacySnapshotAndProgress(t *tes
 
 func TestPreviewIdentifiesSourceRevisionIndependentlyOfProgress(t *testing.T) {
 	a, b := fixture.DraftFixture(t)
-	b.PostDraft(t, "/bots/1/draft", fixture.WelcomeDraft())
+	if err := b.SaveDraft(t, 1, fixture.WelcomeDraft()); err != nil {
+		t.Fatal(err)
+	}
 	path := b.Post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	assertPreview := func(source, progress, stale string) {
 		t.Helper()
@@ -109,7 +115,9 @@ func TestPreviewIdentifiesSourceRevisionIndependentlyOfProgress(t *testing.T) {
 	assertPreview("1", "2", "false")
 	changed := fixture.WelcomeDraft()
 	changed.Set("welcome", "پیام تازه")
-	b.PostDraft(t, "/bots/1/draft", changed)
+	if err := b.SaveDraft(t, 1, changed); err != nil {
+		t.Fatal(err)
+	}
 	if err := a.DB.Close(); err != nil {
 		t.Fatal(err)
 	}

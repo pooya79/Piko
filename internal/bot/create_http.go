@@ -23,7 +23,7 @@ func (h *Handler) Rename(w http.ResponseWriter, r *http.Request) {
 		return
 	} else if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			h.draftError(w, r, err)
+			h.botError(w, r, err)
 			return
 		}
 		h.log.ErrorContext(r.Context(), "Bot name could not be saved")
@@ -58,7 +58,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		h.failed(w, r)
 		return
 	}
-	http.Redirect(w, r, b.URL()+"/draft", http.StatusSeeOther)
+	http.Redirect(w, r, b.URL()+"/studio", http.StatusSeeOther)
 }
 
 func (h *Handler) Created(w http.ResponseWriter, r *http.Request) {

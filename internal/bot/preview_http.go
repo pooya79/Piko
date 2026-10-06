@@ -19,7 +19,7 @@ func (h *Handler) PreviewLanding(w http.ResponseWriter, r *http.Request) {
 	}
 	snapshot, err := h.service.LoadDraft(r.Context(), b.ID)
 	if err != nil {
-		h.draftError(w, r, err)
+		h.botError(w, r, err)
 		return
 	}
 	u, _ := auth.UserFromContext(r.Context())
@@ -46,7 +46,7 @@ func (h *Handler) StartPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		h.draftError(w, r, err)
+		h.botError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, b.URL()+"/preview/"+p.ID, http.StatusSeeOther)
@@ -90,7 +90,7 @@ func (h *Handler) advancePreview(w http.ResponseWriter, r *http.Request, restart
 	case errors.Is(err, runtime.ErrChoice):
 		h.previewPage(w, r, 422, locale.T(r.Context(), "preview.error.choice"))
 	case err != nil:
-		h.draftError(w, r, err)
+		h.botError(w, r, err)
 	default:
 		http.Redirect(w, r, b.URL()+"/preview/"+chi.URLParam(r, "previewID"), http.StatusSeeOther)
 	}
@@ -103,7 +103,7 @@ func (h *Handler) previewPage(w http.ResponseWriter, r *http.Request, status int
 	}
 	p, err := h.service.GetPreview(r.Context(), b.ID, chi.URLParam(r, "previewID"))
 	if err != nil {
-		h.draftError(w, r, err)
+		h.botError(w, r, err)
 		return
 	}
 	u, _ := auth.UserFromContext(r.Context())

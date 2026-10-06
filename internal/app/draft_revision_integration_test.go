@@ -24,7 +24,7 @@ func TestDraftRevisionUpgradeRetainsOwnerAndBotData(t *testing.T) {
 	d.press("درخواست", 1)
 	d.text("پیشرفت پیشین", 1)
 	preview := startLegacyPreview(t, d.a, d.b)
-	before := fixture.RenderedDraft(t, d.b.Send("GET", "/bots/1/draft", nil).Body.String())
+	before := d.b.LoadDraft(t, 1)
 	priorRevision := before.Get("draft_revision")
 	before.Set("draft_revision", "1") // Existing pre-revision Drafts begin at one.
 	submission := d.b.Send("GET", "/bots/1/submissions/1", nil).Body.String()
@@ -51,7 +51,7 @@ func TestDraftRevisionUpgradeRetainsOwnerAndBotData(t *testing.T) {
 	}
 	d.a, d.b.Router = restarted, restarted.server.Handler
 	runDeliveryApp(t, restarted)
-	if got := fixture.RenderedDraft(t, d.b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(got, before) || got.Get("draft_revision") != "1" {
+	if got := d.b.LoadDraft(t, 1); !reflect.DeepEqual(got, before) || got.Get("draft_revision") != "1" {
 		t.Fatal("upgrade changed the saved Draft, owner session or initial revision")
 	}
 	if got := d.b.Send("GET", "/bots/1/submissions/1", nil); got.Code != 200 || got.Body.String() != submission {
@@ -73,13 +73,13 @@ func TestDraftRevisionUpgradeRetainsOwnerAndBotData(t *testing.T) {
 	if page := d.b.Send("GET", "/bots/1/submissions/2", nil); !strings.Contains(page.Body.String(), "پیشرفت پیشین") {
 		t.Fatal("upgrade lost unfinished answers")
 	}
-	if got := d.b.Post("/bots/1/draft", fixture.DraftAtRevision(fixture.WelcomeDraft(), "0")); got.Code != 409 {
-		t.Fatal("pre-upgrade unsaved editor replaced migrated Draft")
+	if err := d.b.SaveDraft(t, 1, fixture.DraftAtRevision(fixture.WelcomeDraft(), "0")); err == nil {
+		t.Fatal("rejected Draft change was accepted")
 	}
-	if got := d.b.Post("/bots/1/draft", before); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := d.b.SaveDraft(t, 1, before); err != nil {
+		t.Fatal(err)
 	}
-	if got := fixture.RenderedDraft(t, d.b.Send("GET", "/bots/1/draft", nil).Body.String()); got.Get("draft_revision") != "2" {
+	if got := d.b.LoadDraft(t, 1); got.Get("draft_revision") != "2" {
 		t.Fatal("migrated Draft did not advance")
 	}
 }

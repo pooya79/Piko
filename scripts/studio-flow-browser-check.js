@@ -41,11 +41,19 @@ async page => {
       { id: 'details', label: 'توضیح', prompt: 'توضیح دیگری دارید؟', type: 'long_text', required: false },
     ] }],
   };
-  const save = async (draft, revision) => page.evaluate(async ({ botPath, draft, revision }) => {
-    const csrf_token = document.querySelector('input[name="csrf_token"]').value;
-    const response = await fetch(botPath + '/draft', { method: 'POST', body: new URLSearchParams({ csrf_token, definition: JSON.stringify(draft), draft_revision: String(revision) }) });
-    if (!response.ok) throw new Error('manual save failed');
-  }, { botPath, draft, revision });
+  const save = async (definition, revision) => {
+    const csrf_token = await page.locator('[name="csrf_token"]').first().inputValue();
+    const chat = await page.request.post(origin + botPath + '/chats', { form: { csrf_token, title: 'Browser fixture setup' } });
+    check(chat.ok(), 'fixture chat creation failed');
+    const editing = await page.context().newPage();
+    try {
+      const chatURL = chat.url();
+      const response = await editing.request.post(chatURL + '/messages', { form: { csrf_token, message: 'STUDIO_DEFINITION ' + JSON.stringify(definition) } });
+      check(response.ok(), 'fixture Builder request failed');
+      await editing.goto(chatURL);
+      await editing.locator(`[data-draft-revision="${revision + 1}"]`).waitFor();
+    } finally { await editing.close(); }
+  };
   await save(definition, 1);
   await page.goto(origin + chatPath);
   const flow = () => page.locator('[data-studio-flow]');

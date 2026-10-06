@@ -128,7 +128,7 @@ func TestBuilderBackgroundMigrationRetainsSavedOutcomeHistoryAndDraft(t *testing
 		t.Fatal(got.Code)
 	}
 	before := fixture.WaitBuilder(t, b, "/bots/1/chats/1", "succeeded")
-	draft := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	draft := b.LoadDraft(t, 1)
 	a.StopWork()
 	a.Builder.Wait()
 	// Exercise a populated pre-000014 database, then apply the forward upgrade.
@@ -146,7 +146,7 @@ func TestBuilderBackgroundMigrationRetainsSavedOutcomeHistoryAndDraft(t *testing
 	if after := b.Send("GET", "/bots/1/chats/1", nil); after.Code != 200 || before != after.Body.String() {
 		t.Fatal("upgrade lost account/session/Bot/history/outcome/accounting")
 	}
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); after.Encode() != draft.Encode() || calls.Load() != 1 {
+	if after := b.LoadDraft(t, 1); after.Encode() != draft.Encode() || calls.Load() != 1 {
 		t.Fatal("upgrade changed saved Draft or replayed provider")
 	}
 }

@@ -17,7 +17,6 @@ async page => {
   await page.goto(base+'/bots/1/flow');
   await page.locator('[data-graph-ready]').waitFor();
   await settle();
-  const originalRevision = Number(await page.locator('[data-flow-page]').getAttribute('data-flow-revision'));
   check(!(await page.locator('[data-flow-error]').isVisible()), 'Graph failed to initialize');
   const geometry = await page.evaluate(() => {
     const stage = document.querySelector('.piko-flow-stage').getBoundingClientRect();
@@ -30,7 +29,6 @@ async page => {
   check((await page.locator('#flow-open-piko').getAttribute('href')) === '/bots/1/chats/2', 'Piko did not open the most recent Bot chat');
   check(await page.locator('#flow-open-piko').count() === 1 && await page.locator('[data-flow-change]').count() === 0, 'Piko actions repeat on nodes');
   await page.screenshot({ path: '/tmp/piko-flow-browser/desktop.png' });
-  const selected = 'question:aW5xdWlyeQ:bmFtZQ';
   const node = page.locator('[data-flow-key]').filter({ hasText: 'نام' }).first();
   await node.click();
   check(await page.locator('[data-flow-inspector]').isVisible(), 'Node click must open the inspector');
@@ -68,49 +66,6 @@ async page => {
   const camera = await positions();
   check(JSON.stringify(camera) !== JSON.stringify(unpanned), 'Minimap did not pan the graph');
 
-  const draftPage = await page.context().newPage();
-  await draftPage.goto(base+'/bots/1/draft');
-  await draftPage.locator('[name=welcome]').fill('سلام تازه');
-  await draftPage.locator('#draft-save').click();
-  await draftPage.waitForURL('**/draft?saved=1');
-  await page.bringToFront();
-  await page.locator('[data-flow-update]').waitFor({ state: 'visible', timeout: 15000 });
-  check(Number(await page.locator('[data-flow-page]').getAttribute('data-flow-revision')) === originalRevision, 'Draft update replaced the inspected snapshot without Refresh');
-  await page.locator('[data-flow-refresh]').click();
-  await page.waitForFunction(revision => Number(document.querySelector('[data-flow-page]').dataset.flowRevision) === revision, originalRevision+1);
-  check(await page.locator('[data-flow-detail]:visible').getAttribute('data-flow-detail') === selected, 'Refresh lost a surviving Block selection');
-  check(await page.locator('[data-flow-all]').isChecked(), 'Refresh lost the all-connections choice');
-  await settle();
-  check(JSON.stringify(camera) === JSON.stringify(await positions()), 'Refresh moved the preserved viewport');
-  const originalDraft = await draftPage.locator('.piko-draft-form').evaluate(form => [...new FormData(form)]);
-  try {
-    const question = draftPage.locator('.piko-question-settings').filter({ has: draftPage.locator('[name=question_id][value=name]') });
-    const formDetails = question.locator('xpath=ancestor::details[1]');
-    if (await formDetails.getAttribute('open') === null) await formDetails.locator(':scope > summary').click();
-    if (await question.getAttribute('open') === null) await question.locator('summary').click();
-    await question.locator('[value^="question:remove:"]').click();
-    await draftPage.locator('[name=question_id][value=name]').waitFor({ state: 'detached' });
-    await draftPage.locator('#draft-save').click();
-    await draftPage.waitForURL('**/draft?saved=1');
-    await page.bringToFront();
-    await page.locator('[data-flow-update]').waitFor({ state: 'visible', timeout: 15000 });
-    await page.locator('[data-flow-refresh]').click();
-    await page.waitForFunction(() => document.querySelector('[data-flow-feedback]').textContent === document.querySelector('[data-flow-feedback]').dataset.removed);
-    check(await page.locator('[data-flow-feedback]').isVisible(), 'Removed selection needs a visible explanation');
-    check(!(await page.locator('[data-flow-inspector]').isVisible()), 'Removed Block retained an inspector');
-  } finally {
-    await draftPage.goto(base+'/bots/1/draft');
-    const restore = await draftPage.evaluate(({ values, revision }) => {
-      const form = new URLSearchParams(values);
-      form.set('draft_revision', revision);
-      return form.toString();
-    }, { values: originalDraft, revision: await draftPage.locator('[name=draft_revision]').inputValue() });
-    const response = await draftPage.request.post(base+'/bots/1/draft', {
-      data: restore, headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    });
-    check(response.ok(), 'Could not restore the disposable Draft fixture');
-  }
-  await draftPage.close();
   await page.goto(base+'/bots/1/flow?view=published');
   await page.locator('[data-graph-ready]').waitFor();
   check(await page.locator('[data-flow-page]').getAttribute('data-flow-revision') === '1', 'Published view followed Draft edits');
@@ -159,5 +114,5 @@ async page => {
   await page.screenshot({ path: '/tmp/piko-flow-browser/dark.png' });
   await page.getByRole('button', { name: 'روشن', exact: true }).click();
   check(errors.length === 0, 'Browser errors or CSP violations: '+errors.join('; '));
-  return 'Passed: full graph, inspector, keyboard, stable layout, viewport-preserving refresh, removed selection, Published isolation, 86-node Flow, no-script scrolling, mobile sheet, Preview shortcut, dark theme, CSP';
+  return 'Passed: full graph, inspector, keyboard, stable layout, Published isolation, 86-node Flow, no-script scrolling, mobile sheet, Preview shortcut, dark theme, CSP';
 }

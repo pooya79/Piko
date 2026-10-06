@@ -36,8 +36,8 @@ func TestSubmissionBrowserFixture(t *testing.T) {
 	// The detail retains its original version after a new publication and attempt.
 	draft := fixture.InquiryDraft()
 	draft["question_label"][0] = "نام تازه"
-	if got := d.b.PostDraft(t, "/bots/1/draft", draft); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := d.b.SaveDraft(t, 1, draft); err != nil {
+		t.Fatal(err)
 	}
 	if got := d.b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)

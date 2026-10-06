@@ -13,8 +13,8 @@ func TestDateQuestionsValidateRealJalaliBoundariesAndNormalizeDigitsInPreview(t 
 	_, b := fixture.DraftFixture(t)
 	// An arbitrary Form ID proves date behavior belongs to the shared runtime.
 	definition := `{"version":2,"welcome":{"id":"hello","type":"message","text":"سلام"},"menu":{"id":"tasks","type":"menu","text":"منو","choices":[{"id":"custom","label":"دلخواه","target":"request"}]},"messages":[],"forms":[{"id":"request","review":"مرور پاسخ","acknowledgement":"دریافت شد","questions":[{"id":"preferred","label":"تاریخ","prompt":"روز دلخواه؟","type":"date","required":true}]}]}`
-	if got := b.PostDraft(t, "/bots/1/draft", url.Values{"definition": {definition}}); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, url.Values{"definition": {definition}}); err != nil {
+		t.Fatal(err)
 	}
 	path := b.Post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	if got := b.Post(path+"/choose", url.Values{"choice": {"custom"}, "revision": {"1"}}); got.Code != 303 {
@@ -54,39 +54,12 @@ func TestDateQuestionsValidateRealJalaliBoundariesAndNormalizeDigitsInPreview(t 
 	}
 }
 
-func TestBookingConfigurationSavesCustomQuestionsAndRequestAcknowledgement(t *testing.T) {
-	_, b := fixture.DraftFixture(t)
-	page := b.Send("GET", "/bots/1/draft?template=booking", nil)
-	for _, want := range []string{"قالب درخواست رزرو", "تاریخ شمسی", "رزرو قطعی نیست"} {
-		if page.Code != 200 || !strings.Contains(page.Body.String(), want) {
-			t.Fatalf("Booking defaults missing %q: %d", want, page.Code)
-		}
-	}
-	if got := b.PostDraft(t, "/bots/1/draft", fixture.BookingDraft()); got.Code != 303 {
-		t.Fatalf("save Booking: %d", got.Code)
-	}
-	page = b.Send("GET", "/bots/1/draft", nil)
-	for _, want := range []string{`value="booking"`, "تاریخ ترجیحی", "تاریخ ترجیحی شما چیست؟", "رزرو قطعی نیست"} {
-		if !strings.Contains(page.Body.String(), want) {
-			t.Fatalf("saved Booking settings missing %q", want)
-		}
-	}
-	bad := fixture.BookingDraft()
-	bad["question_required"][1] = "maybe"
-	if got := b.PostDraft(t, "/bots/1/draft", bad); got.Code != 422 {
-		t.Fatal("invalid required setting accepted")
-	}
-	if got := b.Send("POST", "/bots/1/draft", fixture.BookingDraft()); got.Code != 403 {
-		t.Fatal("Booking save bypassed CSRF")
-	}
-}
-
 func TestBookingPreviewReviewsEditsSkipsAndConfirmsWithoutRealSubmission(t *testing.T) {
 	_, b := fixture.DraftFixture(t)
 	v := fixture.BookingDraft()
 	v["question_required"][1] = "no"
-	if got := b.PostDraft(t, "/bots/1/draft", v); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, v); err != nil {
+		t.Fatal(err)
 	}
 	path := b.Post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	revision := 1

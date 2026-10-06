@@ -21,7 +21,7 @@ func (h *Handler) Flow(w http.ResponseWriter, r *http.Request) {
 	}
 	view, err := h.service.InspectFlow(r.Context(), b.ID, mode == "published")
 	if err != nil {
-		h.draftError(w, r, err)
+		h.botError(w, r, err)
 		return
 	}
 	if r.URL.Path == b.URL()+"/flow/status" {

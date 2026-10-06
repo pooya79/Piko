@@ -25,7 +25,7 @@ func TestBuilderForwardMigrationAndExistingBotKeepPriorWork(t *testing.T) {
 	d.press("درخواست", 1)
 	d.text("پیشرفت پیشین", 1)
 	preview := startLegacyPreview(t, d.a, d.b)
-	before := fixture.RenderedDraft(t, d.b.Send("GET", "/bots/1/draft", nil).Body.String())
+	before := d.b.LoadDraft(t, 1)
 	submission := d.b.Send("GET", "/bots/1/submissions/1", nil).Body.String()
 	previewBody := d.b.Send("GET", preview, nil).Body.String()
 	stop()
@@ -53,7 +53,7 @@ func TestBuilderForwardMigrationAndExistingBotKeepPriorWork(t *testing.T) {
 	if got := d.b.Send("GET", "/bots/1/chats/1", nil); got.Code != 200 || !strings.Contains(got.Body.String(), "ربات موجود") {
 		t.Fatal("existing connected Bot cannot use chat")
 	}
-	if got := fixture.RenderedDraft(t, d.b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(got, before) {
+	if got := d.b.LoadDraft(t, 1); !reflect.DeepEqual(got, before) {
 		t.Fatal("upgrade changed Draft or revision")
 	}
 	if got := d.b.Send("GET", "/bots/1/submissions/1", nil); got.Code != 200 || got.Body.String() != submission {

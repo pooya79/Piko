@@ -49,11 +49,11 @@ func TestDisconnectHasDedicatedConfirmationAndRetainsStudio(t *testing.T) {
 	if got := d.b.Send("GET", "/bots/1", nil); !strings.Contains(got.Body.String(), `data-bot-state="active"`) {
 		t.Fatal("opening confirmation changed operation")
 	}
-	before := fixture.RenderedDraft(t, d.b.Send("GET", "/bots/1/draft", nil).Body.String())
+	before := d.b.LoadDraft(t, 1)
 	if got := d.b.Post("/bots/1/disconnect", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	if after := fixture.RenderedDraft(t, d.b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(before, after) {
+	if after := d.b.LoadDraft(t, 1); !reflect.DeepEqual(before, after) {
 		t.Fatal("disconnection changed the Draft")
 	}
 	if page := d.b.Send("GET", "/bots/1/chats/1", nil); page.Code != 200 || !strings.Contains(page.Body.String(), "گفتگوی محفوظ") {

@@ -38,11 +38,20 @@ async page => {
       { id: 'extra', label: 'توضیح اضافه', prompt: 'توضیح؟', type: 'long_text', required: false },
     ] }],
   };
-  const manualSave = revision => page.evaluate(async ({ botPath, revision, definition }) => {
-    const csrf_token = document.querySelector('input[name="csrf_token"]').value;
-    const response = await fetch(botPath + '/draft', { method: 'POST', body: new URLSearchParams({ csrf_token, definition: JSON.stringify(definition), draft_revision: String(revision) }) });
-    if (!response.ok) throw new Error('manual save failed');
-  }, { botPath, revision, definition: manualDefinition });
+  const save = async (definition, revision) => {
+    const csrf_token = await page.locator('[name="csrf_token"]').first().inputValue();
+    const chat = await page.request.post(origin + botPath + '/chats', { form: { csrf_token, title: 'Browser fixture setup' } });
+    check(chat.ok(), 'fixture chat creation failed');
+    const editing = await page.context().newPage();
+    try {
+      const chatURL = chat.url();
+      const response = await editing.request.post(chatURL + '/messages', { form: { csrf_token, message: 'STUDIO_DEFINITION ' + JSON.stringify(definition) } });
+      check(response.ok(), 'fixture Builder request failed');
+      await editing.goto(chatURL);
+      await editing.locator(`[data-draft-revision="${revision + 1}"]`).waitFor();
+    } finally { await editing.close(); }
+  };
+  const manualSave = revision => save(manualDefinition, revision);
   await manualSave(1);
   await refresh();
   await waitRevision(2);

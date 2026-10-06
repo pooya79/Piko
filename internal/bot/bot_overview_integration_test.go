@@ -13,7 +13,7 @@ func TestBotManagementNavigationUsesOwnedDestinations(t *testing.T) {
 	if got := b.Post("/bots/new", url.Values{"name": {"مدیریت <ربات>"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	paths := []string{"/bots/1", "/bots/1/settings", "/bots/1/connection", "/bots/1/submissions", "/bots/1/draft", "/bots/1/studio"}
+	paths := []string{"/bots/1", "/bots/1/settings", "/bots/1/connection", "/bots/1/submissions", "/bots/1/studio"}
 	visitor := fixture.NewAccountBrowser(t, a.Handler)
 	for _, path := range append(paths, "/bots/1/studio") {
 		if got := visitor.Send("GET", path, nil); got.Code != 303 || got.Header().Get("Location") != "/login" {
@@ -26,10 +26,13 @@ func TestBotManagementNavigationUsesOwnedDestinations(t *testing.T) {
 			t.Fatalf("management page %s: %d", path, page.Code)
 		}
 		body := page.Body.String()
+		if strings.Contains(body, `/bots/1/draft`) || strings.Contains(body, `studio-draft`) {
+			t.Fatalf("removed editor linked from %s", path)
+		}
 		if !strings.Contains(body, `aria-label="مدیریت ربات"`) {
 			t.Fatalf("missing management navigation at %s", path)
 		}
-		for _, link := range []string{"/bots/1", "/bots/1/studio", "/bots/1/settings", "/bots/1/connection", "/bots/1/submissions", "/bots/1/draft"} {
+		for _, link := range []string{"/bots/1", "/bots/1/studio", "/bots/1/settings", "/bots/1/connection", "/bots/1/submissions"} {
 			if !strings.Contains(body, `href="`+link+`"`) {
 				t.Errorf("missing %s at %s", link, path)
 			}
@@ -53,6 +56,25 @@ func TestBotManagementNavigationUsesOwnedDestinations(t *testing.T) {
 		if got := other.Send("GET", path, nil); got.Code != 404 || strings.Contains(got.Body.String(), "مدیریت &lt;ربات&gt;") {
 			t.Errorf("management ownership at %s: %d", path, got.Code)
 		}
+	}
+}
+
+func TestManualDraftEditorRoutesAreRemoved(t *testing.T) {
+	_, b := fixture.UnconnectedFixture(t)
+	if got := b.Post("/bots/new", url.Values{"name": {"Bot without an editor"}}); got.Code != 303 || got.Header().Get("Location") != "/bots/1/studio" {
+		t.Fatalf("creation destination: %d %s", got.Code, got.Header().Get("Location"))
+	}
+	before := b.LoadDraft(t, 1).Encode()
+	for _, path := range []string{"/bots/1/draft", "/bots/1/draft?template=inquiry"} {
+		if got := b.Send("GET", path, nil); got.Code != 404 {
+			t.Fatalf("removed GET %s: %d", path, got.Code)
+		}
+		if got := b.Post(path, fixture.WelcomeDraft()); got.Code != 404 {
+			t.Fatalf("removed POST %s: %d", path, got.Code)
+		}
+	}
+	if after := b.LoadDraft(t, 1).Encode(); after != before {
+		t.Fatal("removed editor changed Draft")
 	}
 }
 

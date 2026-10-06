@@ -30,7 +30,7 @@ func TestBuilderShutdownPreventsStagedDraftCommit(t *testing.T) {
 		<-r.Context().Done()
 	})
 	stop := startBuilderApp(t, a)
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	before := b.LoadDraft(t, 1)
 	if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {"تغییر پیش از توقف"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
@@ -50,7 +50,7 @@ func TestBuilderShutdownPreventsStagedDraftCommit(t *testing.T) {
 	if strings.Contains(page, `data-after-revision=`) {
 		t.Fatal("shutdown applied a candidate")
 	}
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(before, after) {
+	if after := b.LoadDraft(t, 1); !reflect.DeepEqual(before, after) {
 		t.Fatal("shutdown changed saved Draft")
 	}
 }
@@ -68,7 +68,7 @@ func TestBuilderDraftOutcomeMigrationPreservesExistingReplyAndBotData(t *testing
 	d.press("درخواست", 1)
 	d.text("پیشرفت پیشین", 1)
 	preview := startLegacyPreview(t, d.a, d.b)
-	draft := fixture.RenderedDraft(t, d.b.Send("GET", "/bots/1/draft", nil).Body.String())
+	draft := d.b.LoadDraft(t, 1)
 	submission := d.b.Send("GET", "/bots/1/submissions/1", nil).Body.String()
 	previewBody := d.b.Send("GET", preview, nil).Body.String()
 	fixture.SeedBotChat(t, d.a.db, 1, "گفتگوی پیشین")
@@ -100,7 +100,7 @@ func TestBuilderDraftOutcomeMigrationPreservesExistingReplyAndBotData(t *testing
 	if !strings.Contains(page, "پاسخ قدیمی بدون تغییر") || strings.Contains(page, `data-after-revision=`) || strings.Contains(page, `data-run-result="saved"`) {
 		t.Fatal("upgrade fabricated Draft mutation or lost legacy reply")
 	}
-	if after := fixture.RenderedDraft(t, d.b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(draft, after) {
+	if after := d.b.LoadDraft(t, 1); !reflect.DeepEqual(draft, after) {
 		t.Fatal("upgrade changed Draft/account/session/Bot")
 	}
 	if page := d.b.Send("GET", "/bots/1/submissions/1", nil).Body.String(); page != submission {

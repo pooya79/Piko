@@ -46,16 +46,16 @@ func TestBuilderStaleCandidatePreservesManualSaveAndReportsConflict(t *testing.T
 	}
 	manual := fixture.DraftAtRevision(fixture.WelcomeDraft(), "1")
 	manual.Set("welcome", "کار تازهٔ مالک")
-	if got := b.Post("/bots/1/draft", manual); got.Code != 303 {
-		t.Fatal("manual edits locked during generation", got.Code)
+	if err := b.SaveDraft(t, 1, manual); err != nil {
+		t.Fatal(err)
 	}
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	before := b.LoadDraft(t, 1)
 	release <- struct{}{}
 	page := fixture.WaitBuilder(t, b, "/bots/1/chats/1", "failed")
 	if !strings.Contains(page, `data-run-result="conflict"`) || strings.Contains(page, `data-after-revision=`) || strings.Contains(page, "منو را آماده کردم") {
 		t.Fatal("stale candidate feedback misleading")
 	}
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(after, before) {
+	if after := b.LoadDraft(t, 1); !reflect.DeepEqual(after, before) {
 		t.Fatal("stale generation overwrote manual save")
 	}
 }
@@ -82,7 +82,7 @@ func TestBuilderInvalidCandidatesCannotChangeDraft(t *testing.T) {
 					fixture.BuilderTextReply(w)
 				}
 			})
-			before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+			before := b.LoadDraft(t, 1)
 			if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {"درخواست نامعتبر"}}); got.Code != 303 {
 				t.Fatal(got.Code)
 			}
@@ -90,7 +90,7 @@ func TestBuilderInvalidCandidatesCannotChangeDraft(t *testing.T) {
 			if !strings.Contains(page, `data-run-result="invalid"`) {
 				t.Fatal("invalid candidate outcome missing")
 			}
-			if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(before, after) {
+			if after := b.LoadDraft(t, 1); !reflect.DeepEqual(before, after) {
 				t.Fatal("invalid candidate changed saved Draft")
 			}
 		})
@@ -133,7 +133,7 @@ func TestBuilderStagedCandidateRollsBackOnFailureAndBudgetExhaustion(t *testing.
 					t.Fatal(err)
 				}
 			}
-			before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+			before := b.LoadDraft(t, 1)
 			if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {"تغییر اتمی"}}); got.Code != 303 {
 				t.Fatal(got.Code)
 			}
@@ -150,7 +150,7 @@ func TestBuilderStagedCandidateRollsBackOnFailureAndBudgetExhaustion(t *testing.
 			if strings.Contains(page, `data-after-revision=`) || strings.Contains(page, "private failure") || strings.Contains(page, "منو را آماده کردم") || !strings.Contains(page, `data-total-tokens="`+usage+`"`) {
 				t.Fatal("partial outcome or unsafe failure feedback")
 			}
-			if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(before, after) {
+			if after := b.LoadDraft(t, 1); !reflect.DeepEqual(before, after) {
 				t.Fatal("failed run partially changed Draft")
 			}
 		})
@@ -181,8 +181,8 @@ func TestBuilderEditsAndRemovesManualMenuWithIsolatedChatMemory(t *testing.T) {
 			w.WriteHeader(500)
 		}
 	})
-	if got := b.Post("/bots/1/draft", fixture.DraftAtRevision(fixture.WelcomeDraft(), "1")); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, fixture.DraftAtRevision(fixture.WelcomeDraft(), "1")); err != nil {
+		t.Fatal(err)
 	}
 	for _, turn := range []struct{ chat, message, revision, welcome string }{
 		{"1", "ساعت را عوض کن و پیام تماس را نگه دار", "3", "سلام از گفتگو"},
@@ -193,7 +193,7 @@ func TestBuilderEditsAndRemovesManualMenuWithIsolatedChatMemory(t *testing.T) {
 			t.Fatal(got.Code)
 		}
 		fixture.WaitBuilder(t, b, path, "succeeded")
-		draft := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+		draft := b.LoadDraft(t, 1)
 		if draft.Get("draft_revision") != turn.revision || draft.Get("welcome") != turn.welcome {
 			t.Fatal("edit not applied")
 		}
@@ -228,15 +228,15 @@ func TestBuilderMessageEditsPreserveManualFormsAndUseAuthorizedReadAndValidation
 			w.WriteHeader(500)
 		}
 	})
-	if got := b.Post("/bots/1/draft", fixture.DraftAtRevision(fixture.InquiryDraft(), "1")); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, fixture.DraftAtRevision(fixture.InquiryDraft(), "1")); err != nil {
+		t.Fatal(err)
 	}
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	before := b.LoadDraft(t, 1)
 	if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {"فقط خوش\u200cآمد را تغییر بده"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	fixture.WaitBuilder(t, b, "/bots/1/chats/1", "succeeded")
-	after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	after := b.LoadDraft(t, 1)
 	before.Set("welcome", "سلام تازه با فرم محفوظ")
 	before.Set("draft_revision", "3")
 	if !reflect.DeepEqual(before, after) {
@@ -274,7 +274,7 @@ func TestBuilderCreatesWorkingMessageMenuDraftAndSharesItAcrossChats(t *testing.
 	if !strings.Contains(page, `data-after-revision="2"`) || !strings.Contains(page, `data-before-revision="1"`) || !strings.Contains(page, `data-run-result="saved"`) || !strings.Contains(page, `data-total-tokens="12"`) {
 		t.Fatal("saved outcome/revisions/accounting missing")
 	}
-	draft := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	draft := b.LoadDraft(t, 1)
 	if draft.Get("draft_revision") != "2" || draft.Get("welcome") != "Hello" {
 		t.Fatal("generated Draft was not applied")
 	}
@@ -340,12 +340,12 @@ func TestBuilderRejectsAmbiguousParallelDraftCandidates(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]any{"role": "assistant", "tool_calls": tools}, "finish_reason": "tool_calls"}}})
 	})
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	before := b.LoadDraft(t, 1)
 	if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {"یک منو بساز"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	fixture.WaitBuilder(t, b, "/bots/1/chats/1", "failed")
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(before, after) {
+	if after := b.LoadDraft(t, 1); !reflect.DeepEqual(before, after) {
 		t.Fatal("parallel candidates chose an arbitrary Draft")
 	}
 }
@@ -363,7 +363,7 @@ func TestBuilderSavedDraftOutcomeSurvivesRestartAndHistoryDeletion(t *testing.T)
 		t.Fatal(got.Code)
 	}
 	before := fixture.WaitBuilder(t, b, "/bots/1/chats/1", "succeeded")
-	draft := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	draft := b.LoadDraft(t, 1)
 	a.StopWork()
 	a.Builder.Wait()
 	_ = a.DB.Close()
@@ -379,7 +379,7 @@ func TestBuilderSavedDraftOutcomeSurvivesRestartAndHistoryDeletion(t *testing.T)
 	if got := b.Post("/bots/1/chats/1/delete", url.Values{}); got.Code != 404 {
 		t.Fatal(got.Code)
 	}
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(draft, after) || calls.Load() != 2 {
+	if after := b.LoadDraft(t, 1); !reflect.DeepEqual(draft, after) || calls.Load() != 2 {
 		t.Fatal("rejected deletion reverted Draft or replayed generation")
 	}
 }

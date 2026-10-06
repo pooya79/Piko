@@ -47,7 +47,7 @@ func (h *Handler) ConnectExisting(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, ErrConnected):
 		web.RenderError(w, r, 409, "lifecycle.state.error")
 	case errors.Is(err, ErrNotFound):
-		h.draftError(w, r, err)
+		h.botError(w, r, err)
 	default:
 		h.log.ErrorContext(r.Context(), "Bot connection could not be saved")
 		h.existingConnection(w, r, 500, b, "bot.error.save", false, "")

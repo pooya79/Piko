@@ -13,13 +13,14 @@ createServer(async (request, response) => {
   const text = typeof latest?.content === 'string' ? latest.content : JSON.stringify(latest?.content);
   const last = messages.at(-1);
   const system = messages.filter(message => message.role === 'system').map(message => message.content).join(' ');
-  const mode = text?.match(/STUDIO_(BUILD|EDIT|HOLD|FAIL)/)?.[1];
+  const mode = text?.match(/STUDIO_(BUILD|EDIT|DEFINITION|HOLD|FAIL)/)?.[1];
+  const preparedDraft = mode === 'DEFINITION' ? text.slice(text.indexOf('STUDIO_DEFINITION ') + 'STUDIO_DEFINITION '.length).trim() : draft;
   const reply = content => ({ role: 'assistant', content });
   let message;
   const routing = system.includes('general Piko chat without a Bot');
   if (mode === 'BUILD' && routing) message = reply('{"intent":"build"}');
-  else if ((mode === 'BUILD' && system.includes('initial supported build') || mode === 'EDIT') && last?.role !== 'tool') {
-    message = { role: 'assistant', tool_calls: [{ id: 'studio-tool', type: 'function', function: { name: mode === 'BUILD' ? 'prepare_bot' : 'prepare_draft', arguments: JSON.stringify(mode === 'BUILD' ? { name: 'ربات آزمایش جریان', definition: draft } : { definition: draft }) } }] };
+  else if ((mode === 'BUILD' && system.includes('initial supported build') || (mode === 'EDIT' || mode === 'DEFINITION')) && last?.role !== 'tool') {
+    message = { role: 'assistant', tool_calls: [{ id: 'studio-tool', type: 'function', function: { name: mode === 'BUILD' ? 'prepare_bot' : 'prepare_draft', arguments: JSON.stringify(mode === 'BUILD' ? { name: 'ربات آزمایش جریان', definition: draft } : { definition: preparedDraft }) } }] };
   } else message = reply('پاسخ ذخیره شده پیکو؛ آماده بررسی است.');
   if (!input.stream) {
     await new Promise(resolve => setTimeout(resolve, 500));

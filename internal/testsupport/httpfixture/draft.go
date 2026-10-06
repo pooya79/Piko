@@ -3,7 +3,6 @@ package httpfixture
 import (
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"strings"
 	"sync/atomic"
@@ -37,19 +36,6 @@ func DraftFixture(t *testing.T) (*HTTP, *Browser) {
 	}
 	connected.Store(true)
 	return a, b
-}
-
-// postDraft models a manual editor loaded before submitting a candidate.
-// Explicit revisions preserve older editors for conflict and validation journeys.
-func (b *Browser) PostDraft(t *testing.T, path string, values url.Values) *httptest.ResponseRecorder {
-	t.Helper()
-	if _, supplied := values["draft_revision"]; !supplied {
-		page := b.Send(http.MethodGet, path, nil)
-		if page.Code == http.StatusOK {
-			values.Set("draft_revision", RenderedDraft(t, page.Body.String()).Get("draft_revision"))
-		}
-	}
-	return b.Post(path, values)
 }
 
 func WelcomeDraft() url.Values {

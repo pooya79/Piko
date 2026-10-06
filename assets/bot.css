@@ -20,18 +20,6 @@
  .piko-overview-operations { @apply items-start; }
  @media (max-width: 1023px) { .piko-overview-grid { grid-template-columns:1fr; } }
  @media (max-width: 767px) { .piko-overview-state, .piko-overview-work { @apply p-5; } .piko-bot-navigation { @apply gap-x-4; } }
- .piko-template-catalog { @apply grid gap-4; grid-template-columns: repeat(3,minmax(0,1fr)); }
- .piko-template-catalog > div { @apply flex flex-col items-start gap-3 rounded-2xl border border-base-300 p-4; }
- .piko-template-catalog h3 { @apply font-bold; }
- .piko-template-catalog .piko-secondary-action { @apply mt-auto; }
- .piko-form-settings, .piko-question-settings { @apply rounded-2xl border border-base-300; min-width:0; }
- .piko-form-settings > summary, .piko-question-settings > summary { @apply cursor-pointer p-5 font-bold; overflow-wrap:anywhere; }
- .piko-question-settings > summary .piko-helper { @apply ms-3; }
- .piko-form-content { @apply space-y-4 border-t border-base-300 p-5; }
- .piko-question-type { max-width:16rem; }
- .piko-form-settings button { min-height:44px; white-space:normal; }
- .piko-form-settings summary:focus-visible, .piko-question-settings summary:focus-visible { outline:2px solid var(--color-primary); outline-offset:3px; }
- @media (max-width: 767px) { .piko-template-catalog { grid-template-columns:1fr; } .piko-form-content { @apply p-4; } }
 
  .piko-primary-action, .piko-secondary-action, .piko-subtle-action { @apply inline-flex items-center justify-center gap-2; }
  .piko-token-card .piko-primary-action { @apply min-h-12 w-full text-sm; }
@@ -88,9 +76,6 @@
  .piko-draft-section { @apply space-y-4 p-7; min-width: 0; }
  .piko-draft-section h2 { @apply text-lg font-bold; }
  .piko-draft-textarea { min-height: 110px; resize: vertical; line-height: 1.9; }
- .piko-draft-choices { @apply grid gap-5; grid-template-columns: repeat(2,minmax(0,1fr)); }
- .piko-draft-choice { @apply space-y-3 rounded-2xl border border-base-300 p-5; min-width: 0; }
- .piko-draft-choice legend { @apply px-2 text-sm font-bold; }
  .piko-draft-actions { @apply flex flex-wrap items-center gap-4; }
  .piko-preview-launch { @apply mt-6 flex flex-wrap items-center justify-between gap-5; }
  .piko-draft-notice { @apply mt-5 rounded-xl border border-primary p-4 text-sm; }
@@ -123,7 +108,6 @@
  .piko-preview-buttons button { min-height: 40px; padding: 10px 12px; border: 0; border-radius: 8px; font-size: 12px; background: color-mix(in srgb,var(--color-base-100) 85%,transparent); white-space: normal; overflow-wrap: anywhere; cursor: pointer; }
  .piko-preview-buttons button:hover { background: var(--color-base-100); color: var(--color-primary); }
  .piko-preview-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; max-width: 480px; margin: 16px auto 0; }
- @media (max-width: 767px) { .piko-draft-choices { grid-template-columns: 1fr; } .piko-draft-section { @apply p-5; } }
  @media (max-width: 767px) { .piko-connect-grid { grid-template-columns: 1fr; } .piko-bot-guide, .piko-token-card { @apply p-5; } .piko-header-actions > .piko-primary-action { display: none; } }
 
  .piko-preview-answer { display: flex; gap: 8px; align-items: flex-end; margin: 0; padding: 12px; border-top: 1px solid var(--color-base-300); background: var(--color-base-100); }
@@ -194,20 +178,8 @@
 .piko-delete-panel { @apply mt-7 space-y-5 p-7; max-width:52rem; }
 .piko-delete-panel form { @apply space-y-5 border-t border-base-300 pt-5; }
 .piko-delete-scope { @apply list-disc space-y-3 ps-5 text-sm leading-8; }
-.piko-draft-sections { @apply mt-5 flex flex-wrap gap-4 text-sm; }
-.piko-draft-sections a { @apply rounded-lg border border-base-300 px-4 py-3; }
-.piko-draft-sections a:focus-visible { outline:2px solid var(--color-primary); outline-offset:3px; }
-.piko-draft-form > section { scroll-margin-top:2rem; }
-.piko-draft-savebar { @apply sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-base-300 bg-base-100 p-5; box-shadow:var(--piko-shadow); }
-.piko-draft-savebar > div { min-width:0; }
-.piko-draft-savebar p { @apply text-sm; }
-.piko-draft-savebar .piko-helper { @apply mt-2; max-width:46ch; }
-.piko-draft-form { scroll-padding-bottom:12rem; }
-.piko-draft-form :is(input,textarea,select,summary,button) { scroll-margin-bottom:12rem; }
 @media (max-width:767px) {
  .piko-settings-panel { @apply px-5; }
  .piko-setting-row { grid-template-columns:1fr; }
  .piko-delete-panel { @apply p-5; }
- .piko-draft-savebar { @apply bottom-2 gap-3 p-4; }
- .piko-draft-savebar .piko-primary-action { @apply w-full; }
 }

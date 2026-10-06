@@ -36,7 +36,7 @@ func BotFixture(t *testing.T, api http.HandlerFunc) (*HTTP, *Browser, string) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = a.DB.Close() })
-	b := NewAccountBrowser(t, a.Handler)
+	b := NewAccountBrowser(t, a.Handler, a.Config.DatabasePath)
 	b.Send(http.MethodGet, "/register", nil)
 	if got := b.Post("/register", RegisterValues("bot-owner@example.test", "مینا", "OwnerPassword123")); got.Code != http.StatusSeeOther {
 		t.Fatalf("register: %d", got.Code)

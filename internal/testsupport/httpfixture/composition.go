@@ -2,13 +2,9 @@ package httpfixture
 
 import (
 	"net/url"
-	"strings"
-	"testing"
-
-	"golang.org/x/net/html"
 )
 
-// Ordinary settings carry stable identities separately from display labels.
+// CombinedDraft supplies three independent Forms behind one menu.
 func CombinedDraft() url.Values {
 	return url.Values{
 		"welcome": {"سلام"}, "menu_prompt": {"انتخاب کنید"},
@@ -29,75 +25,4 @@ func CombinedDraft() url.Values {
 		"date_min": {"", "", "", "", "", ""}, "date_max": {"", "", "", "", "", ""},
 		"menu_order": {"book", "ask", "apply"},
 	}
-}
-
-// Read the ordinary browser form rather than reconstructing private settings.
-func RenderedDraft(t *testing.T, body string) url.Values {
-	t.Helper()
-	root, err := html.Parse(strings.NewReader(body))
-	if err != nil {
-		t.Fatal(err)
-	}
-	attr := func(n *html.Node, key string) string {
-		for _, a := range n.Attr {
-			if a.Key == key {
-				return a.Val
-			}
-		}
-		return ""
-	}
-	var content func(*html.Node) string
-	content = func(n *html.Node) string {
-		if n.Type == html.TextNode {
-			return n.Data
-		}
-		value := ""
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			value += content(c)
-		}
-		return value
-	}
-	values := url.Values{}
-	var walk func(*html.Node, bool)
-	walk = func(n *html.Node, inside bool) {
-		if n.Data == "form" {
-			inside = attr(n, "class") == "piko-draft-form"
-		}
-		if inside && attr(n, "name") != "" {
-			name := attr(n, "name")
-			switch n.Data {
-			case "input":
-				values.Add(name, attr(n, "value"))
-			case "textarea":
-				values.Add(name, content(n))
-			case "select":
-				value := ""
-				first := true
-				for c := n.FirstChild; c != nil; c = c.NextSibling {
-					if c.Data != "option" {
-						continue
-					}
-					selected := false
-					for _, a := range c.Attr {
-						if a.Key == "selected" {
-							selected = true
-						}
-					}
-					if first || selected {
-						value = attr(c, "value")
-						first = false
-					}
-				}
-				values.Add(name, value)
-			}
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c, inside)
-		}
-	}
-	walk(root, false)
-	if values.Get("csrf_token") == "" {
-		t.Fatal("missing browser Draft form")
-	}
-	return values
 }

@@ -20,10 +20,10 @@ func TestOwnerCreatesEditsAndPreviewsUnconnectedBotAcrossRestart(t *testing.T) {
 		t.Fatalf("Telegram setup page: %d", page.Code)
 	}
 	got := b.Post("/bots/new", url.Values{"name": {"ایده <script>من</script>"}})
-	if got.Code != 303 || got.Header().Get("Location") != "/bots/1/draft" {
+	if got.Code != 303 || got.Header().Get("Location") != "/bots/1/studio" {
 		t.Fatalf("create: %d %s", got.Code, got.Header().Get("Location"))
 	}
-	loaded := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	loaded := b.LoadDraft(t, 1)
 	if loaded.Get("draft_revision") != "1" {
 		t.Fatal("creation did not initialize a saved revisioned Draft")
 	}
@@ -32,11 +32,11 @@ func TestOwnerCreatesEditsAndPreviewsUnconnectedBotAcrossRestart(t *testing.T) {
 	if initial.Code != 303 || b.Send("GET", initial.Header().Get("Location"), nil).Code != 200 {
 		t.Fatal("initial Draft cannot be previewed")
 	}
-	if got := b.Post("/bots/1/draft", fixture.DraftAtRevision(fixture.InquiryDraft(), "1")); got.Code != 303 {
-		t.Fatalf("edit: %d", got.Code)
+	if err := b.SaveDraft(t, 1, fixture.DraftAtRevision(fixture.InquiryDraft(), "1")); err != nil {
+		t.Fatal(err)
 	}
-	if got := b.Post("/bots/1/draft", fixture.DraftAtRevision(fixture.WelcomeDraft(), "1")); got.Code != 409 {
-		t.Fatal("Unconnected Draft allowed stale edits")
+	if err := b.SaveDraft(t, 1, fixture.DraftAtRevision(fixture.WelcomeDraft(), "1")); err == nil {
+		t.Fatal("rejected Draft change was accepted")
 	}
 	preview := b.Post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	if err := a.DB.Close(); err != nil {
@@ -53,7 +53,7 @@ func TestOwnerCreatesEditsAndPreviewsUnconnectedBotAcrossRestart(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = restarted.DB.Close() })
 	b.Router = restarted.Handler
-	if loaded := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); loaded.Get("draft_revision") != "2" {
+	if loaded := b.LoadDraft(t, 1); loaded.Get("draft_revision") != "2" {
 		t.Fatal("restart lost the Draft revision")
 	}
 	for i, values := range []url.Values{{"choice": {"inquiry"}}, {"answer": {"مینا"}}, {"answer": {"۰۹۱۲۳۴۵۶۷۸۹"}}, {"choice": {"skip"}}, {"choice": {"submit"}}} {
@@ -109,7 +109,7 @@ func TestUnconnectedLifecycleGuardsAndDeletionNeverContactTelegram(t *testing.T)
 	if got := b.Post("/bots/1/delete", url.Values{"confirm_delete": {"yes"}}); got.Code != 303 || got.Header().Get("Location") != "/bots" {
 		t.Fatalf("local deletion: %d %s", got.Code, got.Header().Get("Location"))
 	}
-	for _, path := range []string{"/bots/1", "/bots/1/draft", preview, "/bots/1/submissions"} {
+	for _, path := range []string{"/bots/1", preview, "/bots/1/submissions"} {
 		if got := b.Send("GET", path, nil); got.Code != 404 {
 			t.Fatalf("retained deleted Bot data at %s: %d", path, got.Code)
 		}
@@ -178,12 +178,12 @@ func TestUnconnectedWorkspaceRequiresOwnerPOSTAndCSRF(t *testing.T) {
 	if got := other.Post("/register", fixture.RegisterValues("unconnected-other@example.test", "دیگری", "OwnerPassword123")); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	for _, path := range []string{"/bots/1", "/bots/1/draft", preview, "/bots/1/submissions", "/bots/1/activate"} {
+	for _, path := range []string{"/bots/1", preview, "/bots/1/submissions", "/bots/1/activate"} {
 		if got := other.Send("GET", path, nil); got.Code != 404 || strings.Contains(got.Body.String(), "خصوصی") {
 			t.Fatalf("cross-owner read: %s %d", path, got.Code)
 		}
 	}
-	posts := []string{"/bots/1/draft", "/bots/1/preview", preview + "/choose", preview + "/restart", "/bots/1/publish", "/bots/1/delete", "/bots/1/replace-token", "/bots/1/reconnect", "/bots/1/disconnect", "/bots/1/activate", "/bots/1/pause", "/bots/1/resume"}
+	posts := []string{"/bots/1/preview", preview + "/choose", preview + "/restart", "/bots/1/publish", "/bots/1/delete", "/bots/1/replace-token", "/bots/1/reconnect", "/bots/1/disconnect", "/bots/1/activate", "/bots/1/pause", "/bots/1/resume"}
 	for _, path := range posts {
 		v := url.Values{"token": {fixture.TestBotToken}, "confirm_delete": {"yes"}, "operate": {"yes"}}
 		if got := other.Post(path, v); got.Code != 404 {
@@ -200,7 +200,7 @@ func TestUnconnectedWorkspaceRequiresOwnerPOSTAndCSRF(t *testing.T) {
 	if page := other.Send("GET", "/bots", nil); strings.Contains(page.Body.String(), "خصوصی") {
 		t.Fatal("list exposed another owner's Bot")
 	}
-	if got := other.Post("/bots/new", url.Values{"name": {"ربات دیگری"}}); got.Code != 303 || got.Header().Get("Location") != "/bots/2/draft" {
+	if got := other.Post("/bots/new", url.Values{"name": {"ربات دیگری"}}); got.Code != 303 || got.Header().Get("Location") != "/bots/2/studio" {
 		t.Fatal("creation did not retain the signed-in owner")
 	}
 	if page := b.Send("GET", "/bots/2", nil); page.Code != 404 {
@@ -217,11 +217,11 @@ func TestUnconnectedRollbackRefusesToDiscardWorkAndRestoresForeignKeys(t *testin
 	// Arrange retained work before removing columns used by today's server.
 	// Exercise the Bot-table rebuild, independently of later migrations.
 	fixture.RollbackToMigration(t, a.DB, "000011_unconnected_bots")
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	before := b.LoadDraft(t, 1)
 	if err := database.Migrate(t.Context(), a.DB, true); err == nil {
 		t.Fatal("rollback discarded an Unconnected Bot")
 	}
-	if current := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(current, before) {
+	if current := b.LoadDraft(t, 1); !reflect.DeepEqual(current, before) {
 		t.Fatal("failed rollback changed saved work")
 	}
 	var foreignKeys int
@@ -240,7 +240,7 @@ func TestUnconnectedRollbackRefusesToDiscardWorkAndRestoresForeignKeys(t *testin
 	if err := database.Migrate(t.Context(), a.DB, false); err != nil {
 		t.Fatal(err)
 	}
-	if got := b.Post("/bots/new", url.Values{"name": {"دوباره"}}); got.Code != 303 || got.Header().Get("Location") != "/bots/2/draft" {
+	if got := b.Post("/bots/new", url.Values{"name": {"دوباره"}}); got.Code != 303 || got.Header().Get("Location") != "/bots/2/studio" {
 		t.Fatal("rebuild lost the Bot ID high-water mark")
 	}
 }

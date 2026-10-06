@@ -264,8 +264,6 @@ templ studioPane(csrf string,b bot.Bot,history Conversation,view ChatView) {
     <section id="studio-preview-panel" data-pane-panel="preview">@bot.PreviewPane(csrf,b,bot.Preview{},view.Revision>0,"")</section>
     @changesPane(csrf,b,history,view.Revision)
     <details id="studio-bot-tools" class="piko-studio-bot-tools"><summary>{ locale.T(ctx,"studio.bot.tools") }</summary>
-    <a id="studio-draft" class="piko-secondary-action" href={ templ.URL(b.URL()+"/draft") }>@shell.Icon("squares-four")
- { locale.T(ctx,"draft.title") }</a>
     <a id="studio-overview" class="piko-text-link" href={ templ.URL(b.URL()) }>{ locale.T(ctx,"studio.bot.overview") }</a>
     @bot.DeployControls(csrf,b)
     </details>

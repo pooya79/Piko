@@ -37,8 +37,8 @@ func newFormDriver(t *testing.T, draft url.Values) *formDriver {
 
 func configureFormDriver(t *testing.T, a *App, b *fixture.Browser, f *fixture.TelegramFake, draft url.Values) *formDriver {
 	t.Helper()
-	if got := b.PostDraft(t, "/bots/1/draft", draft); got.Code != 303 {
-		t.Fatalf("draft: %d", got.Code)
+	if err := b.SaveDraft(t, 1, draft); err != nil {
+		t.Fatal(err)
 	}
 	for _, p := range []string{"publish", "activate"} {
 		values := url.Values{}
@@ -111,8 +111,8 @@ func TestInquiryRestartContinueAndVersionContinuity(t *testing.T) {
 	updated := fixture.InquiryDraft()
 	updated["question_prompt"][1] = "پرسش تازه"
 	updated.Set("acknowledgement", "دریافت نسخه تازه")
-	if got := d.b.PostDraft(t, "/bots/1/draft", updated); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := d.b.SaveDraft(t, 1, updated); err != nil {
+		t.Fatal(err)
 	}
 	if got := d.b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)
@@ -304,8 +304,8 @@ func TestInquiryLongAnswersFitTelegramAndRemainCompleteInSubmission(t *testing.T
 	d := newInquiryDriver(t)
 	values := fixture.InquiryDraft()
 	values["question_label"][2] = strings.Repeat("😀", 80)
-	if got := d.b.PostDraft(t, "/bots/1/draft", values); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := d.b.SaveDraft(t, 1, values); err != nil {
+		t.Fatal(err)
 	}
 	if got := d.b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)
@@ -334,8 +334,8 @@ func TestInquiryLongAnswersFitTelegramAndRemainCompleteInSubmission(t *testing.T
 
 func TestInquiryConfirmationCreatesOneSubmissionPerAttempt(t *testing.T) {
 	a, b, f := deliveryFixture(t)
-	if got := b.PostDraft(t, "/bots/1/draft", fixture.InquiryDraft()); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, fixture.InquiryDraft()); err != nil {
+		t.Fatal(err)
 	}
 	if got := b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)

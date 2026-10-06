@@ -25,7 +25,7 @@ import (
 )
 
 // TraceConfig is optional and deliberately does not participate in Builder
-// validation: monitoring misconfiguration must leave manual and AI work available.
+// validation: monitoring misconfiguration must leave Bot management and Builder work available.
 type TraceConfig struct {
 	BaseURL, PublicKey, SecretKey string
 	CaptureContent                bool

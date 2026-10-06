@@ -47,7 +47,7 @@ func generalBuilderFixture(t *testing.T, config builder.Config, logLevel string,
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { a.stopRequests(); a.builder.Wait(); _ = a.db.Close() })
-	b := fixture.NewAccountBrowser(t, a.server.Handler)
+	b := fixture.NewAccountBrowser(t, a.server.Handler, a.cfg.DatabasePath)
 	b.Send("GET", "/register", nil)
 	if got := b.Post("/register", fixture.RegisterValues("builder-owner@example.test", "مینا", "OwnerPassword123")); got.Code != 303 {
 		t.Fatal(got.Code)

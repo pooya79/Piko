@@ -30,7 +30,9 @@ func TestStudioPreviewRemainsIndependentForUnconnectedAndPausedBots(t *testing.T
 			if state == "unconnected" {
 				a, b = unconnectedFixture(t)
 				b.Post("/bots/new", url.Values{"name": {"ربات آزمایش"}})
-				b.PostDraft(t, "/bots/1/draft", fixture.InquiryDraft())
+				if err := b.SaveDraft(t, 1, fixture.InquiryDraft()); err != nil {
+					t.Fatal(err)
+				}
 			} else {
 				d := newInquiryDriver(t)
 				a, b = d.a, d.b

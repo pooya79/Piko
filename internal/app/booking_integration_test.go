@@ -62,16 +62,16 @@ func TestBookingTelegramEditsDatesAndStoresOneRequestPerAttempt(t *testing.T) {
 	if page := d.b.Send("GET", "/bots/1/submissions/2", nil); !strings.Contains(page.Body.String(), "۱۴۰۵/۰۷/۱۱") || !strings.Contains(page.Body.String(), "بدون پاسخ") {
 		t.Fatal("second request lost normalized date or skipped details")
 	}
-	other := fixture.NewAccountBrowser(t, d.a.server.Handler)
+	other := fixture.NewAccountBrowser(t, d.a.server.Handler, d.a.cfg.DatabasePath)
 	other.Send("GET", "/register", nil)
 	other.Post("/register", fixture.RegisterValues("booking-other@example.test", "Other", "OwnerPassword123"))
-	for _, path := range []string{"/bots/1/draft?template=booking", "/bots/1/preview", "/bots/1/submissions", "/bots/1/submissions/1"} {
+	for _, path := range []string{"/bots/1/preview", "/bots/1/submissions", "/bots/1/submissions/1"} {
 		if got := other.Send("GET", path, nil); got.Code != 404 {
 			t.Fatalf("other owner accessed %s: %d", path, got.Code)
 		}
 	}
-	if got := other.PostDraft(t, "/bots/1/draft", fixture.BookingDraft()); got.Code != 404 {
-		t.Fatal("cross-owner Booking save")
+	if err := other.SaveDraft(t, 1, fixture.BookingDraft()); err == nil {
+		t.Fatal("rejected Draft change was accepted")
 	}
 }
 
@@ -85,8 +85,8 @@ func TestBookingRetainsDateQuestionAndAnswersAcrossPublicationAndRestart(t *test
 	changed["question_prompt"][1] = "تاریخ تازه؟"
 	changed["question_label"][1] = "تاریخ تازه"
 	changed.Set("acknowledgement", "درخواست تازه دریافت شد")
-	if got := d.b.PostDraft(t, "/bots/1/draft", changed); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := d.b.SaveDraft(t, 1, changed); err != nil {
+		t.Fatal(err)
 	}
 	if got := d.b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)

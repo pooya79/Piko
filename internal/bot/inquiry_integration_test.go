@@ -11,8 +11,8 @@ import (
 
 func TestInquiryPreviewQuestionValidationAndRequiredSkip(t *testing.T) {
 	_, b := fixture.DraftFixture(t)
-	if got := b.PostDraft(t, "/bots/1/draft", fixture.InquiryDraft()); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, fixture.InquiryDraft()); err != nil {
+		t.Fatal(err)
 	}
 	path := b.Post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	revision := 1
@@ -50,50 +50,10 @@ func TestInquiryPreviewQuestionValidationAndRequiredSkip(t *testing.T) {
 	}
 }
 
-func TestInquiryConfigurationValidationPreservesDraftAndRequiresCSRF(t *testing.T) {
-	a, b := fixture.DraftFixture(t)
-	if got := b.Send("GET", "/bots/1/draft?template=inquiry", nil); got.Code != 200 || !strings.Contains(got.Body.String(), "قالب درخواست") {
-		t.Fatal("default Inquiry configuration unavailable")
-	}
-	if got := b.PostDraft(t, "/bots/1/draft", fixture.InquiryDraft()); got.Code != 303 {
-		t.Fatal(got.Code)
-	}
-	for _, tc := range []struct {
-		name   string
-		change func(url.Values)
-	}{
-		{"empty label", func(v url.Values) { v["question_label"][0] = "" }},
-		{"prompt too long", func(v url.Values) { v["question_prompt"][0] = strings.Repeat("س", 2001) }},
-		{"missing question", func(v url.Values) { v["question_label"] = v["question_label"][:2] }},
-		{"invalid required", func(v url.Values) { v["question_required"][0] = "maybe" }},
-		{"empty acknowledgement", func(v url.Values) { v.Set("acknowledgement", "") }},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			v := fixture.InquiryDraft()
-			tc.change(v)
-			if got := b.PostDraft(t, "/bots/1/draft", v); got.Code != 422 {
-				t.Fatal(got.Code)
-			}
-		})
-	}
-	if got := b.Send("GET", "/bots/1/draft", nil); got.Code != 200 || !strings.Contains(got.Body.String(), "نام شما چیست؟") {
-		t.Fatal("invalid settings changed saved Draft")
-	}
-	if got := b.Send("POST", "/bots/1/draft", fixture.InquiryDraft()); got.Code != 403 {
-		t.Fatal("Inquiry save bypassed CSRF")
-	}
-	other := fixture.NewAccountBrowser(t, a.Handler)
-	other.Send("GET", "/register", nil)
-	other.Post("/register", fixture.RegisterValues("inquiry-other@example.test", "Other", "OwnerPassword123"))
-	if got := other.PostDraft(t, "/bots/1/draft", fixture.InquiryDraft()); got.Code != 404 {
-		t.Fatal("Inquiry save bypassed ownership")
-	}
-}
-
 func TestInquiryPreviewCollectsValidatesEditsAndConfirmsWithoutRealSubmissions(t *testing.T) {
 	_, b := fixture.DraftFixture(t)
-	if got := b.PostDraft(t, "/bots/1/draft", fixture.InquiryDraft()); got.Code != 303 {
-		t.Fatalf("save Inquiry: %d", got.Code)
+	if err := b.SaveDraft(t, 1, fixture.InquiryDraft()); err != nil {
+		t.Fatal(err)
 	}
 	path := b.Post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	revision := 1

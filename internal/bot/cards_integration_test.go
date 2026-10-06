@@ -53,8 +53,8 @@ func TestBotCardsOfferActionsForSavedFlowAndConnection(t *testing.T) {
 		t.Fatal("Build destination unavailable")
 	}
 	check("ساخت ربات", "")
-	if got := b.PostDraft(t, "/bots/1/draft", fixture.WelcomeDraft()); got.Code != http.StatusSeeOther {
-		t.Fatalf("save Draft: %d", got.Code)
+	if err := b.SaveDraft(t, 1, fixture.WelcomeDraft()); err != nil {
+		t.Fatal(err)
 	}
 	// Saving a Draft is sufficient for Edit; publication is not required.
 	check("ویرایش ربات", "")

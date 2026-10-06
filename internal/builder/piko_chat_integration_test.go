@@ -65,7 +65,7 @@ func TestPikoChatPrivateSummariesAndExistingBuilderDataSurviveForwardMigration(t
 		fixture.WaitBuilder(t, b, "/bots/1/chats/1", "succeeded")
 	}
 	before := b.Send("GET", "/bots/1/chats/1", nil).Body.String()
-	draft := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode()
+	draft := b.LoadDraft(t, 1).Encode()
 	fixture.RollbackToMigration(t, a.DB, "000016_builder_memory")
 	if err := database.Migrate(t.Context(), a.DB, false); err != nil {
 		t.Fatal(err)
@@ -73,7 +73,7 @@ func TestPikoChatPrivateSummariesAndExistingBuilderDataSurviveForwardMigration(t
 	if after := b.Send("GET", "/bots/1/chats/1", nil); after.Code != 200 || after.Body.String() != before {
 		t.Fatal("migration changed existing history, runs, session or accounting")
 	}
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode(); after != draft {
+	if after := b.LoadDraft(t, 1).Encode(); after != draft {
 		t.Fatal("migration changed existing Draft")
 	}
 	for len(requests) > 0 {

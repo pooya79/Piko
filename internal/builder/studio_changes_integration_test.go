@@ -122,7 +122,7 @@ func TestStudioChangesNeverInventSavedChangesForUncommittedOutcomes(t *testing.T
 					t.Fatal(err)
 				}
 			}
-			before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+			before := b.LoadDraft(t, 1)
 			b.Post("/bots/1/chats/1/messages", url.Values{"message": {"درخواست"}})
 			status := "failed"
 			if outcome == "informational" || outcome == "identical" {
@@ -135,7 +135,7 @@ func TestStudioChangesNeverInventSavedChangesForUncommittedOutcomes(t *testing.T
 			if outcome != "identical" && (strings.Contains(pane, `/runs/1/undo`) || strings.Contains(pane, `data-change-result="saved"`)) {
 				t.Fatal("unsaved outcome offers Undo or claims a save")
 			}
-			after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+			after := b.LoadDraft(t, 1)
 			if outcome == "identical" {
 				before.Set("draft_revision", "2")
 				if !strings.Contains(pane, "محتوای پیش\u200cنویس تغییری نکرده") {

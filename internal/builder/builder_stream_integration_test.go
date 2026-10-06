@@ -27,7 +27,7 @@ func TestBuilderStopBeforeCommitPreservesDraftAndAccounting(t *testing.T) {
 		<-r.Context().Done()
 		close(cancelled)
 	})
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode()
+	before := b.LoadDraft(t, 1).Encode()
 	if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {"بساز"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
@@ -64,7 +64,7 @@ func TestBuilderStopBeforeCommitPreservesDraftAndAccounting(t *testing.T) {
 	if strings.Contains(page, `data-after-revision=`) || !strings.Contains(page, `data-admitted="1"`) || !strings.Contains(page, `data-total-tokens="5"`) {
 		t.Fatal("Stop lost accounting or saved provisional changes")
 	}
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode(); after != before {
+	if after := b.LoadDraft(t, 1).Encode(); after != before {
 		t.Fatal("stopped candidate changed Draft")
 	}
 	if got := b.Post(path, url.Values{}); got.Code != 303 {
@@ -93,7 +93,7 @@ func TestBuilderActiveChatStopCancelsWorkAndKeepsPriorDraftAndUsage(t *testing.T
 	})
 	b.Post("/bots/1/chats/1/messages", url.Values{"message": {"بساز"}})
 	fixture.WaitBuilder(t, b, "/bots/1/chats/1", "succeeded")
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode()
+	before := b.LoadDraft(t, 1).Encode()
 	b.Post("/bots/1/chats/1/messages", url.Values{"message": {"تغییر بده"}})
 	select {
 	case <-started:
@@ -109,7 +109,7 @@ func TestBuilderActiveChatStopCancelsWorkAndKeepsPriorDraftAndUsage(t *testing.T
 		t.Fatal("stopped chat still has provider work")
 	}
 	fixture.WaitBuilder(t, b, "/bots/1/chats/1", "stopped")
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode(); after != before {
+	if after := b.LoadDraft(t, 1).Encode(); after != before {
 		t.Fatal("Stop reversed saved work or applied late candidate")
 	}
 	page := b.Send("GET", "/bots/1/chats/2", nil).Body.String()
@@ -136,7 +136,7 @@ func TestBuilderStopCompletionRaceReportsOnlyCommittedChanges(t *testing.T) {
 				case <-r.Context().Done():
 				}
 			})
-			before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode()
+			before := b.LoadDraft(t, 1).Encode()
 			b.Post("/bots/1/chats/1/messages", url.Values{"message": {"بساز"}})
 			select {
 			case <-started:
@@ -159,7 +159,7 @@ func TestBuilderStopCompletionRaceReportsOnlyCommittedChanges(t *testing.T) {
 				t.Fatal(got.Code)
 			}
 			page := b.Send("GET", "/bots/1/chats/1", nil).Body.String()
-			after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode()
+			after := b.LoadDraft(t, 1).Encode()
 			if strings.Contains(page, `data-run-status="succeeded"`) {
 				if before == after || !strings.Contains(page, `data-run-result="saved"`) || !strings.Contains(page, `data-after-revision="2"`) {
 					t.Fatal("committed success reported incorrectly")
@@ -186,13 +186,13 @@ data: {"error":{"message":"private provider failure"}}
 
 `)
 	})
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode()
+	before := b.LoadDraft(t, 1).Encode()
 	b.Post("/bots/1/chats/1/messages", url.Values{"message": {"بساز"}})
 	page := fixture.WaitBuilder(t, b, "/bots/1/chats/1", "failed")
 	if strings.Contains(page, "PARTIAL-REPLY") || strings.Contains(page, "PRIVATE-REASONING") || strings.Contains(page, "private provider") || !strings.Contains(page, `data-total-tokens="13"`) || !strings.Contains(page, `data-cost="0.0007"`) {
 		t.Fatal("partial failure saved content or lost usage")
 	}
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode(); before != after {
+	if after := b.LoadDraft(t, 1).Encode(); before != after {
 		t.Fatal("stream failure changed Draft")
 	}
 }
@@ -210,7 +210,7 @@ func TestBuilderStopFromAnotherAppFencesAndCancelsLeaseOwner(t *testing.T) {
 		<-r.Context().Done()
 		close(cancelled)
 	})
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode()
+	before := b.LoadDraft(t, 1).Encode()
 	b.Post("/bots/1/chats/1/messages", url.Values{"message": {"بساز"}})
 	select {
 	case <-started:
@@ -235,7 +235,7 @@ func TestBuilderStopFromAnotherAppFencesAndCancelsLeaseOwner(t *testing.T) {
 	if strings.Contains(page, `data-after-revision=`) || calls.Load() != 2 {
 		t.Fatal("remote Stop permitted late work")
 	}
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode(); before != after {
+	if after := b.LoadDraft(t, 1).Encode(); before != after {
 		t.Fatal("remote Stop changed Draft")
 	}
 }

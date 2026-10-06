@@ -38,13 +38,13 @@ func TestPikoBuildCreatesBotInOriginalChatOnce(t *testing.T) {
 		t.Fatal(got.Code)
 	}
 	page := fixture.WaitBuilder(t, b, path, "succeeded")
-	if !strings.Contains(page, `href="/bots/1/draft"`) || !strings.Contains(page, "ثبت نام کلاس") || !strings.Contains(page, values.Get("message")) {
+	if !strings.Contains(page, `href="/bots/1/studio"`) || !strings.Contains(page, "ثبت نام کلاس") || !strings.Contains(page, values.Get("message")) {
 		t.Fatal("original chat did not become Bot workspace", page)
 	}
 	if pane := fixture.ChangesPane(t, page); !strings.Contains(pane, `data-change-result="created"`) || !strings.Contains(pane, `data-change-action="added"`) || strings.Contains(pane, "/undo") {
 		t.Fatal("initial committed Draft missing truthful Changes or offers Undo without a prior Draft")
 	}
-	if got := b.Send("GET", "/bots/1/draft", nil); got.Code != 200 || !strings.Contains(got.Body.String(), "ثبت نام") {
+	if b.LoadDraft(t, 1)["question_prompt"][0] != "نام شما؟" {
 		t.Fatal("initial Draft missing")
 	}
 	for range 2 {
@@ -327,7 +327,7 @@ func TestPikoConversionKeepsPrivateMemorySharedDraftAndDeletionScope(t *testing.
 	if got := other.Post("/register", fixture.RegisterValues("other-build@example.test", "دیگری", "OwnerPassword123")); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	for _, urlPath := range []string{path, path + "/status", "/bots/1/chats/1", "/bots/1/draft"} {
+	for _, urlPath := range []string{path, path + "/status", "/bots/1/chats/1"} {
 		if got := other.Send("GET", urlPath, nil); got.Code != 404 {
 			t.Fatal("cross-owner read", urlPath, got.Code)
 		}
@@ -396,7 +396,7 @@ func TestPikoConversionKeepsPrivateMemorySharedDraftAndDeletionScope(t *testing.
 	if got := b.Post("/bots/1/delete", url.Values{"confirm_delete": {"yes"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	for _, urlPath := range []string{path, second, "/bots/1/draft"} {
+	for _, urlPath := range []string{path, second} {
 		if got := b.Send("GET", urlPath, nil); got.Code != 404 {
 			t.Fatal("Bot deletion retained associated work", urlPath)
 		}
@@ -483,14 +483,14 @@ func TestPikoConvertedChatKeepsBotBusyAndRevisionGuards(t *testing.T) {
 	if got := b.Post(second+"/messages", url.Values{"message": {"همزمان"}}); got.Code != 409 {
 		t.Fatal("conversion lost per-Bot active fence", got.Code)
 	}
-	manual := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	manual := b.LoadDraft(t, 1)
 	manual.Set("welcome", "ویرایش دستی تازه")
-	if got := b.Post("/bots/1/draft", manual); got.Code != 303 {
-		t.Fatal("manual editing blocked", got.Code)
+	if err := b.SaveDraft(t, 1, manual); err != nil {
+		t.Fatal(err)
 	}
 	release <- struct{}{}
 	page := fixture.WaitBuilder(t, b, path, "failed")
-	if !strings.Contains(page, `data-run-result="conflict"`) || !strings.Contains(b.Send("GET", "/bots/1/draft", nil).Body.String(), "ویرایش دستی تازه") {
+	if !strings.Contains(page, `data-run-result="conflict"`) || !strings.Contains(b.DraftText(t, 1), "ویرایش دستی تازه") {
 		t.Fatal("stale converted-chat completion overwrote manual edit")
 	}
 }
@@ -536,7 +536,7 @@ func TestPikoBuildStopCompletionRaceKeepsOnlyCommittedCreation(t *testing.T) {
 				t.Fatal("Stop lost conversion", got.Code)
 			}
 			page := b.Send("GET", path, nil).Body.String()
-			bot := b.Send("GET", "/bots/1/draft", nil)
+			bot := b.Send("GET", "/bots/1", nil)
 			if strings.Contains(page, `data-run-status="succeeded"`) {
 				if bot.Code != 200 || !strings.Contains(page, `data-run-result="created"`) {
 					t.Fatal("success missing committed Bot/Draft")

@@ -34,7 +34,7 @@ func (h *Handler) credentialFailure(w http.ResponseWriter, r *http.Request, b Bo
 	status, key, invalid := 500, "bot.error.save", false
 	switch {
 	case errors.Is(err, ErrNotFound):
-		h.draftError(w, r, err)
+		h.botError(w, r, err)
 		return
 	case errors.Is(err, telegram.ErrCredentials):
 		status, key, invalid = 422, "bot.error.token", true
@@ -52,7 +52,7 @@ func (h *Handler) credentialFailure(w http.ResponseWriter, r *http.Request, b Bo
 	// Choose controls using current state after any concurrent lifecycle action.
 	current, readErr := h.service.Get(r.Context(), b.ID)
 	if readErr != nil {
-		h.draftError(w, r, readErr)
+		h.botError(w, r, readErr)
 		return
 	}
 	h.connectionPage(w, r, status, current, key, invalid)
@@ -72,7 +72,7 @@ func (h *Handler) removeBot(w http.ResponseWriter, r *http.Request, deleteData b
 	if err != nil {
 		if deleteData {
 			if errors.Is(err, ErrNotFound) {
-				h.draftError(w, r, err)
+				h.botError(w, r, err)
 				return
 			}
 			status, key := 500, "bot.error.save"

@@ -46,13 +46,13 @@ func TestBuilderSummaryFailurePreservesHistoryDraftAndRetriesHonestly(t *testing
 				fixture.MemoryReply(w, "پاسخ محفوظ")
 			})
 			fixture.FillMemoryChat(t, b)
-			before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode()
+			before := b.LoadDraft(t, 1).Encode()
 			b.Post("/bots/1/chats/1/messages", url.Values{"message": {"درخواست پس از تاریخچه"}})
 			page := fixture.WaitBuilder(t, b, "/bots/1/chats/1", "failed")
 			if !strings.Contains(page, `data-run-result="memory.failed"`) || !strings.Contains(page, "تاریخچهٔ کامل") || !strings.Contains(page, "تاریخچه اصلی 0") || !strings.Contains(page, `data-admitted="7"`) || !strings.Contains(page, `data-total-tokens="35"`) || strings.Contains(page, "test-server-key") || strings.Contains(page, tc.text) && tc.name == "oversized" {
 				t.Fatal("summary failure lost history/accounting or exposed content")
 			}
-			if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode(); after != before {
+			if after := b.LoadDraft(t, 1).Encode(); after != before {
 				t.Fatal("summary failure changed Draft")
 			}
 			b.Post("/bots/1/chats/1/messages", url.Values{"message": {"تلاش تازه"}})
@@ -189,8 +189,8 @@ func TestBuilderLongChatKeepsFullHistoryAndDurableIsolatedBoundedMemory(t *testi
 		if turn == 7 {
 			v := fixture.InquiryDraft()
 			v.Set("welcome", "پیش نویس دستی authoritative")
-			if got := b.Post("/bots/1/draft", fixture.DraftAtRevision(v, "1")); got.Code != 303 {
-				t.Fatal(got.Code)
+			if err := b.SaveDraft(t, 1, fixture.DraftAtRevision(v, "1")); err != nil {
+				t.Fatal(err)
 			}
 		}
 		message := fixture.MemoryText(fmt.Sprintf("پیام تاریخی %02d", turn), 13000)
@@ -276,7 +276,7 @@ func TestBuilderSummaryStorageFailureRollsBackReplyAndDraftAndAllowsRecovery(t *
 		fixture.MemoryReply(w, "پاسخ محفوظ")
 	})
 	fixture.FillMemoryChat(t, b)
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode()
+	before := b.LoadDraft(t, 1).Encode()
 	if _, err := a.DB.Exec(`CREATE TRIGGER fail_summary BEFORE INSERT ON builder_summaries BEGIN SELECT RAISE(ABORT,'private storage error'); END`); err != nil {
 		t.Fatal(err)
 	}
@@ -285,7 +285,7 @@ func TestBuilderSummaryStorageFailureRollsBackReplyAndDraftAndAllowsRecovery(t *
 	if !strings.Contains(page, `data-run-result="memory.failed"`) || strings.Contains(page, "private storage error") || strings.Contains(page, "خلاصه ذخیره نشده") || !strings.Contains(page, "تاریخچه اصلی 0") {
 		t.Fatal("summary storage failure was not recoverable")
 	}
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode(); after != before {
+	if after := b.LoadDraft(t, 1).Encode(); after != before {
 		t.Fatal("summary storage failure applied staged Draft")
 	}
 	if _, err := a.DB.Exec(`DROP TRIGGER fail_summary`); err != nil {
@@ -344,7 +344,7 @@ func TestBuilderLegacyBacklogRetainsValidatedMemoryAfterLaterBatchTimesOut(t *te
 		fixture.MemoryReply(w, "پاسخ بازیابی شده")
 	})
 	fixture.SeedLegacyMemoryHistory(t, a)
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode()
+	before := b.LoadDraft(t, 1).Encode()
 	b.Post("/bots/1/chats/1/messages", url.Values{"message": {"درخواست محدود"}})
 	page := fixture.WaitBuilder(t, b, "/bots/1/chats/1", "timeout")
 	if !strings.Contains(page, "legacy-history-01") || !strings.Contains(page, `data-total-tokens="5"`) {
@@ -361,7 +361,7 @@ func TestBuilderLegacyBacklogRetainsValidatedMemoryAfterLaterBatchTimesOut(t *te
 			t.Fatal("timeout discarded validated memory progress")
 		}
 	}
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode(); after != before {
+	if after := b.LoadDraft(t, 1).Encode(); after != before {
 		t.Fatal("timeout recovery changed Draft")
 	}
 }

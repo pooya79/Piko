@@ -344,8 +344,8 @@ func TestBuilderTraceReportsRevisionConflictAsFailedRun(t *testing.T) {
 	}
 	manual := fixture.InquiryDraft()
 	manual.Set("welcome", "manual change stays")
-	if got := b.Post("/bots/1/draft", fixture.DraftAtRevision(manual, "1")); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, fixture.DraftAtRevision(manual, "1")); err != nil {
+		t.Fatal(err)
 	}
 	release <- struct{}{}
 	fixture.WaitBuilder(t, b, "/bots/1/chats/1", "failed")

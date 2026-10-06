@@ -55,12 +55,20 @@ async page => {
   check(await preview().locator('[data-preview-stale-notice]').isVisible(), 'stale warning hidden');
 
   // Same snapshot restart versus a new snapshot from a visibly changed Draft.
-  await page.evaluate(async botPath => {
-    const csrf_token = document.querySelector('input[name="csrf_token"]').value;
-    const definition = JSON.stringify({ version: 2, welcome: { id: 'welcome', type: 'message', text: 'سلام از نسخه تازه ذخیره شده' }, menu: { id: 'menu', type: 'menu', text: 'انتخاب کنید', choices: [{ id: 'collect', label: 'فرم آزمایش', target: 'custom' }] }, messages: [], forms: [{ id: 'custom', review: 'بررسی کنید', acknowledgement: 'دریافت شد', questions: [{ id: 'name', label: 'نام', prompt: 'نام شما؟', type: 'short_text', required: true }] }] });
-    const response = await fetch(botPath + '/draft', { method: 'POST', body: new URLSearchParams({ csrf_token, definition, draft_revision: '2' }) });
-    if (!response.ok) throw new Error('manual edit failed');
-  }, botPath);
+  const save = async (definition, revision) => {
+    const csrf_token = await page.locator('[name="csrf_token"]').first().inputValue();
+    const chat = await page.request.post(origin + botPath + '/chats', { form: { csrf_token, title: 'Browser fixture setup' } });
+    check(chat.ok(), 'fixture chat creation failed');
+    const editing = await page.context().newPage();
+    try {
+      const chatURL = chat.url();
+      const response = await editing.request.post(chatURL + '/messages', { form: { csrf_token, message: 'STUDIO_DEFINITION ' + JSON.stringify(definition) } });
+      check(response.ok(), 'fixture Builder request failed');
+      await editing.goto(chatURL);
+      await editing.locator(`[data-draft-revision="${revision + 1}"]`).waitFor();
+    } finally { await editing.close(); }
+  };
+  await save({ version: 2, welcome: { id: 'welcome', type: 'message', text: 'سلام از نسخه تازه ذخیره شده' }, menu: { id: 'menu', type: 'menu', text: 'انتخاب کنید', choices: [{ id: 'collect', label: 'فرم آزمایش', target: 'custom' }] }, messages: [], forms: [{ id: 'custom', review: 'بررسی کنید', acknowledgement: 'دریافت شد', questions: [{ id: 'name', label: 'نام', prompt: 'نام شما؟', type: 'short_text', required: true }] }] }, 2);
   await refresh();
   await preview().locator('form[action$="/restart"] button').click();
   await waitProgress(3);

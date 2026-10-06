@@ -70,12 +70,12 @@ func TestBuilderFormLimitsAndUnsupportedCapabilitiesPreserveDraft(t *testing.T) 
 					fixture.BuilderTextReply(w)
 				}
 			})
-			before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+			before := b.LoadDraft(t, 1)
 			if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {"فرم را تغییر بده"}}); got.Code != 303 {
 				t.Fatal(got.Code)
 			}
 			fixture.WaitBuilder(t, b, "/bots/1/chats/1", "failed")
-			if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(before, after) {
+			if after := b.LoadDraft(t, 1); !reflect.DeepEqual(before, after) {
 				t.Fatal("invalid Form changed saved Draft")
 			}
 		})
@@ -112,12 +112,12 @@ func TestBuilderRepairsFormWithinBudgetOrPreservesOldDraft(t *testing.T) {
 					fixture.BuilderTextReply(w)
 				}
 			})
-			before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+			before := b.LoadDraft(t, 1)
 			if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {"فرم با حدود معتبر بساز"}}); got.Code != 303 {
 				t.Fatal(got.Code)
 			}
 			page := fixture.WaitBuilder(t, b, "/bots/1/chats/1", tc.status)
-			after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+			after := b.LoadDraft(t, 1)
 			if tc.status == "succeeded" {
 				if after.Get("draft_revision") != "2" || !strings.Contains(page, `data-total-tokens="17"`) {
 					t.Fatal("repaired Form was not saved once with accounted repair calls")
@@ -145,7 +145,7 @@ func TestBuilderFailedFormValidationDiscardsEarlierStagedCandidate(t *testing.T)
 			fixture.BuilderTextReply(w)
 		}
 	})
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	before := b.LoadDraft(t, 1)
 	if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {"فرم را بساز و بازبینی کن"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
@@ -153,7 +153,7 @@ func TestBuilderFailedFormValidationDiscardsEarlierStagedCandidate(t *testing.T)
 	if !strings.Contains(page, `data-run-result="invalid"`) {
 		t.Fatal("failed repair reported success")
 	}
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(before, after) {
+	if after := b.LoadDraft(t, 1); !reflect.DeepEqual(before, after) {
 		t.Fatal("failed repair applied an earlier partial candidate")
 	}
 }
@@ -318,8 +318,8 @@ func TestBuilderAddsReordersChangesAndRemovesFormsAcrossIsolatedChats(t *testing
 			fixture.BuilderTextReply(w)
 		}
 	})
-	if got := b.PostDraft(t, "/bots/1/draft", url.Values{"definition": {fixture.BuilderFormDraft}}); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, url.Values{"definition": {fixture.BuilderFormDraft}}); err != nil {
+		t.Fatal(err)
 	}
 	for _, chat := range []string{"1", "2"} {
 		path := "/bots/1/chats/" + chat
@@ -327,7 +327,7 @@ func TestBuilderAddsReordersChangesAndRemovesFormsAcrossIsolatedChats(t *testing
 			t.Fatal(got.Code)
 		}
 		fixture.WaitBuilder(t, b, path, "succeeded")
-		draft := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+		draft := b.LoadDraft(t, 1)
 		preview := b.Post("/bots/1/preview", url.Values{}).Header().Get("Location")
 		revision := 1
 		if chat == "1" {

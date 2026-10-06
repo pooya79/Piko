@@ -25,7 +25,7 @@ func (h *Handler) Submissions(w http.ResponseWriter, r *http.Request) {
 	}
 	items, err := h.service.ListSubmissions(r.Context(), b.ID, before)
 	if err != nil {
-		h.draftError(w, r, err)
+		h.botError(w, r, err)
 		return
 	}
 	var next int64
@@ -49,7 +49,7 @@ func (h *Handler) Submission(w http.ResponseWriter, r *http.Request) {
 	}
 	item, err := h.service.GetSubmission(r.Context(), b.ID, id)
 	if err != nil {
-		h.draftError(w, r, err)
+		h.botError(w, r, err)
 		return
 	}
 	u, _ := auth.UserFromContext(r.Context())

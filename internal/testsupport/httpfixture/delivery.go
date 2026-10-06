@@ -248,7 +248,7 @@ func DeliveryFixtureClock(t *testing.T, now func() time.Time) (*HTTP, *Browser, 
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = a.DB.Close() })
-	b := NewAccountBrowser(t, a.Handler)
+	b := NewAccountBrowser(t, a.Handler, a.Config.DatabasePath)
 	b.Send("GET", "/register", nil)
 	if got := b.Post("/register", RegisterValues("delivery@example.test", "مینا", "OwnerPassword123")); got.Code != 303 {
 		t.Fatal(got.Code)
@@ -256,8 +256,8 @@ func DeliveryFixtureClock(t *testing.T, now func() time.Time) (*HTTP, *Browser, 
 	if got := b.Post("/bots/connect", url.Values{"token": {TestBotToken}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	if got := b.PostDraft(t, "/bots/1/draft", url.Values{"definition": {StructuredDraft}}); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, url.Values{"definition": {StructuredDraft}}); err != nil {
+		t.Fatal(err)
 	}
 	if got := b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)

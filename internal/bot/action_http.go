@@ -19,7 +19,7 @@ func (h *Handler) ConfirmAction(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := strconv.ParseInt(chi.URLParam(r, "proposalID"), 10, 64)
 	if err != nil || id <= 0 {
-		h.draftError(w, r, ErrNotFound)
+		h.botError(w, r, ErrNotFound)
 		return
 	}
 	if r.ParseForm() != nil {
@@ -51,7 +51,7 @@ func (h *Handler) ConfirmAction(w http.ResponseWriter, r *http.Request) {
 			out.Deployment.Bot = b
 			status = 409
 		default:
-			h.draftError(w, r, err)
+			h.botError(w, r, err)
 			return
 		}
 	}

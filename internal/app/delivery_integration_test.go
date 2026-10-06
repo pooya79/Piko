@@ -201,8 +201,8 @@ func TestTemporaryFailurePreservesParticipantOrderAndLetsOthersContinue(t *testi
 		t.Fatal("temporary failure stopped another Participant")
 	}
 	edited := strings.ReplaceAll(fixture.StructuredDraft, "Hello", "New welcome")
-	if got := b.PostDraft(t, "/bots/1/draft", url.Values{"definition": {edited}}); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, url.Values{"definition": {edited}}); err != nil {
+		t.Fatal(err)
 	}
 	if got := b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)
@@ -301,7 +301,7 @@ func deliveryFixtureClock(t *testing.T, now func() time.Time) (*App, *fixture.Br
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = a.db.Close() })
-	b := fixture.NewAccountBrowser(t, a.server.Handler)
+	b := fixture.NewAccountBrowser(t, a.server.Handler, a.cfg.DatabasePath)
 	b.Send("GET", "/register", nil)
 	if got := b.Post("/register", fixture.RegisterValues("delivery@example.test", "مینا", "OwnerPassword123")); got.Code != 303 {
 		t.Fatal(got.Code)
@@ -309,8 +309,8 @@ func deliveryFixtureClock(t *testing.T, now func() time.Time) (*App, *fixture.Br
 	if got := b.Post("/bots/connect", url.Values{"token": {fixture.TestBotToken}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	if got := b.PostDraft(t, "/bots/1/draft", url.Values{"definition": {fixture.StructuredDraft}}); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, url.Values{"definition": {fixture.StructuredDraft}}); err != nil {
+		t.Fatal(err)
 	}
 	if got := b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)
@@ -352,8 +352,8 @@ func TestPublishedEditsAndObsoleteCallbacksLeaveParticipantVersionIntact(t *test
 	sent := waitSent(t, f, 2)
 	button := sent[1].Markup.Buttons[0][0].Data
 	edited := strings.ReplaceAll(strings.ReplaceAll(fixture.StructuredDraft, "Hello", "New welcome"), "Open 9 to 5", "New hours")
-	if got := b.PostDraft(t, "/bots/1/draft", url.Values{"definition": {edited}}); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, url.Values{"definition": {edited}}); err != nil {
+		t.Fatal(err)
 	}
 	if got := b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)

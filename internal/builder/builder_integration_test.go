@@ -17,7 +17,7 @@ func TestOwnerOrganizesSeparateBuilderChatsOnSharedDraft(t *testing.T) {
 	if got := b.Post("/bots/new", url.Values{"name": {"ربات گفت\u200cوگو"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	before := b.LoadDraft(t, 1)
 	for _, title := range []string{"پرسش\u200cهای مشتری", "منوی تازه <script>alert(1)</script>"} {
 		fixture.SeedBotChat(t, a.DB, 1, title)
 	}
@@ -27,18 +27,18 @@ func TestOwnerOrganizesSeparateBuilderChatsOnSharedDraft(t *testing.T) {
 	}
 	for _, path := range []string{"/bots/1/chats/1", "/bots/1/chats/2"} {
 		page := b.Send("GET", path, nil)
-		if page.Code != 200 || !strings.Contains(page.Body.String(), `href="/bots/1/draft"`) || !strings.Contains(page.Body.String(), `disabled`) || strings.Contains(page.Body.String(), `action="`+path+`/messages"`) {
+		if page.Code != 200 || !strings.Contains(page.Body.String(), `href="/bots/1/studio"`) || !strings.Contains(page.Body.String(), `disabled`) || strings.Contains(page.Body.String(), `action="`+path+`/messages"`) {
 			t.Fatal("chat must retain manual settings and honest unavailable generation")
 		}
 	}
 	if !strings.Contains(list.Body.String(), "&lt;script&gt;alert(1)&lt;/script&gt;") || strings.Contains(list.Body.String(), "<script>alert(1)</script>") {
 		t.Fatal("chat title was not escaped")
 	}
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(before, after) {
+	if after := b.LoadDraft(t, 1); !reflect.DeepEqual(before, after) {
 		t.Fatal("chat creation changed the shared Draft")
 	}
-	if got := b.Post("/bots/1/draft", fixture.DraftAtRevision(fixture.InquiryDraft(), "1")); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, fixture.DraftAtRevision(fixture.InquiryDraft(), "1")); err != nil {
+		t.Fatal(err)
 	}
 	for _, path := range []string{"/bots/1/chats/1", "/bots/1/chats/2"} {
 		if got := b.Send("GET", path, nil); got.Code != 200 || !strings.Contains(got.Body.String(), `data-draft-revision="2"`) {

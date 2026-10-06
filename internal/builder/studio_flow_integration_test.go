@@ -18,7 +18,9 @@ import (
 
 func TestFlowTabShowsCommittedSequentialFormAndMessagePaths(t *testing.T) {
 	a, b := fixture.DraftFixture(t)
-	b.PostDraft(t, "/bots/1/draft", fixture.InquiryDraft())
+	if err := b.SaveDraft(t, 1, fixture.InquiryDraft()); err != nil {
+		t.Fatal(err)
+	}
 	fixture.SeedBotChat(t, a.DB, 1, "جریان واقعی")
 	page := b.Send("GET", "/bots/1/flow", nil)
 	for _, want := range []string{`data-flow-page`, `data-flow-revision="1"`, `data-flow-key="block:d2VsY29tZQ"`, `data-flow-key="question:aW5xdWlyeQ:bmFtZQ"`, `data-flow-key="review:aW5xdWlyeQ"`, `data-flow-key="ack:aW5xdWlyeQ"`, "نام شما چیست؟", "شماره تماس", "درخواست شما دریافت شد"} {
@@ -32,7 +34,9 @@ func TestFlowTabShowsCommittedSequentialFormAndMessagePaths(t *testing.T) {
 	if !strings.Contains(ack, `data-flow-target="block:d2VsY29tZQ"`) {
 		t.Fatalf("restart skipped the actual Welcome Block: %s", ack)
 	}
-	b.PostDraft(t, "/bots/1/draft", fixture.WelcomeDraft())
+	if err := b.SaveDraft(t, 1, fixture.WelcomeDraft()); err != nil {
+		t.Fatal(err)
+	}
 	page = b.Send("GET", "/bots/1/flow", nil)
 	if !strings.Contains(page.Body.String(), `data-flow-revision="2"`) || !strings.Contains(page.Body.String(), "Call 02112345678") || strings.Contains(page.Body.String(), `data-flow-key="review:aW5xdWlyeQ"`) {
 		t.Fatal("Flow did not reconcile from the manually committed Draft")
@@ -74,7 +78,9 @@ func TestSelectedBlockRequestCarriesAuthorizedCommittedContextAndRejectsStaleSel
 			t.Fatalf("provider missing authorized context %s", want)
 		}
 	}
-	b.PostDraft(t, "/bots/1/draft", fixture.WelcomeDraft())
+	if err := b.SaveDraft(t, 1, fixture.WelcomeDraft()); err != nil {
+		t.Fatal(err)
+	}
 	// A lost successful response can be deduplicated even after the Draft changes.
 	if got := b.Post("/bots/1/chats/1/messages", values); got.Code != 303 {
 		t.Fatalf("duplicate: %d", got.Code)
@@ -123,8 +129,8 @@ func TestFlowInspectionScopesQuestionIdentityToItsForm(t *testing.T) {
 	})
 	values := fixture.CombinedDraft()
 	values["question_id"][3] = "name" // Both Forms may legitimately ask a Question with this ID.
-	if got := b.PostDraft(t, "/bots/1/draft", values); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, values); err != nil {
+		t.Fatal(err)
 	}
 	page := b.Send("GET", "/bots/1/flow", nil).Body.String()
 	selected := "question:" + base64.RawURLEncoding.EncodeToString([]byte("registration")) + ":bmFtZQ"
@@ -208,7 +214,9 @@ func TestSelectedBlockRetryRevalidatesAfterRestartAndPreservesHistoricalRuns(t *
 				t.Fatal("restart lost saved request")
 			}
 			if changed {
-				b.PostDraft(t, "/bots/1/draft", fixture.WelcomeDraft())
+				if err := b.SaveDraft(t, 1, fixture.WelcomeDraft()); err != nil {
+					t.Fatal(err)
+				}
 			}
 			got := fixture.StudioRequest(b, "POST", "/bots/1/chats/1/runs/2/retry", nil)
 			if changed {
@@ -243,8 +251,8 @@ func TestSelectedBlockAcceptsMaximumApprovedUnicodeIdentities(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := b.PostDraft(t, "/bots/1/draft", url.Values{"definition": {string(data)}}); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, url.Values{"definition": {string(data)}}); err != nil {
+		t.Fatal(err)
 	}
 	key := "question:" + base64.RawURLEncoding.EncodeToString([]byte(formID)) + ":" + base64.RawURLEncoding.EncodeToString([]byte(questionID))
 	if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {"این پرسش را بررسی کن"}, "selected_block": {key}, "selected_revision": {"2"}}); got.Code != 303 {

@@ -1,6 +1,7 @@
 package builder_test
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/pooya79/Piko/internal/auth"
+	"github.com/pooya79/Piko/internal/bot"
 	"github.com/pooya79/Piko/internal/builder"
 	fixture "github.com/pooya79/Piko/internal/testsupport/httpfixture"
 )
@@ -23,22 +25,22 @@ func TestBuilderUndoRefusesInterveningManualAndOtherChatEdits(t *testing.T) {
 			if edit == "another chat" {
 				fixture.SaveBuilderChange(t, b, "/bots/1/chats/2")
 			} else {
-				v := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+				v := b.LoadDraft(t, 1)
 				if edit == "away and back" {
 					v.Set("welcome", "ویرایش میان\u200cراه")
 				}
-				if got := b.Post("/bots/1/draft", v); got.Code != 303 {
-					t.Fatal(got.Code)
+				if err := b.SaveDraft(t, 1, v); err != nil {
+					t.Fatal(err)
 				}
 				if edit == "away and back" {
 					v.Set("welcome", "Hello")
 					v.Set("draft_revision", "3")
-					if got := b.Post("/bots/1/draft", v); got.Code != 303 {
-						t.Fatal(got.Code)
+					if err := b.SaveDraft(t, 1, v); err != nil {
+						t.Fatal(err)
 					}
 				}
 			}
-			before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+			before := b.LoadDraft(t, 1)
 			path := "/bots/1/chats/1/runs/1/undo"
 			if page := b.Send("GET", "/bots/1/chats/1", nil).Body.String(); strings.Contains(page, `action="`+path+`"`) || !strings.Contains(page, "دیگر در دسترس نیست") {
 				t.Fatal("stale Undo is not visibly unavailable")
@@ -46,7 +48,7 @@ func TestBuilderUndoRefusesInterveningManualAndOtherChatEdits(t *testing.T) {
 			if got := b.Post(path, url.Values{}); got.Code != 409 || !strings.Contains(got.Body.String(), "پیش\u200cنویس فعلی حفظ شد") {
 				t.Fatal("stale Undo was not honestly refused", got.Code)
 			}
-			if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(before, after) {
+			if after := b.LoadDraft(t, 1); !reflect.DeepEqual(before, after) {
 				t.Fatal("Undo erased newer work")
 			}
 			if edit == "another chat" {
@@ -65,7 +67,7 @@ func TestBuilderUndoRequiresOwnerPOSTCSRFAndMatchingRun(t *testing.T) {
 	a, b := fixture.UndoFixture(t)
 	fixture.SaveBuilderChange(t, b, "/bots/1/chats/1")
 	path := "/bots/1/chats/1/runs/1/undo"
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	before := b.LoadDraft(t, 1)
 	for _, method := range []string{"GET", "PUT"} {
 		if got := b.Send(method, path, url.Values{"csrf_token": {b.Cookie(auth.CSRFCookie)}}); got.Code != 405 {
 			t.Fatalf("%s Undo: %d", method, got.Code)
@@ -96,14 +98,14 @@ func TestBuilderUndoRequiresOwnerPOSTCSRFAndMatchingRun(t *testing.T) {
 			t.Fatalf("mismatched Undo %s: %d", path, got.Code)
 		}
 	}
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(before, after) {
+	if after := b.LoadDraft(t, 1); !reflect.DeepEqual(before, after) {
 		t.Fatal("rejected requests changed Draft")
 	}
 }
 
 func TestBuilderUndoSurvivesRestartWithoutProviderCredentials(t *testing.T) {
 	a, b := fixture.UndoFixture(t)
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	before := b.LoadDraft(t, 1)
 	fixture.SaveBuilderChange(t, b, "/bots/1/chats/1")
 	a.StopWork()
 	a.Builder.Wait()
@@ -124,7 +126,7 @@ func TestBuilderUndoSurvivesRestartWithoutProviderCredentials(t *testing.T) {
 		t.Fatal(got.Code)
 	}
 	before.Set("draft_revision", "3")
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(before, after) {
+	if after := b.LoadDraft(t, 1); !reflect.DeepEqual(before, after) {
 		t.Fatal("restart lost preceding Draft snapshot")
 	}
 	restarted.StopWork()
@@ -152,7 +154,7 @@ func TestBuilderUndoRacesAcrossAppInstancesOnlyRestoreOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { second.StopWork(); second.Builder.Wait(); _ = second.DB.Close() })
-	other := fixture.NewAccountBrowser(t, second.Handler)
+	other := fixture.NewAccountBrowser(t, second.Handler, second.Config.DatabasePath)
 	other.Jar = b.Jar
 	start := make(chan struct{})
 	codes := make(chan int, 2)
@@ -169,7 +171,7 @@ func TestBuilderUndoRacesAcrossAppInstancesOnlyRestoreOnce(t *testing.T) {
 	if first+last != 303+409 || (first != 303 && first != 409) {
 		t.Fatalf("Undo race: %d %d", first, last)
 	}
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); after.Get("draft_revision") != "3" {
+	if after := b.LoadDraft(t, 1); after.Get("draft_revision") != "3" {
 		t.Fatal("racing Undo advanced Draft more than once")
 	}
 }
@@ -177,23 +179,23 @@ func TestBuilderUndoRacesAcrossAppInstancesOnlyRestoreOnce(t *testing.T) {
 func TestBuilderUndoRacesWithManualSaveWithoutLosingNewerWork(t *testing.T) {
 	a, b := fixture.UndoFixture(t)
 	fixture.SaveBuilderChange(t, b, "/bots/1/chats/1")
-	manual := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	manual := b.LoadDraft(t, 1)
 	manual.Set("welcome", "کار جدید مالک")
-	other := fixture.NewAccountBrowser(t, a.Handler)
+	other := fixture.NewAccountBrowser(t, a.Handler, a.Config.DatabasePath)
 	other.Jar = b.Jar
 	start := make(chan struct{})
-	undoCode, manualCode := make(chan int, 1), make(chan int, 1)
+	undoCode, manualResult := make(chan int, 1), make(chan error, 1)
 	var wg sync.WaitGroup
 	wg.Go(func() { <-start; undoCode <- b.Post("/bots/1/chats/1/runs/1/undo", url.Values{}).Code })
-	wg.Go(func() { <-start; manualCode <- other.Post("/bots/1/draft", manual).Code })
+	wg.Go(func() { <-start; manualResult <- other.SaveDraft(t, 1, manual) })
 	close(start)
 	wg.Wait()
-	u, m := <-undoCode, <-manualCode
-	if !((u == 303 && m == 409) || (u == 409 && m == 303)) {
-		t.Fatalf("manual/Undo race: %d %d", u, m)
+	u, m := <-undoCode, <-manualResult
+	if !((u == 303 && errors.Is(m, bot.ErrStaleDraft)) || (u == 409 && m == nil)) {
+		t.Fatalf("draft/Undo race: %d %v", u, m)
 	}
-	after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
-	if after.Get("draft_revision") != "3" || (m == 303 && after.Get("welcome") != "کار جدید مالک") {
+	after := b.LoadDraft(t, 1)
+	if after.Get("draft_revision") != "3" || (m == nil && after.Get("welcome") != "کار جدید مالک") {
 		t.Fatal("Undo race lost a committed manual change")
 	}
 }
@@ -218,7 +220,7 @@ func TestBuilderUndoInvalidatesPendingBuilderResult(t *testing.T) {
 		fixture.BuilderTextReply(w)
 	})
 	defer close(release)
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	before := b.LoadDraft(t, 1)
 	fixture.SaveBuilderChange(t, b, "/bots/1/chats/1")
 	if got := b.Post("/bots/1/chats/2/messages", url.Values{"message": {"ویرایش بعدی"}}); got.Code != 303 {
 		t.Fatal(got.Code)
@@ -237,7 +239,7 @@ func TestBuilderUndoInvalidatesPendingBuilderResult(t *testing.T) {
 		t.Fatal("pending result ignored Undo's fresh revision")
 	}
 	before.Set("draft_revision", "3")
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(before, after) {
+	if after := b.LoadDraft(t, 1); !reflect.DeepEqual(before, after) {
 		t.Fatal("pending Builder overwrote Undo")
 	}
 }
@@ -271,7 +273,7 @@ func TestBuilderUndoUnavailableForTurnsWithoutSuccessfulChange(t *testing.T) {
 				}
 				fixture.BuilderTextReply(w)
 			})
-			before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+			before := b.LoadDraft(t, 1)
 			if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {"درخواست"}}); got.Code != 303 {
 				t.Fatal(got.Code)
 			}
@@ -310,7 +312,7 @@ func TestBuilderUndoUnavailableForTurnsWithoutSuccessfulChange(t *testing.T) {
 			if got := b.Post("/bots/1/chats/1/runs/1/undo", url.Values{}); got.Code != 409 {
 				t.Fatal("turn without a saved change allowed Undo", got.Code)
 			}
-			if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(before, after) {
+			if after := b.LoadDraft(t, 1); !reflect.DeepEqual(before, after) {
 				t.Fatal("unavailable Undo changed Draft")
 			}
 		})
@@ -320,7 +322,7 @@ func TestBuilderUndoUnavailableForTurnsWithoutSuccessfulChange(t *testing.T) {
 func TestBuilderUndoStorageFailureRollsBackAndRemainsAvailable(t *testing.T) {
 	a, b := fixture.UndoFixture(t)
 	fixture.SaveBuilderChange(t, b, "/bots/1/chats/1")
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	before := b.LoadDraft(t, 1)
 	if _, err := a.DB.Exec(`CREATE TRIGGER fail_undo_feedback BEFORE INSERT ON builder_messages WHEN NEW.content='builder.run.undone' BEGIN SELECT RAISE(ABORT,'forced failure'); END`); err != nil {
 		t.Fatal(err)
 	}
@@ -328,7 +330,7 @@ func TestBuilderUndoStorageFailureRollsBackAndRemainsAvailable(t *testing.T) {
 	if got := b.Post(path, url.Values{}); got.Code != 500 {
 		t.Fatal("failed Undo was reported successful", got.Code)
 	}
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(before, after) {
+	if after := b.LoadDraft(t, 1); !reflect.DeepEqual(before, after) {
 		t.Fatal("failed feedback left a partial restoration")
 	}
 	if page := b.Send("GET", "/bots/1/chats/1", nil).Body.String(); !strings.Contains(page, `action="`+path+`"`) || strings.Contains(page, `data-run-result="undone"`) {
@@ -344,7 +346,7 @@ func TestBuilderUndoStorageFailureRollsBackAndRemainsAvailable(t *testing.T) {
 
 func TestBuilderUndoRestoresDraftAtFreshRevisionOnce(t *testing.T) {
 	_, b := fixture.UndoFixture(t)
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	before := b.LoadDraft(t, 1)
 	page := fixture.SaveBuilderChange(t, b, "/bots/1/chats/1")
 	path := "/bots/1/chats/1/runs/1/undo"
 	if !strings.Contains(page, `action="`+path+`"`) {
@@ -358,7 +360,7 @@ func TestBuilderUndoRestoresDraftAtFreshRevisionOnce(t *testing.T) {
 		t.Fatalf("Undo: %d", got.Code)
 	}
 	before.Set("draft_revision", "3")
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(before, after) {
+	if after := b.LoadDraft(t, 1); !reflect.DeepEqual(before, after) {
 		t.Fatal("Undo did not restore the preceding Draft with a fresh revision")
 	}
 	page = b.Send("GET", "/bots/1/chats/1", nil).Body.String()
@@ -368,7 +370,7 @@ func TestBuilderUndoRestoresDraftAtFreshRevisionOnce(t *testing.T) {
 	if got := b.Post(path, url.Values{}); got.Code != 409 {
 		t.Fatalf("repeated Undo: %d", got.Code)
 	}
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(before, after) {
+	if after := b.LoadDraft(t, 1); !reflect.DeepEqual(before, after) {
 		t.Fatal("repeated Undo mutated the Draft")
 	}
 }

@@ -48,7 +48,7 @@ func generalDeployFixture(t *testing.T, provider http.HandlerFunc) (*App, *fixtu
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { a.stopRequests(); a.builder.Wait(); _ = a.db.Close() })
-	b := fixture.NewAccountBrowser(t, a.server.Handler)
+	b := fixture.NewAccountBrowser(t, a.server.Handler, a.cfg.DatabasePath)
 	b.Send("GET", "/register", nil)
 	if got := b.Post("/register", fixture.RegisterValues("deploy-owner@example.test", "مینا", "OwnerPassword123")); got.Code != 303 {
 		t.Fatal(got.Code)
@@ -68,8 +68,8 @@ func TestDeployRetainsPublishedFlowThroughDraftPreviewUndoAndNewVersions(t *test
 			fixture.BuilderTextReply(w)
 		}
 	})
-	if got := b.PostDraft(t, "/bots/1/draft", fixture.InquiryDraft()); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, fixture.InquiryDraft()); err != nil {
+		t.Fatal(err)
 	}
 	if got := b.Post("/bots/1/deploy", url.Values{"operate": {"yes"}}); got.Code != 200 {
 		t.Fatal(got.Code)
@@ -96,8 +96,8 @@ func TestDeployRetainsPublishedFlowThroughDraftPreviewUndoAndNewVersions(t *test
 	updated := fixture.InquiryDraft()
 	updated["question_prompt"][1] = "پرسش نسخه تازه"
 	updated.Set("acknowledgement", "رسید نسخه تازه")
-	if got := b.PostDraft(t, "/bots/1/draft", updated); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := b.SaveDraft(t, 1, updated); err != nil {
+		t.Fatal(err)
 	}
 	target := fixture.ProposedAction(t, b, "منتشر کن")
 	if got := b.Post(target, url.Values{"operate": {"yes"}}); got.Code != 200 {

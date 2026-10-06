@@ -17,19 +17,16 @@ func TestCombinedFormsTelegramCompletesEachRouteAndPinsReorderedQuestionsAcrossP
 	d.text("/start", 2)
 	d.press("درخواست", 1)
 	d.text("مینا", 1)
-	changed := fixture.RenderedDraft(t, d.b.Send("GET", "/bots/1/draft", nil).Body.String())
-	// The Inquiry Form is second in the rendered menu. Reorder it and relabel
-	// a question in a later version while the live Participant is answering it.
-	changed.Set("edit", "question:up:1:2")
-	got := d.b.PostDraft(t, "/bots/1/draft", changed)
-	if got.Code != 200 {
-		t.Fatal(got.Code)
+	changed := d.b.LoadDraft(t, 1)
+	// Reorder Inquiry questions in a later version while a Participant answers
+	// the original published version.
+	for _, key := range []string{"question_form", "question_id", "question_type", "question_label", "question_prompt", "question_required", "question_options", "number_min", "number_max", "text_max", "date_min", "date_max"} {
+		changed[key][2], changed[key][3] = changed[key][3], changed[key][2]
 	}
-	changed = fixture.RenderedDraft(t, got.Body.String())
 	changed["question_prompt"][1] = "نام تازه؟"
 	changed["question_label"][1] = "نام تازه"
-	if got := d.b.PostDraft(t, "/bots/1/draft", changed); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := d.b.SaveDraft(t, 1, changed); err != nil {
+		t.Fatal(err)
 	}
 	if got := d.b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)
@@ -92,8 +89,8 @@ func TestCombinedFormsDraftAndPreviewStayIsolatedFromLive(t *testing.T) {
 	old := d.b.Post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	changed := fixture.CombinedDraft()
 	changed["question_prompt"][0] = "نام پیش\u200cنویس تازه؟"
-	if got := d.b.PostDraft(t, "/bots/1/draft", changed); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := d.b.SaveDraft(t, 1, changed); err != nil {
+		t.Fatal(err)
 	}
 	fresh := d.b.Post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	for _, tc := range []struct{ path, prompt string }{{old, "نام؟"}, {fresh, "نام پیش\u200cنویس تازه؟"}} {

@@ -56,8 +56,8 @@ func TestSubmissionWorkspacePaginationAndFrozenAnswers(t *testing.T) {
 	// A later publication cannot change the original question labels or answers.
 	draft := fixture.InquiryDraft()
 	draft["question_label"][0] = "نام تازه"
-	if got := d.b.PostDraft(t, "/bots/1/draft", draft); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := d.b.SaveDraft(t, 1, draft); err != nil {
+		t.Fatal(err)
 	}
 	if got := d.b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)
@@ -157,7 +157,7 @@ func TestSubmissionRejectedDeletionPreservesInteractionAndWorkspace(t *testing.T
 	d.press("درخواست", 1)
 	d.text("تعامل جاری", 1)
 	retained := map[string]string{}
-	for _, path := range []string{"/bots/1/settings", "/bots/1/connection", "/bots/1/draft"} {
+	for _, path := range []string{"/bots/1/settings", "/bots/1/connection"} {
 		retained[path] = d.b.Send("GET", path, nil).Body.String()
 	}
 	if got := d.b.Post("/bots/1/submissions/1/delete", url.Values{}); got.Code != 404 {

@@ -73,12 +73,12 @@ func TestPikoTemplateJourneysCreateEditPreviewAndUndo(t *testing.T) {
 				fixture.WaitBuilder(t, b, chat, "succeeded")
 			}
 			turn("یک ربات " + tc.name + " بساز")
-			original := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+			original := b.LoadDraft(t, 1)
 			if !reflect.DeepEqual(original["question_id"], []string{tc.draft.Forms[0].Questions[0].ID, tc.draft.Forms[0].Questions[1].ID, tc.draft.Forms[0].Questions[2].ID}) {
 				t.Fatal("initial Template not saved")
 			}
 			turn("پرسش نام را تغییر بده و یادداشت اختیاری را اول اضافه کن")
-			added := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+			added := b.LoadDraft(t, 1)
 			if added.Get("draft_revision") != "2" || added["question_id"][0] != "note" || added["question_prompt"][1] != "نام تازه؟" {
 				t.Fatal("addition/edit not saved")
 			}
@@ -86,7 +86,7 @@ func TestPikoTemplateJourneysCreateEditPreviewAndUndo(t *testing.T) {
 			revision := 1
 			fixture.BuilderPreviewStep(t, b, preview, &revision, url.Values{"choice": {tc.name}}, "یادداشت تازه؟")
 			turn("یادداشت را حذف کن، پرسش دوم را اول ببر و پرسش آخر را اختیاری کن")
-			edited := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+			edited := b.LoadDraft(t, 1)
 			if edited.Get("draft_revision") != "3" || !reflect.DeepEqual(edited["question_id"], []string{tc.draft.Forms[0].Questions[1].ID, "name", tc.draft.Forms[0].Questions[2].ID}) {
 				t.Fatal("removal/reordering not saved")
 			}
@@ -109,7 +109,7 @@ func TestPikoTemplateJourneysCreateEditPreviewAndUndo(t *testing.T) {
 			if got := b.Post(chat+"/runs/3/undo", url.Values{}); got.Code != 303 {
 				t.Fatal("converted chat Undo", got.Code)
 			}
-			restored := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+			restored := b.LoadDraft(t, 1)
 			added.Set("draft_revision", "4")
 			if !reflect.DeepEqual(restored, added) {
 				t.Fatal("Undo did not restore previous committed Template")
@@ -153,7 +153,7 @@ func TestPikoAcceptsMaximumMenuAndFormSizes(t *testing.T) {
 		t.Fatal(got.Code)
 	}
 	fixture.WaitBuilder(t, b, chat, "succeeded")
-	saved := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	saved := b.LoadDraft(t, 1)
 	if len(saved["form_id"]) != 6 || len(saved["question_id"]) != 72 {
 		t.Fatal("valid boundary configuration lost")
 	}
@@ -179,7 +179,7 @@ func TestPikoUndoAliasRequiresOwnerPOSTCSRFAndBotAssociation(t *testing.T) {
 	_, b := fixture.UndoFixture(t)
 	fixture.SaveBuilderChange(t, b, "/bots/1/chats/1")
 	path := "/chats/1/runs/1/undo"
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+	before := b.LoadDraft(t, 1)
 	if got := b.Send("GET", path, nil); got.Code != 405 {
 		t.Fatal("Undo accepted GET", got.Code)
 	}
@@ -198,7 +198,7 @@ func TestPikoUndoAliasRequiresOwnerPOSTCSRFAndBotAssociation(t *testing.T) {
 	if got := b.Post(general+"/runs/1/undo", url.Values{}); got.Code != 404 {
 		t.Fatal("general chat borrowed Bot run", got.Code)
 	}
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(before, after) {
+	if after := b.LoadDraft(t, 1); !reflect.DeepEqual(before, after) {
 		t.Fatal("rejected Undo changed Draft")
 	}
 	if got := b.Send("POST", path, url.Values{"csrf_token": {b.Cookie(auth.CSRFCookie)}}); got.Code != 303 {
@@ -235,7 +235,7 @@ func TestPikoUnsupportedCandidateFieldsCannotPersistCapabilitiesOrSuccessClaims(
 				t.Fatal(got.Code)
 			}
 			fixture.WaitBuilder(t, b, chat, "succeeded")
-			before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
+			before := b.LoadDraft(t, 1)
 			if got := b.Post(chat+"/messages", url.Values{"message": {"قابلیت پشتیبانی نشده اضافه کن"}}); got.Code != 303 {
 				t.Fatal(got.Code)
 			}
@@ -243,7 +243,7 @@ func TestPikoUnsupportedCandidateFieldsCannotPersistCapabilitiesOrSuccessClaims(
 			if !strings.Contains(page, `data-run-result="invalid"`) || strings.Contains(page, "CLAIM-OF-UNSAVED-SUCCESS") {
 				t.Fatal("invalid capability retained success claim")
 			}
-			if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(before, after) {
+			if after := b.LoadDraft(t, 1); !reflect.DeepEqual(before, after) {
 				t.Fatal("unsupported capability persisted")
 			}
 		})

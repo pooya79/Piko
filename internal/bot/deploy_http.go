@@ -36,14 +36,14 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrNoDraft), errors.As(err, &invalid):
 			status, key = 422, "publish.error.draft"
 		default:
-			h.draftError(w, r, err)
+			h.botError(w, r, err)
 			return
 		}
 	}
 	// Fetch current delivery/pause state without inferring liveness from publication.
 	result.Bot, err = h.service.Get(r.Context(), b.ID)
 	if err != nil {
-		h.draftError(w, r, err)
+		h.botError(w, r, err)
 		return
 	}
 	u, _ := auth.UserFromContext(r.Context())

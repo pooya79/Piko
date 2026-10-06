@@ -47,7 +47,6 @@ const (
 	BotSubmissions BotNavSection = "submissions"
 	BotConnection  BotNavSection = "connection"
 	BotSettings    BotNavSection = "settings"
-	BotDraft       BotNavSection = "draft"
 )
 
 // BotLink contains only navigation identity, never inferred status or metrics.

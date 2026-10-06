@@ -64,7 +64,7 @@ func (h *Handler) activationError(w http.ResponseWriter, r *http.Request, b Bot,
 		status, key = 409, "activate.busy"
 	case errors.Is(err, telegram.ErrUnavailable), errors.Is(err, telegram.ErrCredentials), errors.Is(err, telegram.ErrRejected), errors.Is(err, telegram.ErrForbidden):
 	default:
-		h.draftError(w, r, err)
+		h.botError(w, r, err)
 		return
 	}
 	// Shutdown cancels request contexts after service cleanup; its authorized

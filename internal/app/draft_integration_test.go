@@ -43,7 +43,9 @@ func TestPreviewRequiresSavedDraftAndExpiresWithoutChangingDraft(t *testing.T) {
 	if got := b.Post("/bots/1/preview", url.Values{}); got.Code != 409 {
 		t.Fatalf("unsaved Preview: %d", got.Code)
 	}
-	b.PostDraft(t, "/bots/1/draft", fixture.WelcomeDraft())
+	if err := b.SaveDraft(t, 1, fixture.WelcomeDraft()); err != nil {
+		t.Fatal(err)
+	}
 	path := b.Post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	// Advance time at the storage boundary; assertions use the HTTP contract.
 	if _, err := a.db.Exec("UPDATE bot_previews SET expires_at=0"); err != nil {
@@ -58,7 +60,7 @@ func TestPreviewRequiresSavedDraftAndExpiresWithoutChangingDraft(t *testing.T) {
 	if err := a.cleanup(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	if got := b.Send(http.MethodGet, "/bots/1/draft", nil); !strings.Contains(got.Body.String(), "Call 02112345678") {
+	if !strings.Contains(b.DraftText(t, 1), "Call 02112345678") {
 		t.Fatal("expiration removed Draft")
 	}
 }

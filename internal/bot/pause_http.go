@@ -24,7 +24,7 @@ func (h *Handler) setPaused(w http.ResponseWriter, r *http.Request, paused bool)
 		if errors.Is(err, ErrPauseUnavailable) {
 			web.RenderError(w, r, http.StatusConflict, "pause.unavailable")
 		} else {
-			h.draftError(w, r, err)
+			h.botError(w, r, err)
 		}
 		return
 	}

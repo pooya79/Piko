@@ -90,8 +90,8 @@ func TestBotPauseSurvivesRestartAndKeepsOriginalInteractionVersion(t *testing.T)
 	updated.Set("welcome", "سلام تازه")
 	updated.Set("acknowledgement", "دریافت تازه")
 	updated["question_prompt"][1] = "تماس تازه؟"
-	if got := d.b.PostDraft(t, "/bots/1/draft", updated); got.Code != 303 {
-		t.Fatal(got.Code)
+	if err := d.b.SaveDraft(t, 1, updated); err != nil {
+		t.Fatal(err)
 	}
 	if got := d.b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)

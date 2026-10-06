@@ -134,7 +134,7 @@ func (s *Service) draftTools() []ai.ToolRef {
 			{Name: "booking", Definition: booking.Default().Definition()},
 		}, nil
 	})
-	read := genkit.DefineTool(s.genkit, "read_draft", "Read this run's owner-authorized shared Draft snapshot and original revision. Manual edits may advance it; stale results will be rejected.", func(ctx *ai.ToolContext, _ struct{}) (draftSnapshot, error) {
+	read := genkit.DefineTool(s.genkit, "read_draft", "Read this run's owner-authorized shared Draft snapshot and original revision. Other Draft changes may advance it; stale results will be rejected.", func(ctx *ai.ToolContext, _ struct{}) (draftSnapshot, error) {
 		var out draftSnapshot
 		c, err := candidateFromContext(ctx)
 		if err != nil {
