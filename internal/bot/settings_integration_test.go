@@ -90,9 +90,9 @@ func TestManualSettingsRemainSharedUnpublishedAndAvailableToFreshPreview(t *test
 	if !reflect.DeepEqual(current, loaded) {
 		t.Fatal("manual save lost retained Forms or menu order")
 	}
-	studio := b.Send("GET", "/bots/1/chats/1", nil).Body.String()
-	if !strings.Contains(studio, "سلام از تنظیمات دستی") || !strings.Contains(studio, `data-flow-revision="2"`) {
-		t.Fatal("studio does not inspect manual saved revision")
+	inspection := b.Send("GET", "/bots/1/flow", nil).Body.String()
+	if !strings.Contains(inspection, "سلام از تنظیمات دستی") || !strings.Contains(inspection, `data-flow-revision="2"`) {
+		t.Fatal("Flow does not inspect manual saved revision")
 	}
 	preview := b.Post("/bots/1/preview", url.Values{}).Header().Get("Location")
 	if got := b.Send("GET", preview, nil); got.Code != 200 || !strings.Contains(got.Body.String(), "سلام از تنظیمات دستی") {

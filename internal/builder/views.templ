@@ -20,7 +20,7 @@ templ IndexPage(displayName,csrf string,chats []Chat,view ChatView) {
 templ indexDocument(csrf string,chats []Chat,view ChatView) {
  <script src="/static/studio.js?v=studio6" defer></script>
  <script src="/static/studio-preview.js?v=preview2" defer></script>
- <script src="/static/studio-flow.js?v=flow1" defer></script>
+ <script src="/static/studio-panes.js?v=panes1" defer></script>
  <script src="/static/builder-status.js?v=studio3" defer></script>
  @indexContent(csrf,chats,view)
 }
@@ -260,9 +260,8 @@ templ studioPane(csrf string,b bot.Bot,history Conversation,view ChatView) {
   } else {
    <h2 id="studio-pane-title" class="sr-only">{ locale.T(ctx,"preview.title") }</h2>
    <div class="piko-studio-pane-content"><p class="sr-only" data-draft-revision={ strconv.FormatInt(view.Revision,10) }>{ locale.T(ctx,"builder.revision")+" "+locale.Digits(strconv.FormatInt(view.Revision,10)) }</p>
-    <nav class="piko-pane-tabs" aria-label={ locale.T(ctx,"studio.views") }><button id="studio-tab-preview" type="button" data-pane-tab="preview" aria-controls="studio-preview-panel" aria-pressed="true">{ locale.T(ctx,"preview.title") }</button><button id="studio-tab-flow" type="button" data-pane-tab="flow" aria-controls="studio-flow-panel" aria-pressed="false">{ locale.T(ctx,"flow.title") }</button><button id="studio-tab-changes" type="button" data-pane-tab="changes" aria-controls="studio-changes-panel" aria-pressed="false">{ locale.T(ctx,"changes.title") }</button></nav>
+    <nav class="piko-pane-tabs" aria-label={ locale.T(ctx,"studio.views") }><button id="studio-tab-preview" type="button" data-pane-tab="preview" aria-controls="studio-preview-panel" aria-pressed="true">{ locale.T(ctx,"preview.title") }</button><button id="studio-tab-changes" type="button" data-pane-tab="changes" aria-controls="studio-changes-panel" aria-pressed="false">{ locale.T(ctx,"changes.title") }</button></nav>
     <section id="studio-preview-panel" data-pane-panel="preview">@bot.PreviewPane(csrf,b,bot.Preview{},view.Revision>0,"")</section>
-    <section id="studio-flow-panel" data-pane-panel="flow">@flowCanvas(b,view)</section>
     @changesPane(csrf,b,history,view.Revision)
     <details id="studio-bot-tools" class="piko-studio-bot-tools"><summary>{ locale.T(ctx,"studio.bot.tools") }</summary>
     <a id="studio-draft" class="piko-secondary-action" href={ templ.URL(b.URL()+"/draft") }>@shell.Icon("squares-four")
@@ -283,7 +282,7 @@ templ usage(u Usage) {
 templ chatDocument(csrf string,b bot.Bot,history Conversation,view ChatView) {
  <script src="/static/studio.js?v=studio6" defer></script>
  <script src="/static/studio-preview.js?v=preview2" defer></script>
- <script src="/static/studio-flow.js?v=flow1" defer></script>
+ <script src="/static/studio-panes.js?v=panes1" defer></script>
  <script src="/static/builder-status.js?v=studio3" defer></script>
  @chatContent(csrf,b,history,view)
 }

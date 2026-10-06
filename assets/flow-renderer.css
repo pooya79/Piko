@@ -1,0 +1,2 @@
+/* Cytoscape's default container rule, served locally under the existing CSP. */
+.__________cytoscape_container { position: relative; }

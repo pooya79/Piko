@@ -16,24 +16,24 @@ import (
 	fixture "github.com/pooya79/Piko/internal/testsupport/httpfixture"
 )
 
-func TestStudioFlowShowsCommittedSequentialFormAndMessagePaths(t *testing.T) {
+func TestFlowTabShowsCommittedSequentialFormAndMessagePaths(t *testing.T) {
 	a, b := fixture.DraftFixture(t)
 	b.PostDraft(t, "/bots/1/draft", fixture.InquiryDraft())
 	fixture.SeedBotChat(t, a.DB, 1, "جریان واقعی")
-	page := fixture.StudioRequest(b, "GET", "/bots/1/chats/1", nil)
-	for _, want := range []string{`data-studio-flow`, `data-flow-revision="1"`, `data-flow-key="block:d2VsY29tZQ"`, `data-flow-key="question:aW5xdWlyeQ:bmFtZQ"`, `data-flow-key="review:aW5xdWlyeQ"`, `data-flow-key="ack:aW5xdWlyeQ"`, "نام شما چیست؟", "شماره تماس", "درخواست شما دریافت شد"} {
+	page := b.Send("GET", "/bots/1/flow", nil)
+	for _, want := range []string{`data-flow-page`, `data-flow-revision="1"`, `data-flow-key="block:d2VsY29tZQ"`, `data-flow-key="question:aW5xdWlyeQ:bmFtZQ"`, `data-flow-key="review:aW5xdWlyeQ"`, `data-flow-key="ack:aW5xdWlyeQ"`, "نام شما چیست؟", "شماره تماس", "درخواست شما دریافت شد"} {
 		if page.Code != 200 || !strings.Contains(page.Body.String(), want) {
 			t.Fatalf("committed Flow missing %s (status %d)", want, page.Code)
 		}
 	}
 
-	ack := page.Body.String()[strings.Index(page.Body.String(), `id="flow-ack:aW5xdWlyeQ"`):]
-	ack = ack[:strings.Index(ack, "</details>")]
-	if !strings.Contains(ack, `href="#flow-block%3Ad2VsY29tZQ"`) {
+	ack := page.Body.String()[strings.Index(page.Body.String(), `data-flow-detail="ack:aW5xdWlyeQ"`):]
+	ack = ack[:strings.Index(ack, "</article>")]
+	if !strings.Contains(ack, `data-flow-target="block:d2VsY29tZQ"`) {
 		t.Fatalf("restart skipped the actual Welcome Block: %s", ack)
 	}
 	b.PostDraft(t, "/bots/1/draft", fixture.WelcomeDraft())
-	page = fixture.StudioRequest(b, "GET", "/bots/1/chats/1", nil)
+	page = b.Send("GET", "/bots/1/flow", nil)
 	if !strings.Contains(page.Body.String(), `data-flow-revision="2"`) || !strings.Contains(page.Body.String(), "Call 02112345678") || strings.Contains(page.Body.String(), `data-flow-key="review:aW5xdWlyeQ"`) {
 		t.Fatal("Flow did not reconcile from the manually committed Draft")
 	}
@@ -114,7 +114,7 @@ func TestSelectedBlockRequestCarriesAuthorizedCommittedContextAndRejectsStaleSel
 	}
 }
 
-func TestStudioFlowScopesQuestionIdentityToItsForm(t *testing.T) {
+func TestFlowInspectionScopesQuestionIdentityToItsForm(t *testing.T) {
 	received := make(chan string, 1)
 	_, b := fixture.BuilderFixture(t, builder.Config{}, func(w http.ResponseWriter, r *http.Request) {
 		data, _ := io.ReadAll(r.Body)
@@ -126,7 +126,7 @@ func TestStudioFlowScopesQuestionIdentityToItsForm(t *testing.T) {
 	if got := b.PostDraft(t, "/bots/1/draft", values); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	page := fixture.StudioRequest(b, "GET", "/bots/1/chats/1", nil).Body.String()
+	page := b.Send("GET", "/bots/1/flow", nil).Body.String()
 	selected := "question:" + base64.RawURLEncoding.EncodeToString([]byte("registration")) + ":bmFtZQ"
 	for _, want := range []string{`data-flow-key="` + selected + `"`, `data-flow-key="question:aW5xdWlyeQ:bmFtZQ"`, "هنر", "علوم", "عدد", "تاریخ شمسی", "رد کردن"} {
 		if !strings.Contains(page, want) {

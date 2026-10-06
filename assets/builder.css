@@ -92,7 +92,7 @@
 .piko-studio .piko-preview-footer { gap: 8px; margin-top: 12px; }
 .piko-studio .piko-preview-footer button { min-height: 40px; font-size: 10px; }
 [data-studio-preview][aria-busy="true"] button[type="submit"] { opacity: .6; cursor: wait; }
-/* Read-only Flow paths use native details for keyboard and no-script access. */
+/* Preview and Draft changes remain beside the Builder chat. */
 .piko-pane-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--color-base-300); padding-bottom: 8px; }
 .piko-pane-tabs button { flex: 1; min-height: 44px; border-radius: 8px; cursor: pointer; font-size: 12px; }
 .piko-pane-tabs [aria-pressed="true"] { background: var(--piko-selection); color: var(--color-primary); }
@@ -104,31 +104,8 @@
 .piko-change-list dl { display: grid; gap: 12px; padding: 12px; background: var(--color-base-200); border-radius: 8px; font-size: 13px; }
 .piko-change-list dt { font-weight: 600; }
 .piko-change-list dd { display: grid; gap: 4px; margin-top: 8px; white-space: pre-wrap; }
-.piko-flow-tools { display: flex; gap: 8px; justify-content: center; margin-block: 12px; }
-.piko-flow-tools button { min-width: 44px; min-height: 44px; }
-.piko-flow-viewport { max-height: 55dvh; overflow: auto; border: 1px solid var(--color-base-300); border-radius: 14px; padding: 16px; background: var(--color-base-200); scrollbar-width: thin; }
-.piko-flow-map { width: max-content; min-width: 100%; font-size: 12px; }
-[data-flow-zoom="75"] .piko-flow-map { zoom: .75; }
-[data-flow-zoom="125"] .piko-flow-map { zoom: 1.25; }
-[data-flow-zoom="150"] .piko-flow-map { zoom: 1.5; }
-.piko-flow-start { width: 240px; margin-inline: auto; }
-.piko-flow-branches { display: flex; align-items: flex-start; gap: 20px; padding-top: 18px; }
-.piko-flow-branch { width: 240px; flex: none; }
-.piko-flow-branch > h3 { border-top: 2px solid var(--color-primary); padding-block: 12px; font-size: 11px; }
-.piko-flow-block { border: 1px solid var(--piko-control-border); border-radius: 12px; background: var(--color-base-100); position: relative; margin-bottom: 24px; }
-.piko-flow-block::after { content: '↓'; position: absolute; inset-inline-start: 50%; bottom: -24px; color: var(--piko-text-secondary); }
-.piko-flow-branch .piko-flow-block:last-child::after { content: '↩'; }
-.piko-flow-block > summary { padding: 14px; min-height: 70px; cursor: pointer; }
-.piko-flow-block > summary strong { display: block; font-size: 12px; line-height: 1.9; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.piko-flow-block[open], .piko-flow-block[data-selected="true"] { border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--piko-selection); }
-.piko-flow-details { border-top: 1px solid var(--color-base-300); padding: 14px; font-size: 11px; line-height: 1.9; overflow-wrap: anywhere; }
-.piko-flow-details .piko-helper { font-size: 10px; }
-.piko-flow-details ul { padding: 0; list-style: none; margin-block: 8px; }
-.piko-flow-details a { display: block; min-height: 44px; padding-block: 10px; }
-.piko-flow-details button { min-height: 44px; width: 100%; margin-top: 10px; font-size: 11px; }
 [data-flow-request] { background: var(--piko-selection); border-radius: 8px; padding: 8px; font-size: 11px; overflow-wrap: anywhere; }
 [data-flow-request] bdi { display: block; max-height: 3rem; overflow: auto; }
-[data-studio-flow] > [role="status"] { margin-block: 12px; color: var(--color-primary); font-size: 11px; line-height: 1.9; }
 @media (max-width: 1179px) {
  .piko-studio-body { grid-template-columns: minmax(0,1fr) minmax(280px,34%); grid-template-rows: auto minmax(0,1fr); }
  .piko-studio-sidebar { grid-column: 1 / -1; border-inline-end: 0; border-bottom: 1px solid var(--color-base-300); max-height: 30dvh; }

@@ -39,7 +39,7 @@ func TestBotStudioFirstMessageSavesNamedChatAndReplaySurvivesRestart(t *testing.
 	for range 2 {
 		got := fixture.StudioRequest(b, "GET", "/bots/1/studio", nil)
 		body := got.Body.String()
-		for _, want := range []string{`data-studio-unsaved`, `data-chat-url="/bots/1/studio"`, `action="/bots/1/chats"`, `data-studio-preview`, `data-studio-flow`, `name="request_key"`} {
+		for _, want := range []string{`data-studio-unsaved`, `data-chat-url="/bots/1/studio"`, `action="/bots/1/chats"`, `data-studio-preview`, `name="request_key"`} {
 			if got.Code != 200 || !strings.Contains(body, want) {
 				t.Fatalf("fresh studio missing %s: %d", want, got.Code)
 			}

@@ -1,4 +1,10 @@
 -- Bot scope 0 denotes an unassociated Piko chat; storage keeps bot_id NULL.
+-- name: LatestOwnerBotChat :one
+SELECT c.id FROM builder_chats c
+JOIN bots b ON b.id = c.bot_id AND b.owner_id = c.owner_id
+WHERE c.owner_id = sqlc.arg(owner_id) AND b.id = sqlc.arg(bot_id)
+ORDER BY c.updated_at DESC, c.id DESC LIMIT 1;
+
 -- name: CreateOwnerBuilderChat :one
 INSERT INTO builder_chats (owner_id, bot_id, title, created_at, updated_at)
 SELECT b.owner_id, b.id, sqlc.arg(title), sqlc.arg(created_at), sqlc.arg(created_at)

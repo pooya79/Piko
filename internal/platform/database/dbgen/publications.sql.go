@@ -26,6 +26,30 @@ func (q *Queries) GetLatestPublication(ctx context.Context, botID int64) (GetLat
 	return i, err
 }
 
+const getOwnerLatestPublication = `-- name: GetOwnerLatestPublication :one
+SELECT p.version, p.definition FROM bot_publications p
+JOIN bots b ON b.id = p.bot_id
+WHERE b.owner_id = ?1 AND b.id = ?2
+ORDER BY p.version DESC LIMIT 1
+`
+
+type GetOwnerLatestPublicationParams struct {
+	OwnerID int64
+	BotID   int64
+}
+
+type GetOwnerLatestPublicationRow struct {
+	Version    int64
+	Definition string
+}
+
+func (q *Queries) GetOwnerLatestPublication(ctx context.Context, arg GetOwnerLatestPublicationParams) (GetOwnerLatestPublicationRow, error) {
+	row := q.db.QueryRowContext(ctx, getOwnerLatestPublication, arg.OwnerID, arg.BotID)
+	var i GetOwnerLatestPublicationRow
+	err := row.Scan(&i.Version, &i.Definition)
+	return i, err
+}
+
 const publishOwnerDraft = `-- name: PublishOwnerDraft :one
 INSERT INTO bot_publications (bot_id, version, definition)
 SELECT b.id, COALESCE((SELECT MAX(version) FROM bot_publications WHERE bot_id = b.id), 0) + 1, d.definition

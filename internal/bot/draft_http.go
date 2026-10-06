@@ -20,6 +20,8 @@ import (
 func flowPage(ctx context.Context, b Bot, titleKey string) shell.Page {
 	var section shell.BotNavSection
 	switch titleKey {
+	case "flow.title":
+		section = shell.BotFlow
 	case "draft.title":
 		section = shell.BotDraft
 	case "submission.title", "submission.detail":

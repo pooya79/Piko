@@ -5,6 +5,7 @@
 @import "./dashboard.css";
 @import "./bot.css";
 @import "./builder.css";
+@import "./flow.css";
 
 @source "../internal/**/*.templ";
 @source not "../docs/design";

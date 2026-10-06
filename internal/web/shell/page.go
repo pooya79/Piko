@@ -43,6 +43,7 @@ type BotNavSection string
 const (
 	BotOverview    BotNavSection = "overview"
 	BotStudio      BotNavSection = "studio"
+	BotFlow        BotNavSection = "flow"
 	BotSubmissions BotNavSection = "submissions"
 	BotConnection  BotNavSection = "connection"
 	BotSettings    BotNavSection = "settings"

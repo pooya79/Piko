@@ -29,7 +29,7 @@
     const studio = root();
     if (!studio) return;
     studio.dataset.enhanced = '';
-    studio.dataset.view ||= 'conversation';
+    studio.dataset.view ||= location.hash === '#studio-preview' ? 'pane' : 'conversation';
     const sidebar = studio.querySelector('#studio-chat-selector');
     if (sidebar && (restore || wideStudio.matches)) sidebar.open = wideStudio.matches || (restore && location.hash === '#saved-chats');
     studio.querySelectorAll('[data-studio-view]').forEach(button => {

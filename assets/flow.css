@@ -1,0 +1,106 @@
+/* The graph fills the Bot workspace; its inspector never expands a node. */
+.piko-workspace-main:has(.piko-flow-page) { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+.piko-workspace-main:has(.piko-flow-page) > .piko-topbar { flex-shrink: 0; }
+.piko-dashboard-main:has(.piko-flow-page) { display: flex; flex: 1; flex-direction: column; min-height: 0; max-width: none; width: 100%; margin: 0; padding: 0; }
+.piko-dashboard-main:has(.piko-flow-page) > .piko-bot-navigation { flex-shrink: 0; margin: 0; padding-inline: 28px; background: var(--color-base-100); flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; }
+.piko-dashboard-main:has(.piko-flow-page) > .piko-workspace-footer { display: none; }
+.piko-flow-page { display: flex; flex: 1; flex-direction: column; min-height: 0; min-width: 0; }
+.piko-flow-page [hidden] { display: none !important; }
+.piko-flow-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 20px 28px; }
+.piko-flow-heading h1 { font-size: 20px; font-weight: 750; }
+.piko-flow-heading p { margin-top: 4px; font-size: 12px; color: var(--piko-text-secondary); }
+.piko-flow-actions { display: flex; gap: 10px; }
+.piko-flow-actions a { display: inline-flex; align-items: center; gap: 8px; min-height: 42px; white-space: nowrap; }
+.piko-flow-actions .piko-icon { width: 18px; height: 18px; }
+.piko-flow-toolbar { display: flex; gap: 24px; align-items: center; padding: 0 28px 16px; }
+.piko-flow-versions { display: flex; border: 1px solid var(--color-base-300); padding: 4px; border-radius: 10px; background: var(--color-base-100); gap: 4px; }
+.piko-flow-versions a { padding: 8px 18px; border-radius: 7px; font-size: 12px; }
+.piko-flow-versions [aria-current="page"] { background: var(--piko-selection); color: var(--color-primary); font-weight: 650; }
+.piko-flow-all { display: flex; gap: 8px; align-items: center; font-size: 12px; cursor: pointer; min-height: 44px; }
+.piko-flow-all input { width: 16px; height: 16px; accent-color: var(--color-primary); }
+.piko-flow-picker { position: relative; margin-inline-start: auto; font-size: 12px; }
+.piko-flow-picker summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 8px; }
+.piko-flow-picker > div { position: absolute; inset-inline-end: 0; top: 100%; z-index: 10; width: min(340px,85vw); max-height: 50dvh; overflow: auto; padding: 8px; background: var(--color-base-100); border: 1px solid var(--color-base-300); border-radius: 12px; box-shadow: var(--piko-shadow); }
+.piko-flow-picker button { display: flex; gap: 10px; align-items: center; width: 100%; min-height: 44px; padding: 8px; text-align: start; cursor: pointer; }
+.piko-flow-picker button:hover { background: var(--color-base-200); }
+.piko-flow-picker .piko-icon { width: 18px; height: 18px; flex: none; }
+.piko-flow-notice { display: flex; justify-content: space-between; align-items: center; padding: 12px 28px; font-size: 13px; background: var(--piko-selection); color: var(--color-primary); }
+.piko-flow-notice button { min-height: 32px; }
+.piko-flow-page > .piko-field-error { margin: 8px 28px; }
+.piko-flow-workspace { position: relative; display: flex; flex: 1; min-height: 0; border-block-start: 1px solid var(--color-base-300); }
+.piko-flow-stage { position: relative; flex: 1; min-width: 0; min-height: 0; overflow: hidden; direction: ltr; background-color: var(--color-base-200); background-image: radial-gradient(var(--color-base-300) 1.3px, transparent 1.3px); background-size: 22px 22px; }
+.piko-flow-stage > .piko-flow-renderer { position: absolute; inset: 0; touch-action: none; z-index: 0; }
+.piko-flow-nodes { position: relative; display: flex; flex-wrap: wrap; gap: 20px; padding: 24px; }
+[data-graph-ready] .piko-flow-nodes { position: absolute; inset: 0; padding: 0; pointer-events: none; display: block; }
+.piko-graph-node { width: 232px; height: 80px; display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--piko-control-border); border-radius: 12px; background: var(--color-base-100); box-shadow: 0 3px 8px #00000008; cursor: pointer; text-align: start; direction: rtl; font-family: var(--font-sans); }
+[data-graph-ready] .piko-graph-node { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: auto; }
+.piko-graph-node:hover { border-color: var(--color-primary); }
+.piko-graph-node[aria-pressed="true"] { border-color: var(--color-primary); outline: 2px solid var(--color-primary); outline-offset: 3px; }
+.piko-graph-node:focus-visible, .piko-flow-page button:focus-visible, .piko-flow-page a:focus-visible, .piko-flow-page summary:focus-visible, .piko-flow-page input:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 4px; }
+.piko-graph-label { flex: 1; min-width: 0; }
+.piko-graph-label small { display: block; color: var(--piko-text-secondary); font-size: 10px; margin-bottom: 4px; }
+.piko-graph-label strong { display: block; font-size: 12px; font-weight: 650; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.piko-graph-icon { display: grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 10px; background: var(--piko-surface-lilac); color: var(--color-secondary); }
+.piko-graph-icon .piko-icon { width: 22px; height: 22px; }
+[data-kind="welcome"] .piko-graph-icon, .piko-graph-icon[data-kind="welcome"] { background: var(--piko-surface-peach); color: var(--color-primary); }
+[data-kind="menu"] .piko-graph-icon, .piko-graph-icon[data-kind="menu"] { background: var(--piko-surface-mint); color: var(--color-accent); }
+[data-kind="ack"] .piko-graph-icon, .piko-graph-icon[data-kind="ack"] { background: var(--piko-surface-mint); color: var(--color-success); }
+.piko-flow-controls { display: none; position: absolute; bottom: 24px; left: 24px; align-items: center; padding: 5px; border: 1px solid var(--color-base-300); border-radius: 12px; background: var(--color-base-100); z-index: 2; box-shadow: var(--piko-shadow); }
+[data-graph-ready] .piko-flow-controls { display: flex; }
+.piko-flow-controls button { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 8px; cursor: pointer; }
+.piko-flow-controls button:hover { background: var(--color-base-200); }
+.piko-flow-controls .piko-icon { width: 18px; height: 18px; }
+.piko-flow-controls output { width: 54px; text-align: center; font-size: 11px; }
+.piko-flow-minimap { display: none; position: absolute; right: 24px; bottom: 24px; width: 160px; height: 110px; border-radius: 12px; border: 1px solid var(--color-base-300); background: var(--color-base-100); cursor: crosshair; z-index: 2; overflow: hidden; }
+[data-graph-ready] .piko-flow-minimap { display: block; }
+.piko-flow-minimap line { stroke: var(--piko-control-border); stroke-width: 4; }
+.piko-flow-minimap rect { fill: var(--piko-control-border); }
+.piko-flow-minimap .piko-minimap-viewport { fill: var(--piko-selection); fill-opacity: .5; stroke: var(--color-primary); stroke-width: 8; pointer-events: none; }
+.piko-flow-hint { display: none; position: absolute; top: 18px; left: 24px; right: 24px; text-align: center; direction: rtl; pointer-events: none; font-size: 11px; color: var(--piko-text-secondary); }
+[data-graph-ready] .piko-flow-hint { display: block; }
+.piko-flow-inspector { width: 340px; flex: none; background: var(--color-base-100); border-inline-start: 1px solid var(--color-base-300); overflow: auto; padding: 0 22px 22px; }
+.piko-flow-inspector > header { display: flex; justify-content: space-between; align-items: center; min-height: 62px; position: sticky; top: 0; background: var(--color-base-100); z-index: 1; border-bottom: 1px solid var(--color-base-300); margin-bottom: 20px; }
+.piko-flow-inspector h2 { font-size: 13px; font-weight: 650; }
+.piko-flow-inspector header button { display: grid; place-items: center; width: 40px; height: 40px; cursor: pointer; }
+.piko-flow-inspector header .piko-icon { width: 18px; height: 18px; }
+.piko-flow-detail-heading { display: flex; gap: 12px; align-items: center; }
+.piko-flow-detail-heading small { font-size: 11px; color: var(--piko-text-secondary); }
+.piko-flow-detail-heading h3 { font-size: 14px; font-weight: 650; margin-top: 4px; }
+.piko-flow-details { font-size: 12px; line-height: 1.9; overflow-wrap: anywhere; }
+.piko-flow-message { white-space: pre-wrap; padding: 16px; border-radius: 10px; background: var(--color-base-200); margin: 20px 0; }
+.piko-flow-details dl { display: grid; gap: 12px; }
+.piko-flow-details dl > div { display: flex; justify-content: space-between; gap: 16px; }
+.piko-flow-details dt { color: var(--piko-text-secondary); flex: none; }
+.piko-flow-details dd { text-align: end; }
+.piko-flow-details h4 { font-weight: 650; margin-top: 24px; margin-bottom: 8px; }
+.piko-flow-paths { list-style: none; }
+.piko-flow-paths a { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 0; color: var(--color-primary); }
+.piko-flow-paths .piko-icon { width: 16px; height: 16px; flex: none; }
+.piko-flow-options { padding-inline-start: 16px; list-style: disc; }
+.piko-flow-identities { border-top: 1px solid var(--color-base-300); margin-top: 24px; padding-top: 18px; font-size: 10px; }
+.piko-flow-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; direction: rtl; }
+.piko-flow-empty > .piko-icon { width: 48px; height: 48px; color: var(--piko-text-secondary); margin-bottom: 20px; }
+.piko-flow-empty h2 { font-size: 17px; font-weight: 650; }
+.piko-flow-empty p { font-size: 13px; color: var(--piko-text-secondary); margin-top: 8px; max-width: 360px; line-height: 1.9; }
+.piko-flow-fallback { padding: 24px; }
+.piko-flow-fallback summary { cursor: pointer; padding-block: 12px; }
+/* noscript contains real elements only when JavaScript is disabled. */
+.piko-workspace-main:has(.piko-flow-fallback) { height: auto; min-height: 100dvh; overflow: visible; }
+.piko-flow-page:has(.piko-flow-fallback details) .piko-flow-workspace,
+.piko-flow-page:has(.piko-flow-fallback) .piko-flow-all,
+.piko-flow-page:has(.piko-flow-fallback) .piko-flow-picker { display: none; }
+@media (max-width: 767px) {
+ .piko-flow-heading { padding: 16px; gap: 12px; flex-wrap: wrap; }
+ .piko-flow-heading h1 { font-size: 17px; }
+ .piko-flow-actions { width: 100%; }
+ .piko-flow-actions a { flex: 1; justify-content: center; }
+ .piko-flow-toolbar { padding: 0 16px 12px; gap: 12px; flex-wrap: wrap; }
+ .piko-flow-versions a { padding: 8px 14px; }
+ .piko-flow-picker { margin-inline-start: auto; }
+ .piko-flow-all { font-size: 11px; }
+ .piko-flow-controls { left: 12px; bottom: 16px; }
+ .piko-flow-minimap { right: 12px; bottom: 16px; width: 100px; height: 75px; }
+ .piko-flow-inspector { position: fixed; inset: auto 0 0; width: 100%; z-index: 25; max-height: 45dvh; min-height: 0; border-radius: 20px 20px 0 0; border: 1px solid var(--color-base-300); box-shadow: 0 -12px 48px #00000018; padding-inline: 20px; }
+ .piko-flow-notice { padding: 10px 16px; gap: 12px; }
+ .piko-flow-hint { font-size: 10px; }
+}

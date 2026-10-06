@@ -8,7 +8,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/pooya79/Piko/internal/auth"
 	"github.com/pooya79/Piko/internal/bot"
-	"github.com/pooya79/Piko/internal/bot/flow"
 	"github.com/pooya79/Piko/internal/locale"
 	"github.com/pooya79/Piko/internal/web"
 	"github.com/pooya79/Piko/internal/web/request"
@@ -25,7 +24,6 @@ type Handler struct {
 
 type ChatView struct {
 	Selection            Selection
-	Canvas               flow.Canvas
 	Revision             int64
 	Enabled              bool
 	Allowance            Allowance
@@ -139,7 +137,7 @@ func (h *Handler) fresh(w http.ResponseWriter, r *http.Request, b bot.Bot, statu
 		return
 	}
 	u, _ := auth.UserFromContext(r.Context())
-	view := ChatView{Enabled: h.service.Enabled(), Chats: chats, Message: message, FeedbackKey: key, Revision: draft.Revision, Canvas: flow.ProjectCanvas(draft.Definition), DraftKey: strconv.FormatInt(u.ID, 10) + ":bot:" + strconv.FormatInt(b.ID, 10) + ":new", RequestKey: r.PostForm.Get("request_key")}
+	view := ChatView{Enabled: h.service.Enabled(), Chats: chats, Message: message, FeedbackKey: key, Revision: draft.Revision, DraftKey: strconv.FormatInt(u.ID, 10) + ":bot:" + strconv.FormatInt(b.ID, 10) + ":new", RequestKey: r.PostForm.Get("request_key")}
 	if view.RequestKey == "" {
 		view.RequestKey = "studio:" + rand.Text()
 	}
@@ -315,13 +313,9 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request, b bot.Bot, id i
 		b = history.Bot
 	}
 	var revision int64
-	var canvas flow.Canvas
 	if b.ID != 0 {
 		draft := history.Draft
 		revision = draft.Revision
-		if revision > 0 {
-			canvas = flow.ProjectCanvas(draft.Definition)
-		}
 	}
 	u, _ := auth.UserFromContext(r.Context())
 	allowance, err := h.service.Allowance(r.Context())
@@ -341,7 +335,7 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request, b bot.Bot, id i
 		h.failed(w, r, err)
 		return
 	}
-	view := ChatView{MemoryTokens: history.MemoryTokens, Canvas: canvas, Revision: revision, Enabled: h.service.Enabled(), Allowance: allowance, Message: message, FeedbackKey: key, RequestKey: requestKey, Chats: chats, DraftKey: strconv.FormatInt(u.ID, 10) + ":" + strconv.FormatInt(id, 10)}
+	view := ChatView{MemoryTokens: history.MemoryTokens, Revision: revision, Enabled: h.service.Enabled(), Allowance: allowance, Message: message, FeedbackKey: key, RequestKey: requestKey, Chats: chats, DraftKey: strconv.FormatInt(u.ID, 10) + ":" + strconv.FormatInt(id, 10)}
 	if b.ID != 0 {
 		view.ActiveChat, err = h.service.ActiveChat(r.Context(), b.ID)
 		if err != nil {

@@ -7,3 +7,9 @@ RETURNING version;
 
 -- name: GetLatestPublication :one
 SELECT id, version, definition FROM bot_publications WHERE bot_id = ?1 ORDER BY version DESC LIMIT 1;
+
+-- name: GetOwnerLatestPublication :one
+SELECT p.version, p.definition FROM bot_publications p
+JOIN bots b ON b.id = p.bot_id
+WHERE b.owner_id = sqlc.arg(owner_id) AND b.id = sqlc.arg(bot_id)
+ORDER BY p.version DESC LIMIT 1;

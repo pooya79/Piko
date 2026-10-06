@@ -21,7 +21,7 @@ The Piko user who creates and manages a Bot, including its Telegram connection.
 _Avoid_: Bot user, conversation participant
 
 **Bot studio**:
-The Bot owner's workspace for building and maintaining one Bot, combining Builder chats with its Flow canvas, Preview, and Draft changes.
+The Bot owner's workspace for building and maintaining one Bot through Builder chats, Preview, and Draft changes.
 _Avoid_: Dashboard, visual block editor, Builder chat
 
 **Unconnected Bot**:
@@ -53,7 +53,7 @@ An arrangement of Blocks that defines a Bot's behavior and the paths an interact
 _Avoid_: Template, agent
 
 **Flow canvas**:
-A visual map of a Bot's Flow whose Blocks the Bot owner can inspect and reference when requesting changes from Piko.
+A visual map of a Bot's Draft or Published flow in its own tab on the Bot page, whose Blocks the Bot owner can inspect.
 _Avoid_: Visual block editor, Draft, Preview
 
 **Draft**:

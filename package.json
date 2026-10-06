@@ -4,12 +4,15 @@
   "packageManager": "pnpm@12.6.0",
   "scripts": {
     "icons": "node ./scripts/build-icons.mjs",
-    "css": "pnpm run icons && tailwindcss -i ./assets/app.css -o ./static/app.css --minify",
-    "css:watch": "pnpm run icons && tailwindcss -i ./assets/app.css -o ./static/app.css --watch"
+    "css": "pnpm run icons && pnpm run flow-assets && tailwindcss -i ./assets/app.css -o ./static/app.css --minify",
+    "css:watch": "pnpm run icons && pnpm run flow-assets && tailwindcss -i ./assets/app.css -o ./static/app.css --watch",
+    "flow-assets": "node ./scripts/build-flow-assets.mjs"
   },
   "devDependencies": {
     "@phosphor-icons/core": "2.1.1",
     "@tailwindcss/cli": "4.3.3",
+    "cytoscape": "3.34.3",
+    "cytoscape-dagre": "4.0.1",
     "daisyui": "5.7.42",
     "tailwindcss": "4.3.3"
   }

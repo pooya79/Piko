@@ -4,6 +4,14 @@ import { fileURLToPath } from "node:url";
 // Keep the browser asset small: only the official Phosphor icons used by templ pages.
 // The MIT notice for these SVGs ships beside the generated sprite in static/.
 const icons = {
+ "arrows-out": ["regular", "arrows-out"],
+ "git-branch": ["regular", "git-branch"],
+ "hash": ["regular", "hash"],
+ "list-bullets": ["regular", "list-bullets"],
+ "minus": ["regular", "minus"],
+ "phone": ["regular", "phone"],
+ "text-t": ["regular", "text-t"],
+ "x": ["regular", "x"],
  "arrow-clockwise": ["regular", "arrow-clockwise"],
  "arrow-right": ["regular", "arrow-right"],
  "arrow-up-left": ["regular", "arrow-up-left"],

@@ -99,7 +99,6 @@ type CreateOwnerBuilderChatParams struct {
 	BotID     int64
 }
 
-// Bot scope 0 denotes an unassociated Piko chat; storage keeps bot_id NULL.
 func (q *Queries) CreateOwnerBuilderChat(ctx context.Context, arg CreateOwnerBuilderChatParams) (BuilderChat, error) {
 	row := q.db.QueryRowContext(ctx, createOwnerBuilderChat,
 		arg.Title,
@@ -171,6 +170,26 @@ func (q *Queries) GetOwnerBuilderChat(ctx context.Context, arg GetOwnerBuilderCh
 		&i.StartKey,
 	)
 	return i, err
+}
+
+const latestOwnerBotChat = `-- name: LatestOwnerBotChat :one
+SELECT c.id FROM builder_chats c
+JOIN bots b ON b.id = c.bot_id AND b.owner_id = c.owner_id
+WHERE c.owner_id = ?1 AND b.id = ?2
+ORDER BY c.updated_at DESC, c.id DESC LIMIT 1
+`
+
+type LatestOwnerBotChatParams struct {
+	OwnerID int64
+	BotID   int64
+}
+
+// Bot scope 0 denotes an unassociated Piko chat; storage keeps bot_id NULL.
+func (q *Queries) LatestOwnerBotChat(ctx context.Context, arg LatestOwnerBotChatParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, latestOwnerBotChat, arg.OwnerID, arg.BotID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const listOwnerBuilderMessages = `-- name: ListOwnerBuilderMessages :many

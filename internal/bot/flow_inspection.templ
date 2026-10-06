@@ -1,0 +1,189 @@
+package bot
+
+import (
+	"github.com/pooya79/Piko/internal/bot/flow"
+	"github.com/pooya79/Piko/internal/locale"
+	"github.com/pooya79/Piko/internal/web/shell"
+	"strconv"
+	"strings"
+)
+
+templ FlowPage(displayName, csrf string, b Bot, view FlowInspection) {
+	@shell.Workspace(displayName, csrf, flowPage(ctx, b, "flow.title"), flowInspectionContent(b, view))
+}
+
+templ flowInspectionContent(b Bot, view FlowInspection) {
+ // The renderer recognizes this stylesheet ID and skips its inline injection.
+ <link id="__________cytoscape_stylesheet" rel="stylesheet" href="/static/vendor/flow-renderer.css"/>
+	<script src="/static/vendor/cytoscape.min.js" defer></script>
+	<script src="/static/vendor/cytoscape-dagre.min.js" defer></script>
+	<script src="/static/flow.js?v=flow2" defer></script>
+	<section class="piko-flow-page" data-flow-page data-flow-view={ inspectionMode(view) } data-flow-revision={ strconv.FormatInt(view.Revision, 10) } data-flow-url={ b.URL() + "/flow?view=" + inspectionMode(view) }>
+		<header class="piko-flow-heading">
+			<div>
+				<h1>{ locale.T(ctx,"flow.title") }</h1>
+				<p>
+					<bdi dir="auto">{ b.Name }</bdi><span>· </span>{ locale.T(ctx,"flow.view."+inspectionMode(view)) }
+					if view.Revision > 0 {
+						<span>· </span>{ locale.T(ctx,"flow.version")+" "+locale.Digits(strconv.FormatInt(view.Revision,10)) }
+					}
+				</p>
+			</div>
+			<div class="piko-flow-actions"><a class="piko-secondary-action" href={ templ.URL(b.URL() + "/studio#studio-preview") }>@shell.Icon("telegram-logo")
+<span>{ locale.T(ctx,"flow.test") }</span></a><a id="flow-open-piko" class="piko-primary-action" href={ templ.URL(view.PikoURL) }>@shell.Icon("chat-circle-dots")
+<span>{ locale.T(ctx,"flow.piko") }</span></a></div>
+		</header>
+		<div class="piko-flow-toolbar">
+			<nav class="piko-flow-versions" aria-label={ locale.T(ctx, "flow.views") }>
+				<a
+					href={ templ.URL(b.URL() + "/flow?view=draft") }
+					if !view.Published {
+						aria-current="page"
+					}
+				>{ locale.T(ctx,"flow.view.draft") }</a>
+				<a
+					href={ templ.URL(b.URL() + "/flow?view=published") }
+					if view.Published {
+						aria-current="page"
+					}
+				>{ locale.T(ctx,"flow.view.published") }</a>
+			</nav>
+			<label class="piko-flow-all"><input type="checkbox" data-flow-all/>{ locale.T(ctx,"flow.all") }</label>
+			<details class="piko-flow-picker">
+				<summary>
+					{ locale.T(ctx,"flow.blocks") }
+				</summary>
+				<div>
+					for _,n := range inspectionBlocks(view.Canvas) {
+						<button type="button" data-flow-select={ n.Key }>@shell.Icon(inspectionIcon(n))
+<span>{ locale.T(ctx,"flow.kind."+n.Kind) } · <bdi dir="auto">{ inspectionTitle(n) }</bdi></span></button>
+					}
+				</div>
+			</details>
+		</div>
+		<div class="piko-flow-notice" role="status" data-flow-update hidden><span>{ locale.T(ctx,"flow.updated."+inspectionMode(view)) }</span><button type="button" data-flow-refresh class="piko-text-link">{ locale.T(ctx,"flow.refresh") }</button></div>
+		<p class="piko-field-error" role="status" data-flow-error hidden>{ locale.T(ctx,"flow.unavailable") }</p>
+		<p class="sr-only" role="status" aria-live="polite" data-flow-feedback data-removed={ locale.T(ctx, "flow.removed") } data-refreshed={ locale.T(ctx, "flow.refreshed") }></p>
+		<div class="piko-flow-workspace">
+			<div class="piko-flow-stage">
+				if view.Revision == 0 {
+					<div class="piko-flow-empty">@shell.Icon("git-branch")
+<h2>{ locale.T(ctx,"flow.empty."+inspectionMode(view)) }</h2><p>{ locale.T(ctx,"flow.empty.copy."+inspectionMode(view)) }</p></div>
+				} else {
+					<div class="piko-flow-renderer" data-flow-renderer aria-hidden="true"></div>
+					<div class="piko-flow-nodes" data-flow-nodes>
+						for _,n := range inspectionBlocks(view.Canvas) {
+							<button id={ "flow-node-" + n.Key } type="button" class="piko-graph-node" data-flow-key={ n.Key } data-kind={ n.Kind } aria-pressed="false" aria-controls="flow-inspector">
+								<span class="piko-graph-icon">@shell.Icon(inspectionIcon(n))
+</span><span class="piko-graph-label"><small>{ locale.T(ctx,"flow.kind."+n.Kind) }</small><strong><bdi dir="auto">{ inspectionTitle(n) }</bdi></strong></span>
+							</button>
+						}
+					</div>
+					<div class="piko-flow-controls"><button type="button" data-flow-zoom="out" aria-label={ locale.T(ctx, "flow.zoom.out") }>@shell.Icon("minus")
+</button><output data-flow-zoom-label>۱۰۰٪</output><button type="button" data-flow-zoom="in" aria-label={ locale.T(ctx, "flow.zoom.in") }>@shell.Icon("plus")
+</button><button type="button" data-flow-fit aria-label={ locale.T(ctx, "flow.fit") }>@shell.Icon("arrows-out")
+</button></div>
+					<svg class="piko-flow-minimap" data-flow-minimap role="img" aria-label={ locale.T(ctx, "flow.minimap") }></svg>
+					<p class="piko-flow-hint">{ locale.T(ctx,"flow.hint") }</p>
+				}
+			</div>
+			<aside id="flow-inspector" class="piko-flow-inspector" data-flow-inspector aria-labelledby="flow-inspector-title" tabindex="-1" hidden>
+				<header><h2 id="flow-inspector-title">{ locale.T(ctx,"flow.details") }</h2><button type="button" data-flow-close aria-label={ locale.T(ctx, "flow.close") }>@shell.Icon("x")
+</button></header>
+				for _,n := range inspectionBlocks(view.Canvas) {
+					<article data-flow-detail={ n.Key } hidden>
+						<div class="piko-flow-detail-heading"><span class="piko-graph-icon" data-kind={ n.Kind }>@shell.Icon(inspectionIcon(n))
+</span><div><small>{ locale.T(ctx,"flow.kind."+n.Kind) }</small><h3><bdi dir="auto">{ inspectionTitle(n) }</bdi></h3></div></div>
+						@inspectionDetails(n)
+					</article>
+				}
+			</aside>
+		</div>
+		<noscript>
+			<section class="piko-flow-fallback">
+				<h2>{ locale.T(ctx,"flow.blocks") }</h2>
+				for _,n := range inspectionBlocks(view.Canvas) {
+					<details>
+						<summary>
+							{ locale.T(ctx,"flow.kind."+n.Kind) } · { inspectionTitle(n) }
+						</summary>@inspectionDetails(n)
+					</details>
+				}
+			</section>
+		</noscript>
+	</section>
+}
+
+templ inspectionDetails(n flow.CanvasBlock) {
+	<div class="piko-flow-details">
+		<p class="piko-flow-message"><bdi dir="auto">{ n.Text }</bdi></p>
+		if n.Question != nil {
+			<dl>
+				<div>
+					<dt>{ locale.T(ctx,"flow.details.type") }</dt>
+					<dd>
+						{ locale.T(ctx,"flow.type."+strings.ReplaceAll(n.Question.Type,"_",".")) }
+					</dd>
+				</div>
+				<div>
+					<dt>{ locale.T(ctx,"flow.details.answer") }</dt>
+					<dd>
+						if n.Question.Required {
+							{ locale.T(ctx,"flow.required") }
+						} else {
+							{ locale.T(ctx,"flow.optional") }
+						}
+					</dd>
+				</div>
+				if n.Question.MaxLength > 0 {
+					<div>
+						<dt>{ locale.T(ctx,"flow.limit") }</dt>
+						<dd>
+							{ locale.Digits(strconv.Itoa(n.Question.MaxLength)) }
+						</dd>
+					</div>
+				}
+				if n.Question.Number != nil {
+					<div><dt>{ locale.T(ctx,"flow.min") }</dt><dd><bdi dir="ltr">{ n.Question.Number.Min }</bdi></dd></div>
+					<div><dt>{ locale.T(ctx,"flow.max") }</dt><dd><bdi dir="ltr">{ n.Question.Number.Max }</bdi></dd></div>
+				}
+				if n.Question.Date != nil {
+					<div><dt>{ locale.T(ctx,"flow.min") }</dt><dd><bdi dir="ltr">{ n.Question.Date.Min }</bdi></dd></div>
+					<div><dt>{ locale.T(ctx,"flow.max") }</dt><dd><bdi dir="ltr">{ n.Question.Date.Max }</bdi></dd></div>
+				}
+			</dl>
+			if len(n.Question.Options)>0 {
+				<h4>{ locale.T(ctx,"flow.options") }</h4>
+				<ul class="piko-flow-options">
+					for _,option := range n.Question.Options {
+						<li><bdi dir="auto">{ option }</bdi></li>
+					}
+				</ul>
+			}
+		}
+		<h4>{ locale.T(ctx,"flow.paths") }</h4>
+		<ul class="piko-flow-paths">
+			for _,edge := range n.Edges {
+				<li>
+					<a href={ templ.URL("#flow-node-" + edge.Target) } data-flow-target={ edge.Target } data-flow-primary={ strconv.FormatBool(inspectionPrimary(edge)) }>
+						@shell.Icon("arrow-right")
+						<span>
+							if edge.LabelKey!="" {
+								{ locale.T(ctx,edge.LabelKey) }
+							}
+							if edge.Label!="" {
+								<bdi dir="auto">{ edge.Label }</bdi>
+							}
+						</span>
+					</a>
+				</li>
+			}
+		</ul>
+		<dl class="piko-flow-identities">
+			<div><dt>{ locale.T(ctx,"flow.identity") }</dt><dd><bdi dir="auto">{ n.ID }</bdi></dd></div>
+			if n.FormID!="" {
+				<div><dt>{ locale.T(ctx,"flow.form") }</dt><dd><bdi dir="auto">{ n.FormID }</bdi></dd></div>
+			}
+		</dl>
+	</div>
+}
