@@ -29,6 +29,74 @@ func assertStartCounts(t *testing.T, db *sql.DB, chats, messages, runs int) {
 	}
 }
 
+func TestBotStudioFirstMessageWithoutSavedDraft(t *testing.T) {
+	for _, save := range []bool{false, true} {
+		name := "reply only"
+		if save {
+			name = "first Draft"
+		}
+		t.Run(name, func(t *testing.T) {
+			var calls atomic.Int64
+			a, b := fixture.GeneralBuilderFixture(t, builder.Config{}, "error", func(w http.ResponseWriter, r *http.Request) {
+				call := calls.Add(1)
+				if call == 1 {
+					fixture.BuilderToolReply(w, "read_draft", map[string]any{})
+					return
+				}
+				if call == 2 && fixture.ProviderDraft(t, r)["version"] != float64(0) {
+					t.Error("unsaved Draft tool returned invented behavior")
+				}
+				if save && call == 2 {
+					fixture.BuilderToolReply(w, "prepare_draft", map[string]string{"definition": fixture.StructuredDraft})
+					return
+				}
+				fixture.MemoryReply(w, "پاسخ ربات بدون پیش\u200cنویس")
+			})
+			b.Post("/bots/new", url.Values{"name": {"ربات قدیمی"}})
+			// Bots connected before Draft creation was introduced may have no row.
+			if _, err := a.DB.Exec("DELETE FROM bot_drafts WHERE bot_id=1"); err != nil {
+				t.Fatal(err)
+			}
+			entry := fixture.StudioRequest(b, "GET", "/bots/1/studio", nil)
+			if entry.Code != 200 || !strings.Contains(entry.Body.String(), `data-draft-revision="0"`) {
+				t.Fatal("studio did not open without a saved Draft")
+			}
+			values := url.Values{"message": {"سلام"}, "request_key": {"draftless-first-message"}}
+			values.Set("selected_block", "message:missing")
+			values.Set("selected_revision", "0")
+			if rejected := fixture.StudioRequest(b, "POST", "/bots/1/chats", values); rejected.Code != 409 || !strings.Contains(rejected.Body.String(), `data-piko-studio`) {
+				t.Fatal("missing selected Block did not return recoverable studio feedback")
+			}
+			assertStartCounts(t, a.DB, 0, 0, 0)
+			values.Del("selected_block")
+			values.Del("selected_revision")
+			got := fixture.StudioRequest(b, "POST", "/bots/1/chats", values)
+			if got.Code != 200 || got.Header().Get("X-Piko-Accepted") != "true" || !strings.Contains(got.Body.String(), `data-piko-studio`) {
+				t.Fatalf("first message without a Draft returned no accepted studio fragment: %d", got.Code)
+			}
+			page := fixture.WaitBuilder(t, b, "/bots/1/chats/1", "succeeded")
+			if !strings.Contains(page, "پاسخ ربات بدون پیش\u200cنویس") {
+				t.Fatal("committed reply missing")
+			}
+			draft := b.LoadDraft(t, 1)
+			messages := 2
+			if save {
+				messages++ // A committed Draft change also appends saved-result feedback.
+				if draft.Get("draft_revision") != "1" || !strings.Contains(page, `data-run-result="saved"`) || !strings.Contains(page, `data-change-action="added"`) || strings.Contains(page, `/undo"`) {
+					t.Fatal("first Draft outcome missing or offers Undo to a nonexistent snapshot")
+				}
+			} else if draft.Get("draft_revision") != "0" {
+				t.Fatal("reply-only message created a Draft")
+			}
+			assertStartCounts(t, a.DB, 1, messages, 1)
+			var bots int
+			if err := a.DB.QueryRow("SELECT count(*) FROM bots").Scan(&bots); err != nil || bots != 1 {
+				t.Fatal("first Draft created another Bot")
+			}
+		})
+	}
+}
+
 func TestBotStudioFirstMessageSavesNamedChatAndReplaySurvivesRestart(t *testing.T) {
 	var calls atomic.Int64
 	a, b := fixture.GeneralBuilderFixture(t, builder.Config{}, "error", func(w http.ResponseWriter, r *http.Request) {

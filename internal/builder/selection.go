@@ -19,7 +19,7 @@ func (s Selection) context(botID, revision int64, definition string) (string, er
 	if s.Key == "" && s.Revision == 0 {
 		return "", nil
 	}
-	if botID == 0 || revision != s.Revision {
+	if botID == 0 || revision == 0 || revision != s.Revision {
 		return "", ErrSelection
 	}
 	d, err := flow.Decode(definition)

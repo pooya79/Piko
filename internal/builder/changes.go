@@ -179,7 +179,7 @@ func committedChanges(run dbgen.BuilderRun) ([]DraftChange, error) {
 		if err != nil {
 			return nil, err
 		}
-	} else if run.Result != "created" {
+	} else if run.Result != "created" && !(run.Result == "saved" && run.DraftRevision == 0 && run.AfterRevision.Int64 == 1) {
 		return nil, nil
 	}
 	after, err := flow.Decode(run.AfterDefinition.String)

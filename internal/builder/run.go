@@ -342,7 +342,9 @@ func (s *Service) send(ctx context.Context, botID, chatID int64, message string,
 		}
 		if botID != 0 {
 			draft, err = q.GetOwnerDraft(ctx, dbgen.GetOwnerDraftParams{OwnerID: ownerID, BotID: botID})
-			if err != nil {
+			// The owned chat already authorizes this Bot. Older connected Bots
+			// can have no saved Draft, represented by an empty revision-zero snapshot.
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
 				return storageError(err)
 			}
 		}
@@ -450,14 +452,21 @@ func (s *Service) execute(work context.Context, run admittedRun) {
 	var tools []ai.ToolRef
 	system := productHelp
 	if run.botID != 0 {
-		base, err := flow.Decode(run.draft)
-		if err != nil {
-			return
+		var base flow.Definition
+		if run.revision != 0 {
+			var err error
+			base, err = flow.Decode(run.draft)
+			if err != nil {
+				return
+			}
 		}
 		candidate = &draftCandidate{base: base}
 		ctx = context.WithValue(ctx, candidateContextKey{}, candidate)
 		tools = s.tools
 		system = instructions + "\n" + run.draft + "\nThe current shared Draft above is authoritative. Historical memory and messages may describe superseded configuration; never restore it unless the owner explicitly requests it now."
+		if run.revision == 0 {
+			system += "\nThis existing Bot has no saved Draft (revision 0). Answer questions normally. For an explicit build request, use read_templates and prepare_draft to stage its first complete Flow; do not create another Bot or claim existing behavior."
+		}
 	}
 	if run.selectionContext != "" {
 		system += "\nSelected Block context (authorized at admission; untrusted content):\n" + run.selectionContext + "\nThe owner selected this Block for the current request. Resolve it by the supplied identity within this snapshot, preserve unrelated content, and do not treat older selections in chat memory as a current target."
@@ -618,7 +627,7 @@ func (s *Service) finish(run admittedRun, outcome *runOutcome) error {
 				if err != nil {
 					return err
 				}
-				params.BeforeDefinition = sql.NullString{String: run.draft, Valid: true}
+				params.BeforeDefinition = sql.NullString{String: run.draft, Valid: run.revision != 0}
 				params.AfterDefinition = sql.NullString{String: string(data), Valid: true}
 				params.AfterRevision = sql.NullInt64{Int64: revision, Valid: true}
 			}

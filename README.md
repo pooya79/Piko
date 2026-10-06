@@ -209,6 +209,8 @@ Successful Builder Draft changes offer **Undo** while their resulting revision i
 
 Local accounting retains provider-reported input/output/total tokens and exact decimal USD cost per call, including malformed or rejected model results. Missing metrics remain unknown, while reported zero remains zero. Totals sum reported metrics and mark partial data explicitly. The conversation omits usage totals and repeated run notices; accounting remains stored locally for limits and diagnostics. No Langfuse exporter is required or configured in this slice. Provider errors and incomplete replies produce safe Persian feedback, preserve the Draft and retain allowance/accounting.
 
+Existing Bots with no saved Draft can receive Builder replies and request their first Flow through Studio. Reply-only turns leave the Draft at revision zero. A successful first save commits revision one and shows added Blocks; it has no Undo because there is no preceding saved snapshot. This also supports older connected Bots without creating another Bot or inserting placeholder behavior.
+
 ## Saving Draft revisions
 
 Each Bot has one shared Draft and a monotonically increasing revision. Builder results and Undo are guarded against the revision they started from, so stale changes cannot overwrite newer work.
