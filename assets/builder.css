@@ -63,8 +63,7 @@
 .piko-studio-composer form { border: 1px solid var(--color-base-300); border-radius: 16px; padding: 14px; background: var(--color-base-100); box-shadow: var(--piko-shadow); transition: border-color .15s, box-shadow .15s; }
 .piko-studio-composer form:focus-within { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--piko-selection); }
 .piko-studio-composer .piko-builder-composer { display: block; min-height: 56px; height: 64px; max-height: 160px; margin: 0 0 10px; border: 0; border-radius: 0; background: transparent; font-size: 13px; line-height: 1.9; padding: 2px; outline: none; box-shadow: none; resize: none; }
-.piko-studio-composer-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.piko-studio-composer-actions .piko-helper { font-size: 10px; }
+.piko-studio-composer-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
 .piko-studio-composer .piko-primary-action { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; padding: 0; flex-shrink: 0; }
 .piko-studio .piko-builder-history { max-width: 760px; margin: 0 auto 20px; gap: 26px; }
 .piko-studio .piko-builder-message { border: 0; padding: 0; border-radius: 0; font-size: 13px; line-height: 2; }
@@ -151,7 +150,6 @@
  .piko-studio-welcome h2 { font-size: 22px; }
  .piko-studio-examples { gap: 8px; }
  .piko-studio-composer { padding: 10px 16px max(16px, env(safe-area-inset-bottom)); }
- .piko-studio-composer-actions .piko-helper { font-size: 9px; }
  .piko-studio-identity .piko-icon-tile { display: none; }
  .piko-studio-body { display: flex; flex-direction: column; }
  .piko-studio-body > .piko-studio-sidebar { flex: none; }

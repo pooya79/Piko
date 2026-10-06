@@ -192,8 +192,15 @@
       const sidebar = root()?.querySelector('#studio-chat-selector[open]');
       if (sidebar) { sidebar.open = false; sidebar.querySelector('summary').focus(); }
     }
-    if (event.target.id !== 'builder-message' || event.isComposing || event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) return;
+    if (!['builder-message', 'preview-answer'].includes(event.target.id) || composing || event.isComposing || event.key !== 'Enter') return;
+    if (event.metaKey || event.altKey) return;
     event.preventDefault();
+    if (event.shiftKey || event.ctrlKey) {
+      const input = event.target;
+      input.setRangeText('\n', input.selectionStart, input.selectionEnd, 'end');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      return;
+    }
     const form = event.target.form;
     if (form.querySelector('button[type="submit"]:disabled')) return;
     form.requestSubmit();

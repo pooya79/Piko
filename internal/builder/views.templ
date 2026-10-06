@@ -18,7 +18,7 @@ templ IndexPage(displayName,csrf string,chats []Chat,view ChatView) {
 }
 
 templ indexDocument(csrf string,chats []Chat,view ChatView) {
- <script src="/static/studio.js?v=studio5" defer></script>
+ <script src="/static/studio.js?v=studio6" defer></script>
  <script src="/static/studio-preview.js?v=preview2" defer></script>
  <script src="/static/studio-flow.js?v=flow1" defer></script>
  <script src="/static/builder-status.js?v=studio3" defer></script>
@@ -89,7 +89,7 @@ templ composer(csrf,action string,view ChatView,running bool) {
  aria-describedby="builder-capabilities"
  }
    >{ view.Message }</textarea>
-   <div class="piko-studio-composer-actions"><span class="piko-helper">{ locale.T(ctx,"studio.keyboard") } <kbd dir="ltr">Ctrl / ⌘ + Enter</kbd></span><button id="studio-send" class="piko-primary-action" type="submit" disabled?={ !view.Enabled || running } data-can-send={ strconv.FormatBool(view.Enabled && !running) }>@shell.Icon("arrow-up-left")
+   <div class="piko-studio-composer-actions"><button id="studio-send" class="piko-primary-action" type="submit" disabled?={ !view.Enabled || running } data-can-send={ strconv.FormatBool(view.Enabled && !running) }>@shell.Icon("arrow-up-left")
  <span class="sr-only">{ locale.T(ctx,"builder.send") }</span></button></div>
   </form>
   <div class="piko-context-usage" title={ locale.T(ctx,"builder.memory.hint") }>
@@ -308,7 +308,7 @@ templ usage(u Usage) {
 }
 
 templ chatDocument(csrf string,b bot.Bot,history Conversation,view ChatView) {
- <script src="/static/studio.js?v=studio5" defer></script>
+ <script src="/static/studio.js?v=studio6" defer></script>
  <script src="/static/studio-preview.js?v=preview2" defer></script>
  <script src="/static/studio-flow.js?v=flow1" defer></script>
  <script src="/static/builder-status.js?v=studio3" defer></script>
