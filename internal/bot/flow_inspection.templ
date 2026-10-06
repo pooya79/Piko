@@ -17,7 +17,7 @@ templ flowInspectionContent(b Bot, view FlowInspection) {
  <link id="__________cytoscape_stylesheet" rel="stylesheet" href="/static/vendor/flow-renderer.css"/>
 	<script src="/static/vendor/cytoscape.min.js" defer></script>
 	<script src="/static/vendor/cytoscape-dagre.min.js" defer></script>
-	<script src="/static/flow.js?v=flow2" defer></script>
+	<script src="/static/flow.js?v=flow3" defer></script>
 	<section class="piko-flow-page" data-flow-page data-flow-view={ inspectionMode(view) } data-flow-revision={ strconv.FormatInt(view.Revision, 10) } data-flow-url={ b.URL() + "/flow?view=" + inspectionMode(view) }>
 		<header class="piko-flow-heading">
 			<div>
@@ -94,7 +94,7 @@ templ flowInspectionContent(b Bot, view FlowInspection) {
 					<article data-flow-detail={ n.Key } hidden>
 						<div class="piko-flow-detail-heading"><span class="piko-graph-icon" data-kind={ n.Kind }>@shell.Icon(inspectionIcon(n))
 </span><div><small>{ locale.T(ctx,"flow.kind."+n.Kind) }</small><h3><bdi dir="auto">{ inspectionTitle(n) }</bdi></h3></div></div>
-						@inspectionDetails(n)
+						@inspectionDetails(n, view.Canvas)
 					</article>
 				}
 			</aside>
@@ -106,7 +106,7 @@ templ flowInspectionContent(b Bot, view FlowInspection) {
 					<details>
 						<summary>
 							{ locale.T(ctx,"flow.kind."+n.Kind) } · { inspectionTitle(n) }
-						</summary>@inspectionDetails(n)
+						</summary>@inspectionDetails(n, view.Canvas)
 					</details>
 				}
 			</section>
@@ -114,7 +114,7 @@ templ flowInspectionContent(b Bot, view FlowInspection) {
 	</section>
 }
 
-templ inspectionDetails(n flow.CanvasBlock) {
+templ inspectionDetails(n flow.CanvasBlock, canvas flow.Canvas) {
 	<div class="piko-flow-details">
 		<p class="piko-flow-message"><bdi dir="auto">{ n.Text }</bdi></p>
 		if n.Question != nil {
@@ -162,19 +162,25 @@ templ inspectionDetails(n flow.CanvasBlock) {
 			}
 		}
 		<h4>{ locale.T(ctx,"flow.paths") }</h4>
+		<p class="piko-flow-paths-copy">{ locale.T(ctx,"flow.paths.copy") }</p>
 		<ul class="piko-flow-paths">
 			for _,edge := range n.Edges {
+				{{ target, _ := canvas.Block(edge.Target) }}
 				<li>
 					<a href={ templ.URL("#flow-node-" + edge.Target) } data-flow-target={ edge.Target } data-flow-primary={ strconv.FormatBool(inspectionPrimary(edge)) }>
-						@shell.Icon("arrow-right")
-						<span>
+						<span class="piko-graph-icon" data-kind={ target.Kind }>@shell.Icon(inspectionIcon(target))</span>
+						<span class="piko-flow-path-body">
+							<span class="piko-flow-path-condition">
 							if edge.LabelKey!="" {
 								{ locale.T(ctx,edge.LabelKey) }
-							}
-							if edge.Label!="" {
+							} else {
 								<bdi dir="auto">{ edge.Label }</bdi>
 							}
+							</span>
+							<strong><bdi dir="auto">{ inspectionTitle(target) }</bdi></strong>
+							<small>{ locale.T(ctx,"flow.kind."+target.Kind) }</small>
 						</span>
+						@shell.Icon("arrow-left")
 					</a>
 				</li>
 			}

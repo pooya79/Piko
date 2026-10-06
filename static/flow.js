@@ -38,16 +38,17 @@
     }
 
     graph(previous) {
-      const edges = [];
+      const connections = new Map();
       for (const [key, detail] of this.details) {
-        detail.querySelectorAll('[data-flow-target]').forEach((link, index) => {
-          edges.push({ data: {
-            id: `${key}:edge:${index}`, source: key, target: link.dataset.flowTarget,
-            primary: link.dataset.flowPrimary === 'true',
-            label: link.dataset.flowPrimary === 'true' && this.nodes.get(key).dataset.kind !== 'menu' ? '' : link.textContent.trim(),
-          }, classes: link.dataset.flowPrimary === 'true' ? 'primary' : 'secondary' });
+        detail.querySelectorAll('[data-flow-target]').forEach(link => {
+          const id = JSON.stringify([key, link.dataset.flowTarget]);
+          const primary = link.dataset.flowPrimary === 'true' || connections.get(id)?.data.primary === true;
+          // The canvas shows one connection per destination; the inspector keeps
+          // every trigger, including skip/edit paths sharing the same destination.
+          connections.set(id, { data: { id, source: key, target: link.dataset.flowTarget, primary }, classes: primary ? 'primary' : 'secondary' });
         });
       }
+      const edges = [...connections.values()];
       const primary = edges.filter(edge => edge.data.primary);
       this.cy = window.cytoscape({
         container: this.renderer,
@@ -89,14 +90,11 @@
       return [
         { selector: 'node', style: { width, height, 'background-opacity': 0, 'border-width': 0 } },
         { selector: 'edge', style: {
-          width: 1.8, 'curve-style': 'bezier', 'target-arrow-shape': 'triangle',
+          width: 1.5, 'curve-style': 'round-taxi', 'taxi-direction': 'rightward', 'taxi-radius': 12, 'target-arrow-shape': 'triangle',
           'line-color': color('--piko-control-border'), 'target-arrow-color': color('--piko-control-border'),
-          label: 'data(label)', 'font-family': 'Vazirmatn', 'font-size': 11,
-          color: color('--piko-text-secondary'), 'text-background-color': color('--color-base-200'),
-          'text-background-opacity': 1, 'text-background-padding': '5px', 'text-margin-y': -10,
-          'text-wrap': 'ellipsis', 'text-max-width': 160, 'arrow-scale': .85,
+          'arrow-scale': .7,
         } },
-        { selector: 'edge.secondary', style: { display: 'none', 'line-style': 'dashed', 'line-color': color('--color-info'), 'target-arrow-color': color('--color-info'), 'control-point-step-size': 64 } },
+        { selector: 'edge.secondary', style: { display: 'none', 'curve-style': 'bezier', opacity: .6, 'control-point-step-size': 64 } },
         { selector: 'edge.visible', style: { display: 'element' } },
         { selector: 'edge.highlighted', style: { 'line-color': color('--color-primary'), 'target-arrow-color': color('--color-primary'), width: 2.5 } },
       ];

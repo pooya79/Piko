@@ -36,6 +36,14 @@ async page => {
   check(await page.locator('[data-flow-inspector]').isVisible(), 'Node click must open the inspector');
   check((await page.locator('[data-flow-detail]:visible .piko-flow-message').textContent()).includes('نام؟'), 'Inspector lost full block text');
   check(await node.getAttribute('aria-pressed') === 'true', 'Selected block is not identified accessibly');
+  const transition = page.locator('[data-flow-detail]:visible [data-flow-target]').first();
+  check((await transition.locator('.piko-flow-path-condition').textContent()).trim().length > 0, 'Transition needs its trigger');
+  check((await transition.locator('.piko-flow-path-body strong').textContent()).trim().length > 0, 'Transition needs its destination name');
+  const destination = await transition.getAttribute('data-flow-target');
+  await transition.click();
+  check(await page.locator('[data-flow-detail]:visible').getAttribute('data-flow-detail') === destination, 'Transition card must inspect its destination');
+  await page.locator('.piko-flow-picker summary').click();
+  await page.locator('[data-flow-select]').filter({ hasText: 'نام' }).first().click();
   const positions = () => page.locator('[data-flow-key]').evaluateAll(nodes => nodes.map(node => node.style.transform));
   const before = await positions();
   await page.locator('[data-flow-all]').check();

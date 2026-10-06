@@ -73,9 +73,17 @@
 .piko-flow-details dt { color: var(--piko-text-secondary); flex: none; }
 .piko-flow-details dd { text-align: end; }
 .piko-flow-details h4 { font-weight: 650; margin-top: 24px; margin-bottom: 8px; }
-.piko-flow-paths { list-style: none; }
-.piko-flow-paths a { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 0; color: var(--color-primary); }
-.piko-flow-paths .piko-icon { width: 16px; height: 16px; flex: none; }
+.piko-flow-paths-copy { color: var(--piko-text-secondary); font-size: 11px; margin-bottom: 12px; }
+.piko-flow-paths { display: grid; gap: 8px; list-style: none; }
+.piko-flow-paths a { display: flex; align-items: center; gap: 12px; min-height: 76px; padding: 12px; border: 1px solid var(--color-base-300); border-radius: 12px; background: var(--color-base-100); transition: border-color .15s, background-color .15s; }
+.piko-flow-paths a:hover { border-color: var(--color-primary); background: var(--color-base-200); }
+.piko-flow-paths a > .piko-icon { width: 16px; height: 16px; flex: none; color: var(--piko-text-secondary); }
+.piko-flow-paths .piko-graph-icon { width: 32px; height: 32px; border-radius: 8px; }
+.piko-flow-paths .piko-graph-icon .piko-icon { width: 18px; height: 18px; }
+.piko-flow-path-body { display: grid; gap: 3px; flex: 1; min-width: 0; }
+.piko-flow-path-condition { font-size: 11px; color: var(--piko-text-secondary); }
+.piko-flow-path-body strong { font-size: 12px; font-weight: 650; line-height: 1.7; }
+.piko-flow-path-body small { font-size: 10px; color: var(--piko-text-secondary); }
 .piko-flow-options { padding-inline-start: 16px; list-style: disc; }
 .piko-flow-identities { border-top: 1px solid var(--color-base-300); margin-top: 24px; padding-top: 18px; font-size: 10px; }
 .piko-flow-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; direction: rtl; }

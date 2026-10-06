@@ -13,6 +13,7 @@ const icons = {
  "text-t": ["regular", "text-t"],
  "x": ["regular", "x"],
  "arrow-clockwise": ["regular", "arrow-clockwise"],
+ "arrow-left": ["regular", "arrow-left"],
  "arrow-right": ["regular", "arrow-right"],
  "arrow-up-left": ["regular", "arrow-up-left"],
  "bell": ["regular", "bell"],
