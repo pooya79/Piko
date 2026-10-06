@@ -13,13 +13,14 @@ import (
 	"time"
 
 	"github.com/pooya79/Piko/internal/builder"
+	fixture "github.com/pooya79/Piko/internal/testsupport/httpfixture"
 	collector "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 	"google.golang.org/protobuf/proto"
 )
 
 type traceReceiver struct {
-	mu       sync.Mutex
+	Mu       sync.Mutex
 	spans    []*tracepb.Span
 	requests int
 	failure  int
@@ -31,19 +32,19 @@ type traceReceiver struct {
 func TestBuilderLangfuseEnvironmentConfigurationNeverDisablesWork(t *testing.T) {
 	for _, tc := range []struct {
 		name                string
-		url, public, secret bool
+		URL, public, Secret bool
 		invalidURL, capture string
 		export, warning     bool
 	}{
 		{name: "absent"},
-		{name: "URL only", url: true, warning: true},
-		{name: "keys only", public: true, secret: true, warning: true},
-		{name: "missing secret", url: true, public: true, warning: true},
-		{name: "missing public", url: true, secret: true, warning: true},
-		{name: "invalid URL", public: true, secret: true, invalidURL: "https://user:URL-secret@invalid.test", warning: true},
-		{name: "complete", url: true, public: true, secret: true, export: true},
-		{name: "content opt-in", url: true, public: true, secret: true, capture: "true", export: true},
-		{name: "invalid content opt-in", url: true, public: true, secret: true, capture: "invalid", export: true},
+		{name: "URL only", URL: true, warning: true},
+		{name: "keys only", public: true, Secret: true, warning: true},
+		{name: "missing secret", URL: true, public: true, warning: true},
+		{name: "missing public", URL: true, Secret: true, warning: true},
+		{name: "invalid URL", public: true, Secret: true, invalidURL: "https://user:URL-secret@invalid.test", warning: true},
+		{name: "complete", URL: true, public: true, Secret: true, export: true},
+		{name: "content opt-in", URL: true, public: true, Secret: true, capture: "true", export: true},
+		{name: "invalid content opt-in", URL: true, public: true, Secret: true, capture: "invalid", export: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			receiver := &traceReceiver{}
@@ -55,7 +56,7 @@ func TestBuilderLangfuseEnvironmentConfigurationNeverDisablesWork(t *testing.T) 
 			for _, key := range []string{"LANGFUSE_BASE_URL", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY", "LANGFUSE_CAPTURE_CONTENT"} {
 				t.Setenv(key, "")
 			}
-			if tc.url {
+			if tc.URL {
 				t.Setenv("LANGFUSE_BASE_URL", server.URL)
 			}
 			if tc.invalidURL != "" {
@@ -64,7 +65,7 @@ func TestBuilderLangfuseEnvironmentConfigurationNeverDisablesWork(t *testing.T) 
 			if tc.public {
 				t.Setenv("LANGFUSE_PUBLIC_KEY", "monitor-public")
 			}
-			if tc.secret {
+			if tc.Secret {
 				t.Setenv("LANGFUSE_SECRET_KEY", "monitor-secret")
 			}
 			t.Setenv("LANGFUSE_CAPTURE_CONTENT", tc.capture)
@@ -97,13 +98,13 @@ func TestBuilderLangfuseEnvironmentConfigurationNeverDisablesWork(t *testing.T) 
 			}
 			stop := startBuilderApp(t, a)
 			defer stop()
-			if got := b.post("/bots/1/chats/1/messages", url.Values{"message": {"configuration prompt"}}); got.Code != 303 {
+			if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {"configuration prompt"}}); got.Code != 303 {
 				t.Fatal(got.Code)
 			}
-			waitBuilder(t, b, "/bots/1/chats/1", "succeeded")
+			fixture.WaitBuilder(t, b, "/bots/1/chats/1", "succeeded")
 			stop()
-			receiver.mu.Lock()
-			defer receiver.mu.Unlock()
+			receiver.Mu.Lock()
+			defer receiver.Mu.Unlock()
 			if (receiver.requests > 0) != tc.export {
 				t.Fatal("configuration did not control export", receiver.requests)
 			}
@@ -133,14 +134,14 @@ func (receiver *traceReceiver) serve(t *testing.T) *httptest.Server {
 		if err := proto.Unmarshal(body, &request); err != nil {
 			t.Error(err)
 		}
-		receiver.mu.Lock()
+		receiver.Mu.Lock()
 		receiver.requests++
 		for _, resource := range request.ResourceSpans {
 			for _, scope := range resource.ScopeSpans {
 				receiver.spans = append(receiver.spans, scope.Spans...)
 			}
 		}
-		receiver.mu.Unlock()
+		receiver.Mu.Unlock()
 		if receiver.started != nil {
 			receiver.once.Do(func() { close(receiver.started) })
 		}
@@ -174,7 +175,7 @@ func TestBuilderMonitoringOutagesPreserveDraftAccountingAndBoundAppShutdown(t *t
 			var calls atomic.Int64
 			a, b := builderFixture(t, builder.Config{DailyRequests: 2, Langfuse: builder.TraceConfig{BaseURL: server.URL, PublicKey: "monitor-public", SecretKey: "monitor-secret"}}, func(w http.ResponseWriter, r *http.Request) {
 				if calls.Add(1)%2 == 1 {
-					builderToolReply(w, "prepare_draft", map[string]string{"definition": builderFormDraft})
+					fixture.BuilderToolReply(w, "prepare_draft", map[string]string{"definition": fixture.BuilderFormDraft})
 					return
 				}
 				w.Header().Set("Content-Type", "application/json")
@@ -183,10 +184,10 @@ func TestBuilderMonitoringOutagesPreserveDraftAccountingAndBoundAppShutdown(t *t
 			stop := startBuilderApp(t, a)
 			defer stop()
 			for _, chat := range []string{"1", "2"} {
-				if got := b.post("/bots/1/chats/"+chat+"/messages", url.Values{"message": {"prepare Draft"}}); got.Code != 303 {
+				if got := b.Post("/bots/1/chats/"+chat+"/messages", url.Values{"message": {"prepare Draft"}}); got.Code != 303 {
 					t.Fatal(got.Code)
 				}
-				page := waitBuilder(t, b, "/bots/1/chats/"+chat, "succeeded")
+				page := fixture.WaitBuilder(t, b, "/bots/1/chats/"+chat, "succeeded")
 				if !strings.Contains(page, `data-draft-revision="`+map[string]string{"1": "2", "2": "3"}[chat]+`"`) {
 					t.Fatal("outage prevented Draft application")
 				}
@@ -198,14 +199,14 @@ func TestBuilderMonitoringOutagesPreserveDraftAccountingAndBoundAppShutdown(t *t
 					}
 				}
 			}
-			if got := b.post("/bots/1/chats/1/delete", url.Values{}); got.Code != 303 {
+			if got := b.Post("/bots/1/chats/1/delete", url.Values{}); got.Code != 303 {
 				t.Fatal(got.Code)
 			}
-			page := b.send("GET", "/bots/1/chats/2", nil).Body.String()
+			page := b.Send("GET", "/bots/1/chats/2", nil).Body.String()
 			if !strings.Contains(page, `data-admitted="2"`) || !strings.Contains(page, `data-total-tokens="10"`) || !strings.Contains(page, `data-cost="0"`) {
 				t.Fatal("deletion or monitoring lost local accounting")
 			}
-			if got := b.post("/bots/1/chats/2/messages", url.Values{"message": {"over budget"}}); got.Code != 429 || calls.Load() != 4 {
+			if got := b.Post("/bots/1/chats/2/messages", url.Values{"message": {"over budget"}}); got.Code != 429 || calls.Load() != 4 {
 				t.Fatal("monitoring outage bypassed local limits")
 			}
 			started := time.Now()
@@ -229,16 +230,16 @@ func TestBuilderExportsSafeNativeErrorsWithUnknownAccounting(t *testing.T) {
 	})
 	stop := startBuilderApp(t, a)
 	defer stop()
-	if got := b.post("/bots/1/chats/1/messages", url.Values{"message": {"fail safely"}}); got.Code != 303 {
+	if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {"fail safely"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	page := waitBuilder(t, b, "/bots/1/chats/1", "failed")
+	page := fixture.WaitBuilder(t, b, "/bots/1/chats/1", "failed")
 	if !strings.Contains(page, `data-total-tokens="unknown"`) {
 		t.Fatal("unknown accounting lost")
 	}
 	stop()
-	receiver.mu.Lock()
-	defer receiver.mu.Unlock()
+	receiver.Mu.Lock()
+	defer receiver.Mu.Unlock()
 	errors := 0
 	for _, span := range receiver.spans {
 		attrs := spanAttributes(span)
@@ -262,7 +263,7 @@ func TestBuilderExportsSafeNativeErrorsWithUnknownAccounting(t *testing.T) {
 func TestBuilderTracingSelectsOnlyItsAppAndRejectsUnauthorizedWork(t *testing.T) {
 	type workspace struct {
 		stop     func()
-		browser  *accountBrowser
+		browser  *fixture.Browser
 		receiver *traceReceiver
 		marker   string
 	}
@@ -279,32 +280,32 @@ func TestBuilderTracingSelectsOnlyItsAppAndRejectsUnauthorizedWork(t *testing.T)
 		workspaces = append(workspaces, workspace{stop, b, receiver, marker})
 	}
 	for _, ws := range workspaces {
-		other := newAccountBrowser(t, ws.browser.router)
-		other.send("GET", "/register", nil)
-		if got := other.post("/register", registerValues("trace-other@example.test", "دیگری", "OwnerPassword123")); got.Code != 303 {
+		other := fixture.NewAccountBrowser(t, ws.browser.Router)
+		other.Send("GET", "/register", nil)
+		if got := other.Post("/register", fixture.RegisterValues("trace-other@example.test", "دیگری", "OwnerPassword123")); got.Code != 303 {
 			t.Fatal(got.Code)
 		}
-		if got := other.post("/bots/1/chats/1/messages", url.Values{"message": {"unauthorized private prompt"}}); got.Code != 404 {
+		if got := other.Post("/bots/1/chats/1/messages", url.Values{"message": {"unauthorized private prompt"}}); got.Code != 404 {
 			t.Fatal("another owner admitted", got.Code)
 		}
-		if got := ws.browser.send("POST", "/bots/1/chats/1/messages", url.Values{"message": {"invalid CSRF private prompt"}, "csrf_token": {"invalid"}}); got.Code != 403 {
+		if got := ws.browser.Send("POST", "/bots/1/chats/1/messages", url.Values{"message": {"invalid CSRF private prompt"}, "csrf_token": {"invalid"}}); got.Code != 403 {
 			t.Fatal("invalid CSRF admitted", got.Code)
 		}
-		if got := ws.browser.post("/bots/1/chats/1/messages", url.Values{"message": {ws.marker}}); got.Code != 303 {
+		if got := ws.browser.Post("/bots/1/chats/1/messages", url.Values{"message": {ws.marker}}); got.Code != 303 {
 			t.Fatal(got.Code)
 		}
 	}
 	for _, ws := range workspaces {
-		waitBuilder(t, ws.browser, "/bots/1/chats/1", "succeeded")
+		fixture.WaitBuilder(t, ws.browser, "/bots/1/chats/1", "succeeded")
 	}
 	for i, ws := range workspaces {
 		ws.stop()
-		ws.receiver.mu.Lock()
+		ws.receiver.Mu.Lock()
 		content := ""
 		for _, span := range ws.receiver.spans {
 			content += span.String()
 		}
-		ws.receiver.mu.Unlock()
+		ws.receiver.Mu.Unlock()
 		if !strings.Contains(content, ws.marker) || strings.Contains(content, workspaces[1-i].marker) || strings.Contains(content, "unauthorized private prompt") || strings.Contains(content, "invalid CSRF private prompt") {
 			t.Fatal("trace selection leaked a different App or rejected request")
 		}
@@ -318,7 +319,7 @@ func TestBuilderTraceReportsRevisionConflictAsFailedRun(t *testing.T) {
 	var calls atomic.Int64
 	a, b := builderFixture(t, builder.Config{Langfuse: builder.TraceConfig{BaseURL: server.URL, PublicKey: "monitor-public", SecretKey: "monitor-secret"}}, func(w http.ResponseWriter, r *http.Request) {
 		if calls.Add(1) == 1 {
-			builderToolReply(w, "prepare_draft", map[string]string{"definition": builderFormDraft})
+			fixture.BuilderToolReply(w, "prepare_draft", map[string]string{"definition": fixture.BuilderFormDraft})
 			return
 		}
 		close(prepared)
@@ -333,7 +334,7 @@ func TestBuilderTraceReportsRevisionConflictAsFailedRun(t *testing.T) {
 	defer close(release)
 	stop := startBuilderApp(t, a)
 	defer stop()
-	if got := b.post("/bots/1/chats/1/messages", url.Values{"message": {"prepare candidate"}}); got.Code != 303 {
+	if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {"prepare candidate"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	select {
@@ -341,16 +342,16 @@ func TestBuilderTraceReportsRevisionConflictAsFailedRun(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("candidate not prepared")
 	}
-	manual := inquiryDraft()
+	manual := fixture.InquiryDraft()
 	manual.Set("welcome", "manual change stays")
-	if got := b.post("/bots/1/draft", draftAtRevision(manual, "1")); got.Code != 303 {
+	if got := b.Post("/bots/1/draft", fixture.DraftAtRevision(manual, "1")); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	release <- struct{}{}
-	waitBuilder(t, b, "/bots/1/chats/1", "failed")
+	fixture.WaitBuilder(t, b, "/bots/1/chats/1", "failed")
 	stop()
-	receiver.mu.Lock()
-	defer receiver.mu.Unlock()
+	receiver.Mu.Lock()
+	defer receiver.Mu.Unlock()
 	for _, span := range receiver.spans {
 		if status, ok := spanAttributes(span)["piko.run.status"]; ok {
 			if status != "failed" || span.Status.GetCode() != tracepb.Status_STATUS_CODE_ERROR {
@@ -376,7 +377,7 @@ func TestBuilderExportsActualGenkitModelAndToolSpansWithoutContent(t *testing.T)
 	var calls atomic.Int64
 	a, b := builderFixture(t, builder.Config{Langfuse: builder.TraceConfig{BaseURL: server.URL, PublicKey: "monitor-public", SecretKey: "monitor-secret"}}, func(w http.ResponseWriter, r *http.Request) {
 		if calls.Add(1) == 1 {
-			builderToolReply(w, "prepare_draft", map[string]string{"definition": builderFormDraft})
+			fixture.BuilderToolReply(w, "prepare_draft", map[string]string{"definition": fixture.BuilderFormDraft})
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -384,16 +385,16 @@ func TestBuilderExportsActualGenkitModelAndToolSpansWithoutContent(t *testing.T)
 	})
 	stop := startBuilderApp(t, a)
 	defer stop()
-	if got := b.post("/bots/1/chats/1/messages", url.Values{"message": {"private prompt"}}); got.Code != 303 {
+	if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {"private prompt"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	page := waitBuilder(t, b, "/bots/1/chats/1", "succeeded")
+	page := fixture.WaitBuilder(t, b, "/bots/1/chats/1", "succeeded")
 	if !strings.Contains(page, `data-after-revision="2"`) {
 		t.Fatal("Draft was not applied")
 	}
 	stop()
-	receiver.mu.Lock()
-	defer receiver.mu.Unlock()
+	receiver.Mu.Lock()
+	defer receiver.Mu.Unlock()
 	models, tools, zero, reported := 0, 0, false, false
 	for _, span := range receiver.spans {
 		attrs := spanAttributes(span)
@@ -439,20 +440,20 @@ func TestBuilderOptedInContentExcludesCredentialsAndOtherChats(t *testing.T) {
 	stop := startBuilderApp(t, a)
 	defer stop()
 	// A second chat's memory is deliberately distinct from the observed chat.
-	if got := b.post("/bots/1/chats/2/messages", url.Values{"message": {"unrelated chat marker"}}); got.Code != 303 {
+	if got := b.Post("/bots/1/chats/2/messages", url.Values{"message": {"unrelated chat marker"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	waitBuilder(t, b, "/bots/1/chats/2", "succeeded")
-	secrets := []string{a.cfg.SessionSecret, a.cfg.BotEncryptionKey, "test-server-key", "monitor-public", "monitor-secret", "123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ_123456789", b.cookie("piko_session"), b.cookie("piko_csrf")}
+	fixture.WaitBuilder(t, b, "/bots/1/chats/2", "succeeded")
+	secrets := []string{a.cfg.SessionSecret, a.cfg.BotEncryptionKey, "test-server-key", "monitor-public", "monitor-secret", "123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ_123456789", b.Cookie("piko_session"), b.Cookie("piko_csrf")}
 	message := "visible owner request " + strings.Join(secrets, " ") + ` {"password":"short-json-secret"} token="short-labelled-secret" https://username:short-url-secret@example.test/path {"password":"correct horse battery staple"} cookie='spaced cookie private value'`
 	secrets = append(secrets, "short-json-secret", "short-labelled-secret", "short-url-secret", "horse battery staple", "cookie private value")
-	if got := b.post("/bots/1/chats/1/messages", url.Values{"message": {message}}); got.Code != 303 {
+	if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {message}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	waitBuilder(t, b, "/bots/1/chats/1", "succeeded")
+	fixture.WaitBuilder(t, b, "/bots/1/chats/1", "succeeded")
 	stop()
-	receiver.mu.Lock()
-	defer receiver.mu.Unlock()
+	receiver.Mu.Lock()
+	defer receiver.Mu.Unlock()
 	content := ""
 	for _, span := range receiver.spans {
 		attrs := spanAttributes(span)

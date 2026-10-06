@@ -14,9 +14,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pooya79/Piko/internal/app/httpapp"
 	"github.com/pooya79/Piko/internal/auth"
 	"github.com/pooya79/Piko/internal/platform/database/dbgen"
 	"github.com/pooya79/Piko/internal/testsupport"
+	fixture "github.com/pooya79/Piko/internal/testsupport/httpfixture"
 	"github.com/pooya79/Piko/internal/web"
 )
 
@@ -26,13 +28,13 @@ func TestAuthJourneyAgainstSQLite(t *testing.T) {
 	defer cancel()
 	pool, _ := testsupport.MigratedSQLite(t, ctx)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	catalog := testLocaleCatalog(t)
+	catalog := fixture.TestLocaleCatalog(t)
 	credentials := auth.NewService(dbgen.New(pool))
 	accounts := auth.NewAccountService(auth.NewAccountRepository(pool), credentials)
 	mw := web.Middleware{Auth: credentials, LocaleCatalog: catalog, Log: logger, Secret: []byte("test-csrf-secret")}
 	rateKey := fmt.Sprintf("auth-journey-%d", time.Now().UnixNano())
 	limiter := web.NewRateLimiter(pool, logger, func(*http.Request) string { return rateKey })
-	server := httptest.NewServer(buildRouter(pool, mw, limiter, auth.NewHandler(credentials, accounts, logger, false), testBotService(t, pool), nil))
+	server := httptest.NewServer(httpapp.Router(pool, mw, limiter, auth.NewHandler(credentials, accounts, logger, false), testBotService(t, pool), nil))
 	t.Cleanup(server.Close)
 	jar, err := cookiejar.New(nil)
 	if err != nil {

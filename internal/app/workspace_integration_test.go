@@ -12,9 +12,11 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/go-chi/chi/v5"
+	"github.com/pooya79/Piko/internal/app/httpapp"
 	"github.com/pooya79/Piko/internal/auth"
 	"github.com/pooya79/Piko/internal/platform/database/dbgen"
 	"github.com/pooya79/Piko/internal/testsupport"
+	fixture "github.com/pooya79/Piko/internal/testsupport/httpfixture"
 	"github.com/pooya79/Piko/internal/web"
 	"github.com/pooya79/Piko/internal/web/request"
 	"github.com/pooya79/Piko/internal/web/shell"
@@ -30,9 +32,9 @@ func workspacePageResponse(t *testing.T, page shell.Page) string {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	credentials := auth.NewService(dbgen.New(db))
 	accounts := auth.NewAccountService(auth.NewAccountRepository(db), credentials)
-	mw := web.Middleware{Auth: credentials, LocaleCatalog: testLocaleCatalog(t), Log: log, Secret: []byte("workspace-test-secret")}
+	mw := web.Middleware{Auth: credentials, LocaleCatalog: fixture.TestLocaleCatalog(t), Log: log, Secret: []byte("workspace-test-secret")}
 	limiter := web.NewRateLimiter(db, log, func(*http.Request) string { return "workspace-test" })
-	router := buildRouter(db, mw, limiter, auth.NewHandler(credentials, accounts, log, false), testBotService(t, db), nil).(*chi.Mux)
+	router := httpapp.Router(db, mw, limiter, auth.NewHandler(credentials, accounts, log, false), testBotService(t, db), nil).(*chi.Mux)
 	router.With(mw.RequestLocale, mw.Session, mw.CSRF, mw.RequireAuth).Get("/test/workspace", func(w http.ResponseWriter, r *http.Request) {
 		user, _ := auth.UserFromContext(r.Context())
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -114,9 +116,9 @@ func TestWorkspaceBotNavigationThroughHTTP(t *testing.T) {
 	var visit func(*html.Node)
 	visit = func(n *html.Node) {
 		if n.Data == "a" {
-			switch feedbackAttr(n, "href") {
+			switch fixture.FeedbackAttr(n, "href") {
 			case "/dashboard":
-				if strings.Contains(feedbackAttr(n, "class"), "piko-nav-item") {
+				if strings.Contains(fixture.FeedbackAttr(n, "class"), "piko-nav-item") {
 					dashboard = n
 				}
 			case "/test/bots":
@@ -130,10 +132,10 @@ func TestWorkspaceBotNavigationThroughHTTP(t *testing.T) {
 		}
 	}
 	visit(doc)
-	if dashboard == nil || feedbackAttr(dashboard, "aria-current") != "" || strings.Contains(feedbackAttr(dashboard, "class"), "piko-nav-active") {
+	if dashboard == nil || fixture.FeedbackAttr(dashboard, "aria-current") != "" || strings.Contains(fixture.FeedbackAttr(dashboard, "class"), "piko-nav-active") {
 		t.Error("Dashboard must remain reachable without being selected on a Bot page")
 	}
-	if bots == nil || feedbackAttr(bots, "aria-current") != "page" || !strings.Contains(feedbackAttr(bots, "class"), "piko-nav-active") {
+	if bots == nil || fixture.FeedbackAttr(bots, "aria-current") != "page" || !strings.Contains(fixture.FeedbackAttr(bots, "class"), "piko-nav-active") {
 		t.Error("Bot navigation must identify the current section")
 	}
 	if recent == nil || !strings.Contains(body, "Mina &lt;bot&gt;") || strings.Contains(body, "هنوز رباتی نساخته\u200cای") {

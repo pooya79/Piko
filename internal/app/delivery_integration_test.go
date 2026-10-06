@@ -15,212 +15,8 @@ import (
 
 	"github.com/pooya79/Piko/internal/bot/telegram"
 	"github.com/pooya79/Piko/internal/testsupport"
+	fixture "github.com/pooya79/Piko/internal/testsupport/httpfixture"
 )
-
-type telegramFake struct {
-	mu                sync.Mutex
-	webhook, secret   string
-	activationFails   bool
-	calls             []string
-	sent              []telegram.SendMessage
-	answers           []string
-	answerTexts       []string
-	url               string
-	sendFailures      int
-	sendStarted       chan struct{}
-	holdSend          bool
-	pollingUpdates    []json.RawMessage
-	offsets           []int64
-	blockedChat       int64
-	blockedStatus     int
-	holdActivation    bool
-	activationStarted chan struct{}
-	requireLongPoll   bool
-	pollFailures      int
-	pollStatus        int
-	holdPoll          bool
-	pollStarted       chan struct{}
-	pollCancelled     chan struct{}
-	identityID        int64
-	apiStatus         int
-	tokens            []string
-	holdInspection    bool
-	inspectionStarted chan struct{}
-	releaseInspection chan struct{}
-}
-
-func (f *telegramFake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	method := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
-	f.calls = append(f.calls, method)
-	parts := strings.Split(r.URL.Path, "/")
-	f.tokens = append(f.tokens, strings.TrimPrefix(parts[1], "bot"))
-	if f.apiStatus != 0 {
-		w.WriteHeader(f.apiStatus)
-		return
-	}
-	if method == "getMe" || method == "getWebhookInfo" {
-		var params map[string]any
-		if json.NewDecoder(r.Body).Decode(&params) != nil || params == nil {
-			w.WriteHeader(400)
-			return
-		}
-	}
-	switch method {
-	case "getMe":
-		id := f.identityID
-		if id == 0 {
-			id = 123456
-		}
-		fmt.Fprintf(w, `{"ok":true,"result":{"id":%d,"is_bot":true,"first_name":"Live Bot","username":"live_bot"}}`, id)
-	case "getWebhookInfo":
-		if f.holdInspection {
-			f.holdInspection = false
-			started, release := f.inspectionStarted, f.releaseInspection
-			f.mu.Unlock()
-			close(started)
-			select {
-			case <-release:
-			case <-r.Context().Done():
-			}
-			f.mu.Lock()
-		}
-		fmt.Fprintf(w, `{"ok":true,"result":{"url":%q,"pending_update_count":7}}`, f.webhook)
-	case "setWebhook":
-		var p struct {
-			URL, Secret string
-			Drop        bool
-		}
-		var raw struct {
-			URL    string `json:"url"`
-			Secret string `json:"secret_token"`
-			Drop   bool   `json:"drop_pending_updates"`
-		}
-		if json.NewDecoder(r.Body).Decode(&raw) != nil {
-			w.WriteHeader(400)
-			return
-		}
-		p.URL, p.Secret, p.Drop = raw.URL, raw.Secret, raw.Drop
-		if f.holdActivation {
-			close(f.activationStarted)
-			<-r.Context().Done()
-			return
-		}
-		if p.Drop {
-			w.WriteHeader(400)
-			return
-		}
-		if f.activationFails {
-			w.WriteHeader(503)
-			return
-		}
-		f.webhook, f.secret = p.URL, p.Secret
-		fmt.Fprint(w, `{"ok":true,"result":true}`)
-	case "sendMessage":
-		var p telegram.SendMessage
-		if json.NewDecoder(r.Body).Decode(&p) != nil {
-			w.WriteHeader(400)
-			return
-		}
-		if f.holdSend {
-			close(f.sendStarted)
-			<-r.Context().Done()
-			return
-		}
-		if f.sendFailures > 0 {
-			f.sendFailures--
-			w.WriteHeader(503)
-			return
-		}
-		if p.ChatID == f.blockedChat {
-			status := f.blockedStatus
-			if status == 0 {
-				status = 403
-			}
-			w.WriteHeader(status)
-			return
-		}
-		f.sent = append(f.sent, p)
-		fmt.Fprint(w, `{"ok":true,"result":{"message_id":1}}`)
-	case "answerCallbackQuery":
-		var p struct {
-			ID   string `json:"callback_query_id"`
-			Text string `json:"text"`
-		}
-		if json.NewDecoder(r.Body).Decode(&p) != nil {
-			w.WriteHeader(400)
-			return
-		}
-		f.answers = append(f.answers, p.ID)
-		f.answerTexts = append(f.answerTexts, p.Text)
-		fmt.Fprint(w, `{"ok":true,"result":true}`)
-	case "deleteWebhook":
-		var p struct {
-			Drop bool `json:"drop_pending_updates"`
-		}
-		if json.NewDecoder(r.Body).Decode(&p) != nil || p.Drop {
-			w.WriteHeader(400)
-			return
-		}
-		if f.activationFails {
-			w.WriteHeader(503)
-			return
-		}
-		f.webhook = ""
-		fmt.Fprint(w, `{"ok":true,"result":true}`)
-	case "getUpdates":
-		var p struct {
-			Offset  int64    `json:"offset"`
-			Timeout int      `json:"timeout"`
-			Limit   int      `json:"limit"`
-			Updates []string `json:"allowed_updates"`
-		}
-		if json.NewDecoder(r.Body).Decode(&p) != nil {
-			w.WriteHeader(400)
-			return
-		}
-		f.offsets = append(f.offsets, p.Offset)
-		if f.requireLongPoll && (p.Timeout <= 0 || p.Timeout >= 10 || p.Limit <= 0 || p.Limit > 100 || strings.Join(p.Updates, ",") != "message,callback_query") {
-			w.WriteHeader(400)
-			return
-		}
-		if f.pollStarted != nil {
-			select {
-			case f.pollStarted <- struct{}{}:
-			default:
-			}
-		}
-		if f.holdPoll {
-			cancelled := f.pollCancelled
-			f.mu.Unlock()
-			<-r.Context().Done()
-			if cancelled != nil {
-				cancelled <- struct{}{}
-			}
-			f.mu.Lock()
-			return
-		}
-		if f.pollFailures > 0 {
-			f.pollFailures--
-			w.WriteHeader(f.pollStatus)
-			return
-		}
-		updates := []json.RawMessage{}
-		for _, data := range f.pollingUpdates {
-			var u struct {
-				ID int64 `json:"update_id"`
-			}
-			_ = json.Unmarshal(data, &u)
-			if u.ID >= p.Offset {
-				updates = append(updates, data)
-			}
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "result": updates})
-	default:
-		w.WriteHeader(500)
-	}
-}
 
 func webhook(a *App, secret, payload string) *httptest.ResponseRecorder {
 	r := httptest.NewRequest("POST", "/telegram/bots/1", strings.NewReader(payload))
@@ -229,17 +25,18 @@ func webhook(a *App, secret, payload string) *httptest.ResponseRecorder {
 	a.server.Handler.ServeHTTP(w, r)
 	return w
 }
-func waitSent(t *testing.T, f *telegramFake, count int) []telegram.SendMessage {
+
+func waitSent(t *testing.T, f *fixture.TelegramFake, count int) []telegram.SendMessage {
 	return waitSentWithin(t, f, count, 4*time.Second)
 }
 
-func waitSentWithin(t *testing.T, f *telegramFake, count int, timeout time.Duration) []telegram.SendMessage {
+func waitSentWithin(t *testing.T, f *fixture.TelegramFake, count int, timeout time.Duration) []telegram.SendMessage {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		f.mu.Lock()
-		sent := append([]telegram.SendMessage(nil), f.sent...)
-		f.mu.Unlock()
+		f.Mu.Lock()
+		sent := append([]telegram.SendMessage(nil), f.Sent...)
+		f.Mu.Unlock()
 		if len(sent) >= count {
 			return sent
 		}
@@ -251,12 +48,12 @@ func waitSentWithin(t *testing.T, f *telegramFake, count int, timeout time.Durat
 
 func TestWebhookDurablyAcceptsAndDeduplicatesPrivateStart(t *testing.T) {
 	a, b, f := deliveryFixture(t)
-	if got := b.post("/bots/1/activate", url.Values{"operate": {"yes"}}); got.Code != 303 {
+	if got := b.Post("/bots/1/activate", url.Values{"operate": {"yes"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	f.mu.Lock()
-	secret := f.secret
-	f.mu.Unlock()
+	f.Mu.Lock()
+	secret := f.Secret
+	f.Mu.Unlock()
 	const start = `{"update_id":100,"message":{"message_id":1,"from":{"id":77},"chat":{"id":77,"type":"private"},"text":"/start"}}`
 	for _, invalid := range []string{"", "wrong"} {
 		if got := webhook(a, invalid, start); got.Code != 401 {
@@ -275,24 +72,24 @@ func TestWebhookDurablyAcceptsAndDeduplicatesPrivateStart(t *testing.T) {
 		t.Fatal("live Start differs from Preview")
 	}
 	stop()
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if len(f.sent) != 2 {
+	f.Mu.Lock()
+	defer f.Mu.Unlock()
+	if len(f.Sent) != 2 {
 		t.Fatal("update retry duplicated output")
 	}
 }
 
 func TestShutdownCancelsTelegramBeforeClosingStorageAndRecoversOutput(t *testing.T) {
 	a, b, f := deliveryFixture(t)
-	if got := b.post("/bots/1/activate", url.Values{"operate": {"yes"}}); got.Code != 303 {
+	if got := b.Post("/bots/1/activate", url.Values{"operate": {"yes"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	f.mu.Lock()
-	secret := f.secret
-	f.holdSend = true
-	f.sendStarted = make(chan struct{})
-	started := f.sendStarted
-	f.mu.Unlock()
+	f.Mu.Lock()
+	secret := f.Secret
+	f.HoldSend = true
+	f.SendStarted = make(chan struct{})
+	started := f.SendStarted
+	f.Mu.Unlock()
 	if got := webhook(a, secret, `{"update_id":100,"message":{"from":{"id":77},"chat":{"id":77,"type":"private"},"text":"/start"}}`); got.Code != 200 {
 		t.Fatal(got.Code)
 	}
@@ -306,10 +103,10 @@ func TestShutdownCancelsTelegramBeforeClosingStorageAndRecoversOutput(t *testing
 	if err := a.db.Ping(); err == nil {
 		t.Fatal("Run returned before database close")
 	}
-	f.mu.Lock()
-	f.holdSend = false
-	f.mu.Unlock()
-	restarted, err := newWithTelegram(t.Context(), a.cfg, telegram.NewClient(f.url, http.DefaultClient))
+	f.Mu.Lock()
+	f.HoldSend = false
+	f.Mu.Unlock()
+	restarted, err := newWithTelegram(t.Context(), a.cfg, telegram.NewClient(f.URL, http.DefaultClient))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -328,76 +125,43 @@ func TestPollingUsesDurableOffsetsAndSameRuntime(t *testing.T) {
 	}
 	cfg := a.cfg
 	cfg.BotPublicURL = ""
-	local, err := newWithTelegram(t.Context(), cfg, telegram.NewClient(f.url, http.DefaultClient))
+	local, err := newWithTelegram(t.Context(), cfg, telegram.NewClient(f.URL, http.DefaultClient))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = local.db.Close() })
-	b.router = local.server.Handler
-	if got := b.post("/bots/1/activate", url.Values{"operate": {"yes"}}); got.Code != 303 {
+	b.Router = local.server.Handler
+	if got := b.Post("/bots/1/activate", url.Values{"operate": {"yes"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	f.mu.Lock()
+	f.Mu.Lock()
 	// A valid Telegram backlog larger than 64 KiB must still enter the inbox.
 	for i := range 20 {
-		f.pollingUpdates = append(f.pollingUpdates, json.RawMessage(fmt.Sprintf(`{"update_id":%d,"message":{"from":{"id":%d},"chat":{"id":%d,"type":"private"},"text":%q}}`, 101+i, 77+i, 77+i, "/start "+strings.Repeat("x", 4000))))
+		f.PollingUpdates = append(f.PollingUpdates, json.RawMessage(fmt.Sprintf(`{"update_id":%d,"message":{"from":{"id":%d},"chat":{"id":%d,"type":"private"},"text":%q}}`, 101+i, 77+i, 77+i, "/start "+strings.Repeat("x", 4000))))
 	}
-	f.mu.Unlock()
+	f.Mu.Unlock()
 	stop := runDeliveryApp(t, local)
 	sent := waitSent(t, f, 2)
 	if sent[0].Text != "Hello" || sent[1].Markup == nil {
 		t.Fatal("polling did not use the shared runtime")
 	}
 	stop()
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if len(f.offsets) == 0 || f.offsets[0] != 0 {
+	f.Mu.Lock()
+	defer f.Mu.Unlock()
+	if len(f.Offsets) == 0 || f.Offsets[0] != 0 {
 		t.Fatal("invalid initial polling offset")
-	}
-}
-
-func TestOwnerDeliveryMutationsRequireAuthorizationAndCSRF(t *testing.T) {
-	a, b, _ := deliveryFixture(t)
-	other := newAccountBrowser(t, a.server.Handler)
-	other.send("GET", "/register", nil)
-	if got := other.post("/register", registerValues("other-delivery@example.test", "Other", "OwnerPassword123")); got.Code != 303 {
-		t.Fatal(got.Code)
-	}
-	for _, path := range []string{"/bots/1/publish", "/bots/1/activate"} {
-		if got := other.post(path, url.Values{"operate": {"yes"}}); got.Code != 404 {
-			t.Fatalf("other owner: %s %d", path, got.Code)
-		}
-		if got := b.send("POST", path, url.Values{"operate": {"yes"}}); got.Code != 403 {
-			t.Fatalf("missing CSRF: %s %d", path, got.Code)
-		}
-		if got := b.send("GET", path, nil); path == "/bots/1/publish" && got.Code != 405 {
-			t.Fatalf("GET publication: %d", got.Code)
-		}
-	}
-}
-
-func TestActivationInspectionLeavesPersistedObservationUnchanged(t *testing.T) {
-	_, b, f := deliveryFixture(t)
-	f.mu.Lock()
-	f.webhook = "https://foreign.example.test/secret"
-	f.mu.Unlock()
-	if got := b.send("GET", "/bots/1/activate", nil); got.Code != 200 || !strings.Contains(got.Body.String(), "وب\u200cهوک سرویس دیگری") {
-		t.Fatal("fresh activation inspection missing")
-	}
-	if got := b.send("GET", "/bots/1", nil); strings.Contains(got.Body.String(), "از قبل تنظیم شده") {
-		t.Fatal("GET changed the saved observation")
 	}
 }
 
 func TestBlockedRecipientDoesNotStopOtherParticipants(t *testing.T) {
 	a, b, f := deliveryFixture(t)
-	if got := b.post("/bots/1/activate", url.Values{"operate": {"yes"}}); got.Code != 303 {
+	if got := b.Post("/bots/1/activate", url.Values{"operate": {"yes"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	f.mu.Lock()
-	secret := f.secret
-	f.blockedChat = 77
-	f.mu.Unlock()
+	f.Mu.Lock()
+	secret := f.Secret
+	f.BlockedChat = 77
+	f.Mu.Unlock()
 	for i, participant := range []int{77, 88} {
 		data := fmt.Sprintf(`{"update_id":%d,"message":{"from":{"id":%d},"chat":{"id":%d,"type":"private"},"text":"/start"}}`, 100+i, participant, participant)
 		if got := webhook(a, secret, data); got.Code != 200 {
@@ -409,7 +173,7 @@ func TestBlockedRecipientDoesNotStopOtherParticipants(t *testing.T) {
 	if sent[0].ChatID != 88 || sent[0].Text != "Hello" {
 		t.Fatal("blocked recipient stopped another Participant")
 	}
-	if got := b.send("GET", "/bots/1", nil); !strings.Contains(got.Body.String(), "تحویل پیام با خطا") {
+	if got := b.Send("GET", "/bots/1", nil); !strings.Contains(got.Body.String(), "تحویل پیام با خطا") {
 		t.Fatal("terminal delivery failure invisible")
 	}
 	stop()
@@ -417,14 +181,14 @@ func TestBlockedRecipientDoesNotStopOtherParticipants(t *testing.T) {
 
 func TestTemporaryFailurePreservesParticipantOrderAndLetsOthersContinue(t *testing.T) {
 	a, b, f := deliveryFixture(t)
-	if got := b.post("/bots/1/activate", url.Values{"operate": {"yes"}}); got.Code != 303 {
+	if got := b.Post("/bots/1/activate", url.Values{"operate": {"yes"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	f.mu.Lock()
-	secret := f.secret
-	f.blockedChat = 77
-	f.blockedStatus = 503
-	f.mu.Unlock()
+	f.Mu.Lock()
+	secret := f.Secret
+	f.BlockedChat = 77
+	f.BlockedStatus = 503
+	f.Mu.Unlock()
 	for i, participant := range []int{77, 77, 88} {
 		data := fmt.Sprintf(`{"update_id":%d,"message":{"from":{"id":%d},"chat":{"id":%d,"type":"private"},"text":"/start"}}`, 100+i, participant, participant)
 		if got := webhook(a, secret, data); got.Code != 200 {
@@ -436,16 +200,16 @@ func TestTemporaryFailurePreservesParticipantOrderAndLetsOthersContinue(t *testi
 	if sent[0].ChatID != 88 {
 		t.Fatal("temporary failure stopped another Participant")
 	}
-	edited := strings.ReplaceAll(structuredDraft, "Hello", "New welcome")
-	if got := b.postDraft(t, "/bots/1/draft", url.Values{"definition": {edited}}); got.Code != 303 {
+	edited := strings.ReplaceAll(fixture.StructuredDraft, "Hello", "New welcome")
+	if got := b.PostDraft(t, "/bots/1/draft", url.Values{"definition": {edited}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	if got := b.post("/bots/1/publish", url.Values{}); got.Code != 303 {
+	if got := b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	f.mu.Lock()
-	f.blockedChat = 0
-	f.mu.Unlock()
+	f.Mu.Lock()
+	f.BlockedChat = 0
+	f.Mu.Unlock()
 	sent = waitSent(t, f, 6)
 	if sent[2].ChatID != 77 || sent[2].Text != "Hello" || sent[4].Text != "New welcome" {
 		t.Fatal("Participant updates or durable outputs were reordered")
@@ -455,14 +219,14 @@ func TestTemporaryFailurePreservesParticipantOrderAndLetsOthersContinue(t *testi
 
 func TestShutdownJoinsInFlightOwnerActivation(t *testing.T) {
 	a, b, f := deliveryFixture(t)
-	f.mu.Lock()
-	f.holdActivation = true
-	f.activationStarted = make(chan struct{})
-	started := f.activationStarted
-	f.mu.Unlock()
+	f.Mu.Lock()
+	f.HoldActivation = true
+	f.ActivationStarted = make(chan struct{})
+	started := f.ActivationStarted
+	f.Mu.Unlock()
 	stop := runDeliveryApp(t, a)
 	done := make(chan int, 1)
-	go func() { done <- b.post("/bots/1/activate", url.Values{"operate": {"yes"}}).Code }()
+	go func() { done <- b.Post("/bots/1/activate", url.Values{"operate": {"yes"}}).Code }()
 	select {
 	case <-started:
 	case <-time.After(3 * time.Second):
@@ -484,12 +248,12 @@ func TestShutdownJoinsInFlightOwnerActivation(t *testing.T) {
 
 func TestWebhookStorageFailureIsNotAcknowledgedAndUnsupportedChatsStaySilent(t *testing.T) {
 	a, b, f := deliveryFixture(t)
-	if got := b.post("/bots/1/activate", url.Values{"operate": {"yes"}}); got.Code != 303 {
+	if got := b.Post("/bots/1/activate", url.Values{"operate": {"yes"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	f.mu.Lock()
-	secret := f.secret
-	f.mu.Unlock()
+	f.Mu.Lock()
+	secret := f.Secret
+	f.Mu.Unlock()
 	if _, err := a.db.Exec(`CREATE TRIGGER reject_delivery BEFORE INSERT ON bot_updates BEGIN SELECT RAISE(ABORT,'injected storage failure');END`); err != nil {
 		t.Fatal(err)
 	}
@@ -512,24 +276,24 @@ func TestWebhookStorageFailureIsNotAcknowledgedAndUnsupportedChatsStaySilent(t *
 	stop := runDeliveryApp(t, a)
 	waitSent(t, f, 2)
 	stop()
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if len(f.sent) != 2 {
+	f.Mu.Lock()
+	defer f.Mu.Unlock()
+	if len(f.Sent) != 2 {
 		t.Fatal("unsupported chats emitted messages")
 	}
 }
 
-func deliveryFixture(t *testing.T) (*App, *accountBrowser, *telegramFake) {
+func deliveryFixture(t *testing.T) (*App, *fixture.Browser, *fixture.TelegramFake) {
 	t.Helper()
 	return deliveryFixtureClock(t, time.Now)
 }
 
-func deliveryFixtureClock(t *testing.T, now func() time.Time) (*App, *accountBrowser, *telegramFake) {
+func deliveryFixtureClock(t *testing.T, now func() time.Time) (*App, *fixture.Browser, *fixture.TelegramFake) {
 	t.Helper()
 	_, path := testsupport.MigratedSQLite(t, t.Context())
-	fake := &telegramFake{}
+	fake := &fixture.TelegramFake{}
 	endpoint := httptest.NewServer(fake)
-	fake.url = endpoint.URL
+	fake.URL = endpoint.URL
 	t.Cleanup(endpoint.Close)
 	cfg := Config{DatabasePath: path, HTTPAddr: "127.0.0.1:0", SessionSecret: "delivery-test-session-secret-at-least-32", BotEncryptionKey: base64.StdEncoding.EncodeToString([]byte("0123456789abcdef0123456789abcdef")), BotPublicURL: "https://piko.example.test", LogLevel: "error", ShutdownPeriod: time.Second}
 	a, err := newWithTelegramClock(t.Context(), cfg, telegram.NewClient(endpoint.URL, endpoint.Client()), now)
@@ -537,18 +301,18 @@ func deliveryFixtureClock(t *testing.T, now func() time.Time) (*App, *accountBro
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = a.db.Close() })
-	b := newAccountBrowser(t, a.server.Handler)
-	b.send("GET", "/register", nil)
-	if got := b.post("/register", registerValues("delivery@example.test", "مینا", "OwnerPassword123")); got.Code != 303 {
+	b := fixture.NewAccountBrowser(t, a.server.Handler)
+	b.Send("GET", "/register", nil)
+	if got := b.Post("/register", fixture.RegisterValues("delivery@example.test", "مینا", "OwnerPassword123")); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	if got := b.post("/bots/connect", url.Values{"token": {testBotToken}}); got.Code != 303 {
+	if got := b.Post("/bots/connect", url.Values{"token": {fixture.TestBotToken}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	if got := b.postDraft(t, "/bots/1/draft", url.Values{"definition": {structuredDraft}}); got.Code != 303 {
+	if got := b.PostDraft(t, "/bots/1/draft", url.Values{"definition": {fixture.StructuredDraft}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	if got := b.post("/bots/1/publish", url.Values{}); got.Code != 303 {
+	if got := b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	return a, b, fake
@@ -557,13 +321,14 @@ func deliveryFixtureClock(t *testing.T, now func() time.Time) (*App, *accountBro
 func callbackPayload(updateID int, query string, participant int, data string) string {
 	return fmt.Sprintf(`{"update_id":%d,"callback_query":{"id":%q,"from":{"id":%d},"message":{"message_id":2,"chat":{"id":%d,"type":"private"}},"data":%q}}`, updateID, query, participant, participant, data)
 }
-func waitAnswers(t *testing.T, f *telegramFake, count int) {
+
+func waitAnswers(t *testing.T, f *fixture.TelegramFake, count int) {
 	t.Helper()
 	deadline := time.Now().Add(4 * time.Second)
 	for time.Now().Before(deadline) {
-		f.mu.Lock()
-		n := len(f.answers)
-		f.mu.Unlock()
+		f.Mu.Lock()
+		n := len(f.Answers)
+		f.Mu.Unlock()
 		if n >= count {
 			return
 		}
@@ -571,25 +336,26 @@ func waitAnswers(t *testing.T, f *telegramFake, count int) {
 	}
 	t.Fatal("callback was not acknowledged")
 }
+
 func TestPublishedEditsAndObsoleteCallbacksLeaveParticipantVersionIntact(t *testing.T) {
 	a, b, f := deliveryFixture(t)
-	if got := b.post("/bots/1/activate", url.Values{"operate": {"yes"}}); got.Code != 303 {
+	if got := b.Post("/bots/1/activate", url.Values{"operate": {"yes"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	f.mu.Lock()
-	secret := f.secret
-	f.mu.Unlock()
+	f.Mu.Lock()
+	secret := f.Secret
+	f.Mu.Unlock()
 	stop := runDeliveryApp(t, a)
 	if got := webhook(a, secret, `{"update_id":100,"message":{"from":{"id":77},"chat":{"id":77,"type":"private"},"text":"/start"}}`); got.Code != 200 {
 		t.Fatal(got.Code)
 	}
 	sent := waitSent(t, f, 2)
 	button := sent[1].Markup.Buttons[0][0].Data
-	edited := strings.ReplaceAll(strings.ReplaceAll(structuredDraft, "Hello", "New welcome"), "Open 9 to 5", "New hours")
-	if got := b.postDraft(t, "/bots/1/draft", url.Values{"definition": {edited}}); got.Code != 303 {
+	edited := strings.ReplaceAll(strings.ReplaceAll(fixture.StructuredDraft, "Hello", "New welcome"), "Open 9 to 5", "New hours")
+	if got := b.PostDraft(t, "/bots/1/draft", url.Values{"definition": {edited}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	if got := b.post("/bots/1/publish", url.Values{}); got.Code != 303 {
+	if got := b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	for range 2 {
@@ -610,13 +376,13 @@ func TestPublishedEditsAndObsoleteCallbacksLeaveParticipantVersionIntact(t *test
 		waitAnswers(t, f, i+2)
 	}
 	stop()
-	f.mu.Lock()
-	if len(f.sent) != 4 {
+	f.Mu.Lock()
+	if len(f.Sent) != 4 {
 		t.Error("obsolete or wrong-Participant callback changed behavior")
 	}
-	f.mu.Unlock()
+	f.Mu.Unlock()
 	// A fresh Start after restart follows the newest immutable version.
-	restarted, err := newWithTelegram(t.Context(), a.cfg, telegram.NewClient(f.url, http.DefaultClient))
+	restarted, err := newWithTelegram(t.Context(), a.cfg, telegram.NewClient(f.URL, http.DefaultClient))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -633,13 +399,13 @@ func TestPublishedEditsAndObsoleteCallbacksLeaveParticipantVersionIntact(t *test
 
 func TestAcceptedUpdatesRecoverAfterRestartAndOutboundFailure(t *testing.T) {
 	a, b, f := deliveryFixture(t)
-	if got := b.post("/bots/1/activate", url.Values{"operate": {"yes"}}); got.Code != 303 {
+	if got := b.Post("/bots/1/activate", url.Values{"operate": {"yes"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	f.mu.Lock()
-	secret := f.secret
-	f.sendFailures = 1
-	f.mu.Unlock()
+	f.Mu.Lock()
+	secret := f.Secret
+	f.SendFailures = 1
+	f.Mu.Unlock()
 	start := `{"update_id":100,"message":{"from":{"id":77},"chat":{"id":77,"type":"private"},"text":"/start"}}`
 	if got := webhook(a, secret, start); got.Code != 200 {
 		t.Fatal(got.Code)
@@ -647,17 +413,17 @@ func TestAcceptedUpdatesRecoverAfterRestartAndOutboundFailure(t *testing.T) {
 	if err := a.db.Close(); err != nil {
 		t.Fatal(err)
 	}
-	restarted, err := newWithTelegram(t.Context(), a.cfg, telegram.NewClient(f.url, http.DefaultClient))
+	restarted, err := newWithTelegram(t.Context(), a.cfg, telegram.NewClient(f.URL, http.DefaultClient))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = restarted.db.Close() })
 	stop := runDeliveryApp(t, restarted)
-	b.router = restarted.server.Handler
+	b.Router = restarted.server.Handler
 	deadline := time.Now().Add(3 * time.Second)
 	visible := false
 	for time.Now().Before(deadline) {
-		if page := b.send("GET", "/bots/1", nil); strings.Contains(page.Body.String(), "تحویل پیام با خطا") {
+		if page := b.Send("GET", "/bots/1", nil); strings.Contains(page.Body.String(), "تحویل پیام با خطا") {
 			visible = true
 			break
 		}
@@ -674,55 +440,11 @@ func TestAcceptedUpdatesRecoverAfterRestartAndOutboundFailure(t *testing.T) {
 		t.Fatal(got.Code)
 	}
 	stop()
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if len(f.sent) != 2 {
+	f.Mu.Lock()
+	defer f.Mu.Unlock()
+	if len(f.Sent) != 2 {
 		t.Fatal("completed update replayed")
 	}
-}
-
-func TestActivationRechecksConflictAndRetriesWithoutDroppingUpdates(t *testing.T) {
-	_, b, f := deliveryFixture(t)
-	f.mu.Lock()
-	f.webhook = "https://foreign.example.test/hidden-secret"
-	f.mu.Unlock()
-	got := b.post("/bots/1/activate", url.Values{"operate": {"yes"}})
-	if got.Code != 409 || strings.Contains(got.Body.String(), "hidden-secret") {
-		t.Fatalf("fresh conflict: %d", got.Code)
-	}
-	confirmation := hiddenValue(t, got.Body.String(), "conflict")
-	f.mu.Lock()
-	f.activationFails = true
-	f.mu.Unlock()
-	got = b.post("/bots/1/activate", url.Values{"operate": {"yes"}, "conflict": {confirmation}})
-	if got.Code != 503 {
-		t.Fatalf("failure: %d", got.Code)
-	}
-	if page := b.send("GET", "/bots/1", nil); !strings.Contains(page.Body.String(), "فعال\u200cسازی ناموفق") {
-		t.Fatal("failure state not persisted")
-	}
-	f.mu.Lock()
-	f.activationFails = false
-	f.mu.Unlock()
-	if got := b.post("/bots/1/activate", url.Values{"operate": {"yes"}, "conflict": {confirmation}}); got.Code != 303 {
-		t.Fatalf("retry: %d", got.Code)
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if f.webhook != "https://piko.example.test/telegram/bots/1" || f.secret == "" || f.secret == testBotToken {
-		t.Fatal("webhook endpoint or separate authentication missing")
-	}
-}
-
-func hiddenValue(t *testing.T, html, name string) string {
-	t.Helper()
-	marker := `name="` + name + `" value="`
-	_, tail, ok := strings.Cut(html, marker)
-	if !ok {
-		t.Fatalf("missing %s", name)
-	}
-	value, _, _ := strings.Cut(tail, `"`)
-	return value
 }
 
 // Workers are exercised through the same server lifecycle used in production.

@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	fixture "github.com/pooya79/Piko/internal/testsupport/httpfixture"
 )
 
 // Opt-in browser fixture creates confirmed Submissions through fake Telegram
@@ -32,18 +34,18 @@ func TestSubmissionBrowserFixture(t *testing.T) {
 		d.press("ارسال", 1)
 	}
 	// The detail retains its original version after a new publication and attempt.
-	draft := inquiryDraft()
+	draft := fixture.InquiryDraft()
 	draft["question_label"][0] = "نام تازه"
-	if got := d.b.postDraft(t, "/bots/1/draft", draft); got.Code != 303 {
+	if got := d.b.PostDraft(t, "/bots/1/draft", draft); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	if got := d.b.post("/bots/1/publish", url.Values{}); got.Code != 303 {
+	if got := d.b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	d.text("/start", 2)
 	d.press("درخواست", 1)
 	d.text("تعامل ناتمام", 1)
-	if got := d.b.post("/bots/new", url.Values{"name": {"ربات بدون درخواست"}}); got.Code != 303 {
+	if got := d.b.Post("/bots/new", url.Values{"name": {"ربات بدون درخواست"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	listener, err := net.Listen("tcp", addr)

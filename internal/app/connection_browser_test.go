@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	fixture "github.com/pooya79/Piko/internal/testsupport/httpfixture"
 )
 
 // Opt-in browser fixture uses the same App HTTP seam and disposable migrated
@@ -21,7 +23,7 @@ func TestConnectionBrowserFixture(t *testing.T) {
 	if addr == "" {
 		t.Skip("set PIKO_CONNECTION_BROWSER_ADDR for manual browser verification")
 	}
-	fake := &telegramFake{}
+	fake := &fixture.TelegramFake{}
 	a, b, _ := botFixture(t, func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/bot999999:") && strings.HasSuffix(r.URL.Path, "/getMe") {
 			fmt.Fprint(w, `{"ok":true,"result":{"id":999999,"is_bot":true,"first_name":"Other Bot","username":"other_bot"}}`)
@@ -29,19 +31,19 @@ func TestConnectionBrowserFixture(t *testing.T) {
 		}
 		fake.ServeHTTP(w, r)
 	})
-	if got := b.post("/bots/new", url.Values{"name": {"ربات آزمایش اتصال"}}); got.Code != 303 {
+	if got := b.Post("/bots/new", url.Values{"name": {"ربات آزمایش اتصال"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	if got := b.post("/bots/1/chats", url.Values{"title": {"گفتگوی محفوظ"}}); got.Code != 303 {
+	if got := b.Post("/bots/1/chats", url.Values{"title": {"گفتگوی محفوظ"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	if settings != "" {
-		if got := b.postDraft(t, "/bots/1/draft", combinedDraft()); got.Code != 303 {
+		if got := b.PostDraft(t, "/bots/1/draft", fixture.CombinedDraft()); got.Code != 303 {
 			t.Fatal(got.Code)
 		}
-		b.post("/bots/1/chats", url.Values{"title": {"گفتگوی دوم"}})
-		b.post("/chats", url.Values{})
-		b.post("/bots/new", url.Values{"name": {"ربات مستقل"}})
+		b.Post("/bots/1/chats", url.Values{"title": {"گفتگوی دوم"}})
+		b.Post("/chats", url.Values{})
+		b.Post("/bots/new", url.Values{"name": {"ربات مستقل"}})
 	}
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {

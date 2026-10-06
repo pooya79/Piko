@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/pooya79/Piko/internal/bot/templates/inquiry"
+	fixture "github.com/pooya79/Piko/internal/testsupport/httpfixture"
 )
 
 // This opt-in fixture exercises real application HTTP and external wire
@@ -44,28 +45,28 @@ func TestAcceptanceBrowserFixture(t *testing.T) {
 			}
 		}
 		if strings.Contains(system, "Summarize older messages") {
-			memoryReply(w, "گفتگو دربارهٔ امکانات پیکو، ساخت ربات درخواست و پیشنهادهای نیازمند تأیید مالک است.")
+			fixture.MemoryReply(w, "گفتگو دربارهٔ امکانات پیکو، ساخت ربات درخواست و پیشنهادهای نیازمند تأیید مالک است.")
 			return
 		}
 		if input.Messages[len(input.Messages)-1].Role == "tool" {
-			memoryReply(w, "پیشنهاد آماده بررسی شماست.")
+			fixture.MemoryReply(w, "پیشنهاد آماده بررسی شماست.")
 			return
 		}
 		if strings.Contains(latest, "ACCEPT_BUILD") {
 			if strings.Contains(system, "general Piko chat without a Bot") {
-				memoryReply(w, `{"intent":"build"}`)
+				fixture.MemoryReply(w, `{"intent":"build"}`)
 			} else {
-				builderToolReply(w, "prepare_bot", map[string]string{"name": "پذیرش Example", "definition": string(definition)})
+				fixture.BuilderToolReply(w, "prepare_bot", map[string]string{"name": "پذیرش Example", "definition": string(definition)})
 			}
 			return
 		}
 		for _, action := range []string{"deploy", "pause", "resume"} {
 			if strings.Contains(latest, "ACCEPT_"+strings.ToUpper(action)) {
-				builderToolReply(w, "propose_action", map[string]string{"action": action})
+				fixture.BuilderToolReply(w, "propose_action", map[string]string{"action": action})
 				return
 			}
 		}
-		memoryReply(w, "پیکو برای جمع\u200cآوری درخواست با پرسش\u200cهای مشخص کمک می\u200cکند.")
+		fixture.MemoryReply(w, "پیکو برای جمع\u200cآوری درخواست با پرسش\u200cهای مشخص کمک می\u200cکند.")
 	})
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {

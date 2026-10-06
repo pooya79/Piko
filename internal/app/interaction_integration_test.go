@@ -1,13 +1,15 @@
 package app
 
 import (
-	"github.com/pooya79/Piko/internal/bot/telegram"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/pooya79/Piko/internal/bot/telegram"
+	fixture "github.com/pooya79/Piko/internal/testsupport/httpfixture"
 )
 
 func TestInteractionStartAgainAbandonsAnswersAndSelectsNewestPublication(t *testing.T) {
@@ -17,25 +19,25 @@ func TestInteractionStartAgainAbandonsAnswersAndSelectsNewestPublication(t *test
 	d.press("درخواست", 1)
 	d.text("پاسخ رهاشده", 1)
 	oldBack := d.button("بازگشت")
-	updated := inquiryDraft()
+	updated := fixture.InquiryDraft()
 	updated.Set("welcome", "سلام نسخه تازه")
 	updated["question_prompt"][0] = "نام تازه؟"
-	if got := d.b.postDraft(t, "/bots/1/draft", updated); got.Code != 303 {
+	if got := d.b.PostDraft(t, "/bots/1/draft", updated); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	if got := d.b.post("/bots/1/publish", url.Values{}); got.Code != 303 {
+	if got := d.b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	d.text("/start", 1)
 	oldContinue := d.button("ادامه")
 	d.press("شروع دوباره", 2)
-	if sent := waitSent(t, d.f, d.sent); sent[len(sent)-2].Text != "سلام نسخه تازه" {
+	if sent := waitSent(t, d.f, d.Sent); sent[len(sent)-2].Text != "سلام نسخه تازه" {
 		t.Fatal("reset ignored latest publication")
 	}
 	d.obsolete(oldContinue)
 	d.obsolete(oldBack)
 	d.press("درخواست", 1)
-	if sent := waitSent(t, d.f, d.sent); sent[len(sent)-1].Text != "نام تازه؟" {
+	if sent := waitSent(t, d.f, d.Sent); sent[len(sent)-1].Text != "نام تازه؟" {
 		t.Fatal("reset retained original Flow")
 	}
 	d.text("نام تازه", 1)
@@ -43,7 +45,7 @@ func TestInteractionStartAgainAbandonsAnswersAndSelectsNewestPublication(t *test
 	d.press("رد کردن", 4)
 	d.countSubmissions(0)
 	d.press("ارسال", 1)
-	page := d.b.send("GET", "/bots/1/submissions/1", nil)
+	page := d.b.Send("GET", "/bots/1/submissions/1", nil)
 	if !strings.Contains(page.Body.String(), "نام تازه") || strings.Contains(page.Body.String(), "پاسخ رهاشده") {
 		t.Fatal("reset answers leaked into confirmed Submission")
 	}
@@ -78,7 +80,7 @@ func TestInteractionResumePreservesReviewEditingAndCancellation(t *testing.T) {
 	d.countSubmissions(0)
 	d.text("/start", 2)
 	d.press("درخواست", 1)
-	if sent := waitSent(t, d.f, d.sent); sent[len(sent)-1].Text != "نام شما چیست؟" {
+	if sent := waitSent(t, d.f, d.Sent); sent[len(sent)-1].Text != "نام شما چیست؟" {
 		t.Fatal("cancelled progress resumed")
 	}
 }
@@ -91,7 +93,7 @@ func TestInteractionExpiryBoundaryAndCleanupRetainSubmissions(t *testing.T) {
 			clock.Store(base)
 			now := func() time.Time { return time.Unix(clock.Load(), 0) }
 			a, b, f := deliveryFixtureClock(t, now)
-			d := configureFormDriver(t, a, b, f, inquiryDraft())
+			d := configureFormDriver(t, a, b, f, fixture.InquiryDraft())
 			stop := runDeliveryApp(t, d.a)
 			d.text("/start", 2)
 			d.press("درخواست", 1)
@@ -111,7 +113,7 @@ func TestInteractionExpiryBoundaryAndCleanupRetainSubmissions(t *testing.T) {
 			}
 			d.text("/start", 1)
 			d.press("ادامه", 4)
-			if sent := waitSent(t, d.f, d.sent); !strings.Contains(sent[len(sent)-3].Text, "نام ناتمام") {
+			if sent := waitSent(t, d.f, d.Sent); !strings.Contains(sent[len(sent)-3].Text, "نام ناتمام") {
 				t.Fatal("cleanup removed unexpired progress")
 			}
 			clock.Store(base + 86400 + 99)
@@ -132,11 +134,11 @@ func TestInteractionExpiryBoundaryAndCleanupRetainSubmissions(t *testing.T) {
 				}
 			case "restart":
 				stop()
-				restarted, err := newWithTelegramClock(t.Context(), d.a.cfg, telegram.NewClient(d.f.url, http.DefaultClient), now)
+				restarted, err := newWithTelegramClock(t.Context(), d.a.cfg, telegram.NewClient(d.f.URL, http.DefaultClient), now)
 				if err != nil {
 					t.Fatal(err)
 				}
-				d.a, d.b.router = restarted, restarted.server.Handler
+				d.a, d.b.Router = restarted, restarted.server.Handler
 				runDeliveryApp(t, restarted)
 				// Wait for startup cleanup before rewinding the test clock.
 				d.text("/start", 2)
@@ -148,11 +150,11 @@ func TestInteractionExpiryBoundaryAndCleanupRetainSubmissions(t *testing.T) {
 			}
 			d.obsolete(oldSubmit)
 			d.press("درخواست", 1)
-			if sent := waitSent(t, d.f, d.sent); sent[len(sent)-1].Text != "نام شما چیست؟" {
+			if sent := waitSent(t, d.f, d.Sent); sent[len(sent)-1].Text != "نام شما چیست؟" {
 				t.Fatal("expired progress was retained")
 			}
 			d.countSubmissions(1)
-			if page := d.b.send("GET", "/bots/1/submissions/1", nil); page.Code != 200 || !strings.Contains(page.Body.String(), "نام ثبت\u200cشده") {
+			if page := d.b.Send("GET", "/bots/1/submissions/1", nil); page.Code != 200 || !strings.Contains(page.Body.String(), "نام ثبت\u200cشده") {
 				t.Fatal("expiry removed completed Submission or its Flow definition")
 			}
 		})
@@ -161,11 +163,11 @@ func TestInteractionExpiryBoundaryAndCleanupRetainSubmissions(t *testing.T) {
 
 func (d *formDriver) obsolete(data string) {
 	d.t.Helper()
-	d.f.mu.Lock()
-	acknowledged := len(d.f.answers)
-	d.f.mu.Unlock()
+	d.f.Mu.Lock()
+	acknowledged := len(d.f.Answers)
+	d.f.Mu.Unlock()
 	d.update++
-	if got := webhook(d.a, d.secret, callbackPayload(d.update, "obsolete", 77, data)); got.Code != 200 {
+	if got := webhook(d.a, d.Secret, callbackPayload(d.update, "obsolete", 77, data)); got.Code != 200 {
 		d.t.Fatal(got.Code)
 	}
 	waitAnswers(d.t, d.f, acknowledged+1)
@@ -181,12 +183,12 @@ func TestInteractionExpiredAccessClearsProgressAndExplainsFreshStart(t *testing.
 		t.Fatal(err)
 	}
 	d.text("/start", 3)
-	sent := waitSent(t, d.f, d.sent)
+	sent := waitSent(t, d.f, d.Sent)
 	if !strings.Contains(sent[len(sent)-3].Text, "منقضی") {
 		t.Fatal("expired Start did not explain discarded progress")
 	}
 	d.press("درخواست", 1)
-	if sent := waitSent(t, d.f, d.sent); sent[len(sent)-1].Text != "نام شما چیست؟" {
+	if sent := waitSent(t, d.f, d.Sent); sent[len(sent)-1].Text != "نام شما چیست؟" {
 		t.Fatal("expired answers were resumed")
 	}
 	d.countSubmissions(0)
@@ -204,9 +206,9 @@ func TestCompletedInteractionExpiryStartsFreshWithoutClaimingSubmissionWasAbando
 	if _, err := d.a.db.Exec("UPDATE bot_participants SET expires_at=unixepoch()"); err != nil {
 		t.Fatal(err)
 	}
-	before := d.sent
+	before := d.Sent
 	d.text("/start", 2)
-	sent := waitSent(t, d.f, d.sent)
+	sent := waitSent(t, d.f, d.Sent)
 	if sent[before].Text != "سلام" || sent[before+1].Text != "انتخاب کنید" {
 		t.Fatal("completed Interaction was described as abandoned unfinished answers")
 	}
@@ -218,25 +220,25 @@ func TestInteractionStartingFromOlderMenuRefreshesLatestPublicationBeforeCollect
 	runDeliveryApp(t, d.a)
 	d.text("/start", 2)
 	oldMenu := d.button("درخواست")
-	updated := inquiryDraft()
+	updated := fixture.InquiryDraft()
 	updated.Set("welcome", "نسخه تازه منو")
 	updated.Set("form_choice_id", "updated-inquiry")
 	updated.Set("form_label", "درخواست تازه")
 	updated["question_prompt"][0] = "نام در نسخه تازه؟"
-	if got := d.b.postDraft(t, "/bots/1/draft", updated); got.Code != 303 {
+	if got := d.b.PostDraft(t, "/bots/1/draft", updated); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	if got := d.b.post("/bots/1/publish", url.Values{}); got.Code != 303 {
+	if got := d.b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	d.press("درخواست", 2)
-	sent := waitSent(t, d.f, d.sent)
+	sent := waitSent(t, d.f, d.Sent)
 	if sent[len(sent)-2].Text != "نسخه تازه منو" {
 		t.Fatal("new Interaction would start from a superseded publication")
 	}
 	d.obsolete(oldMenu)
 	d.press("درخواست تازه", 1)
-	sent = waitSent(t, d.f, d.sent)
+	sent = waitSent(t, d.f, d.Sent)
 	if sent[len(sent)-1].Text != "نام در نسخه تازه؟" {
 		t.Fatal("fresh menu did not start newest Form")
 	}
