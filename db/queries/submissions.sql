@@ -13,8 +13,3 @@ ORDER BY s.id DESC LIMIT 51;
 SELECT s.*, v.version FROM bot_submissions s
 JOIN bots b ON b.id = s.bot_id JOIN bot_publications v ON v.id = s.publication_id
 WHERE b.owner_id = ?1 AND s.bot_id = ?2 AND s.id = ?3;
-
--- name: DeleteOwnerSubmission :execrows
-DELETE FROM bot_submissions
-WHERE bot_submissions.bot_id = sqlc.arg(bot_id) AND bot_submissions.id = sqlc.arg(id)
-AND EXISTS (SELECT 1 FROM bots WHERE bots.id = bot_submissions.bot_id AND bots.owner_id = sqlc.arg(owner_id));

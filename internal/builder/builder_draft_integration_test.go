@@ -376,10 +376,10 @@ func TestBuilderSavedDraftOutcomeSurvivesRestartAndHistoryDeletion(t *testing.T)
 	if after := b.Send("GET", "/bots/1/chats/1", nil).Body.String(); after != before {
 		t.Fatal("restart lost saved Draft outcome or revisions")
 	}
-	if got := b.Post("/bots/1/chats/1/delete", url.Values{}); got.Code != 303 {
+	if got := b.Post("/bots/1/chats/1/delete", url.Values{}); got.Code != 404 {
 		t.Fatal(got.Code)
 	}
 	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(draft, after) || calls.Load() != 2 {
-		t.Fatal("history deletion reverted Draft or replayed generation")
+		t.Fatal("rejected deletion reverted Draft or replayed generation")
 	}
 }

@@ -19,9 +19,9 @@ templ IndexPage(displayName,csrf string,chats []Chat,view ChatView) {
 
 templ indexDocument(csrf string,chats []Chat,view ChatView) {
  <script src="/static/studio.js?v=studio5" defer></script>
- <script src="/static/studio-preview.js?v=preview1" defer></script>
+ <script src="/static/studio-preview.js?v=preview2" defer></script>
  <script src="/static/studio-flow.js?v=flow1" defer></script>
- <script src="/static/builder-status.js?v=studio2" defer></script>
+ <script src="/static/builder-status.js?v=studio3" defer></script>
  @indexContent(csrf,chats,view)
 }
 
@@ -92,6 +92,14 @@ templ composer(csrf,action string,view ChatView,running bool) {
    <div class="piko-studio-composer-actions"><span class="piko-helper">{ locale.T(ctx,"studio.keyboard") } <kbd dir="ltr">Ctrl / ⌘ + Enter</kbd></span><button id="studio-send" class="piko-primary-action" type="submit" disabled?={ !view.Enabled || running } data-can-send={ strconv.FormatBool(view.Enabled && !running) }>@shell.Icon("arrow-up-left")
  <span class="sr-only">{ locale.T(ctx,"builder.send") }</span></button></div>
   </form>
+  <div class="piko-context-usage" title={ locale.T(ctx,"builder.memory.hint") }>
+   <svg class="piko-context-ring" viewBox="0 0 20 20" role="meter" aria-label={ locale.T(ctx,"builder.memory.label") } aria-valuemin="0" aria-valuemax="64000" aria-valuenow={ strconv.Itoa(min(view.MemoryTokens,memoryTokenLimit)) } aria-valuetext={ locale.Digits(strconv.Itoa(view.MemoryTokens))+" / 64k · "+locale.T(ctx,"builder.memory.estimate") }>
+    <circle class="piko-context-track" cx="10" cy="10" r="8"/>
+    <circle class="piko-context-fill" cx="10" cy="10" r="8" pathLength="100" stroke-dasharray={ strconv.FormatFloat(float64(min(view.MemoryTokens,memoryTokenLimit))/640, 'f', 2, 64)+" 100" }/>
+   </svg>
+   <bdi dir="ltr">{ locale.Digits(strconv.Itoa(view.MemoryTokens))+" / 64k" }</bdi>
+   <span class="sr-only">{ locale.T(ctx,"builder.memory.estimate") }</span>
+  </div>
  </section>
 }
 
@@ -124,7 +132,7 @@ templ listContent(csrf string,b bot.Bot,chats []Chat,title,errorKey string) {
  } else {
   <ul class="piko-builder-list">
   for _,c:=range chats {
-   <li class="piko-card piko-draft-section"><h2><a class="piko-text-link" href={ templ.URL(c.URL()) }><bdi dir="auto">{ c.Title }</bdi></a></h2><p class="piko-helper">{ locale.T(ctx,"builder.idle") }</p><p class="piko-helper"><time datetime={ c.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z") } data-persian-date>{ locale.Digits(c.UpdatedAt.UTC().Format("2006-01-02 15:04")) }</time></p>@deleteChat(csrf,c)</li>
+   <li class="piko-card piko-draft-section"><h2><a class="piko-text-link" href={ templ.URL(c.URL()) }><bdi dir="auto">{ c.Title }</bdi></a></h2><p class="piko-helper">{ locale.T(ctx,"builder.idle") }</p><p class="piko-helper"><time datetime={ c.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z") } data-persian-date>{ locale.Digits(c.UpdatedAt.UTC().Format("2006-01-02 15:04")) }</time></p></li>
   }
   </ul>
  }
@@ -170,8 +178,9 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
      } else {
       <ol class="piko-builder-history">
        for _,message:=range history.Messages {
+        if message.Role!=ResultRole || (message.Content!="builder.run.saved" && message.Content!="builder.run.undone") {
         <li class={ "piko-builder-message", "piko-builder-message-"+string(message.Role) }>
-         <p class="piko-helper">{ locale.T(ctx,"builder.role."+string(message.Role)) } · <time datetime={ message.CreatedAt.UTC().Format("2006-01-02T15:04:05Z") } data-persian-date>{ locale.Digits(message.CreatedAt.UTC().Format("2006-01-02 15:04")) }</time></p>
+         @shell.MessageIdentity(locale.T(ctx,"builder.role."+string(message.Role)),message.Role==OwnerRole)
          <p class="piko-builder-text"><bdi dir="auto">
           if message.FeedbackKey()!="" {
            { locale.T(ctx,message.FeedbackKey()) }
@@ -180,12 +189,13 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
           }
          </bdi></p>
         </li>
+        }
        }
       </ol>
      }
      @bot.ActionCards(csrf,b,history.Proposals)
      if latest.ID != 0 {
-      <p class="piko-helper" role="status" data-studio-outcome={ string(latest.Status) }>{ locale.T(ctx,latest.FeedbackKey()) }</p>
+      <span hidden data-studio-outcome={ string(latest.Status) }></span>
      }
      if view.ActiveRun.Status == RunRunning && view.ActiveChat.ID != c.ID {
       <p class="piko-field-error" role="status" data-studio-busy>{ locale.T(ctx,"builder.busy") } <a id="studio-active-chat" class="piko-text-link" href={ templ.URL(view.ActiveChat.URL()) }><bdi dir="auto">{ view.ActiveChat.Title }</bdi></a></p>
@@ -193,43 +203,32 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
      }
      if latest.Status == RunRunning {
       <section class="piko-studio-progress" aria-label={ locale.T(ctx,"builder.stream.title") }>
-       <span class="piko-small-label">@shell.Icon("sparkle")
- { locale.T(ctx,"builder.stream.title") }</span>
-       <p class="piko-helper">{ locale.T(ctx,"builder.stream.provisional") }</p>
-       <p role="status" aria-live="polite" data-builder-progress>{ locale.T(ctx,"builder.progress.model") }</p>
+       @shell.MessageIdentity(locale.T(ctx,"builder.role.model"),false)
+       <p class="piko-chat-activity" role="status" aria-live="polite"><span class="piko-activity-spinner" aria-hidden="true"></span><span data-builder-progress>{ locale.T(ctx,"builder.progress.model") }</span></p>
        <p class="piko-builder-text"><bdi dir="auto" data-builder-reply></bdi></p>
        @connectionFeedback()
        <form method="post" data-studio-form="action" action={ c.URL()+"/runs/"+strconv.FormatInt(latest.ID,10)+"/stop" }><input type="hidden" name="csrf_token" value={ csrf }/><button id="studio-stop" type="submit" class="piko-secondary-action">{ locale.T(ctx,"builder.stop") }</button></form>
       </section>
      }
      <p class="piko-field-error" role="status" data-studio-refresh-error hidden>{ locale.T(ctx,"studio.refresh.error") } <button type="button" data-studio-refresh class="piko-text-link">{ locale.T(ctx,"builder.refresh") }</button></p>
- <details id="studio-run-details" class="piko-studio-run-details"><summary id="studio-runs-summary">{ locale.T(ctx,"builder.runs") }</summary>
+ <div hidden data-admitted={ strconv.FormatInt(view.Allowance.Admitted,10) }>
  for _,run:=range history.Runs {
-  <div class="piko-builder-run" data-run-id={ strconv.FormatInt(run.ID,10) } data-run-status={ string(run.Status) } data-run-result={ run.Result } data-before-revision={ strconv.FormatInt(run.BeforeRevision,10) }
-  if run.AfterRevision.Valid {
-   data-after-revision={ strconv.FormatInt(run.AfterRevision.Int64,10) }
-  }
-  >
-   <p role="status">{ locale.T(ctx,run.FeedbackKey()) }</p>
+  <span data-run-id={ strconv.FormatInt(run.ID,10) } data-run-status={ string(run.Status) } data-run-result={ run.Result } data-before-revision={ strconv.FormatInt(run.BeforeRevision,10) }
    if run.AfterRevision.Valid {
-    <p class="piko-helper">{ locale.T(ctx,"builder.revision.change")+" " }<bdi dir="ltr">{ locale.Digits(strconv.FormatInt(run.BeforeRevision,10)+" → "+strconv.FormatInt(run.AfterRevision.Int64,10)) }</bdi></p>
+    data-after-revision={ strconv.FormatInt(run.AfterRevision.Int64,10) }
    }
-   <p class="piko-helper">{ locale.T(ctx,"builder.calls")+" "+locale.Digits(strconv.FormatInt(run.Calls,10)) }</p>
-   @usage(run.Usage)
-   if view.Enabled && run.ID == latest.ID && run.CanRetry {
-    <p class="piko-helper">{ locale.T(ctx,"builder.retry.copy") }</p>
-    <form method="post" data-studio-form="action" action={ c.URL()+"/runs/"+strconv.FormatInt(run.ID,10)+"/retry" }>
-     <input type="hidden" name="csrf_token" value={ csrf }/>
-     <button id={ "studio-retry-"+strconv.FormatInt(run.ID,10) } class="piko-primary-action" type="submit">{ locale.T(ctx,"builder.retry") }</button>
-    </form>
-   }
-  </div>
+  ></span>
+  @usage(run.Usage)
  }
- <p class="piko-helper" data-admitted={ strconv.FormatInt(view.Allowance.Admitted,10) }>{ locale.T(ctx,"builder.allowance")+" "+locale.Digits(strconv.FormatInt(view.Allowance.Admitted,10)+" / "+strconv.FormatInt(view.Allowance.Limit,10)) }</p>
- <p class="piko-helper">{ locale.T(ctx,"builder.daily.usage") }</p>
  @usage(view.Allowance.Usage)
- </details>
-     @deleteChat(csrf,c)
+ </div>
+ if view.Enabled && latest.CanRetry {
+  <form class="piko-studio-retry" method="post" data-studio-form="action" action={ c.URL()+"/runs/"+strconv.FormatInt(latest.ID,10)+"/retry" }>
+   <input type="hidden" name="csrf_token" value={ csrf }/>
+   <button id={ "studio-retry-"+strconv.FormatInt(latest.ID,10) } class="piko-secondary-action" type="submit">{ locale.T(ctx,"builder.retry") }</button>
+  </form>
+ }
+
     </div>
     @composer(csrf,c.URL()+"/messages",view,latest.Status==RunRunning || view.ActiveRun.Status==RunRunning)
    </section>
@@ -303,41 +302,16 @@ templ studioPane(csrf string,b bot.Bot,history Conversation,view ChatView) {
  </aside>
 }
 
-templ deleteChat(csrf string,c Chat) {
- <details id={ "studio-delete-"+strconv.FormatInt(c.ID,10) } class="piko-submission-delete"><summary id={ "studio-delete-summary-"+strconv.FormatInt(c.ID,10) }>{ locale.T(ctx,"builder.delete") }</summary><p class="piko-helper"><bdi dir="auto">{ c.Title }</bdi></p><p class="piko-helper">{ locale.T(ctx,chatDeleteKey(c)) }</p><form method="post" action={ c.URL()+"/delete" }><input type="hidden" name="csrf_token" value={ csrf }/><button id={ "studio-delete-confirm-"+strconv.FormatInt(c.ID,10) } class="piko-secondary-action piko-danger-action" type="submit">{ locale.T(ctx,"builder.delete.confirm") }</button></form></details>
-}
-
-
+// Accounting attributes support diagnostics without adding text to the conversation.
 templ usage(u Usage) {
- <p class="piko-helper" data-total-tokens={ u.TotalText() } data-cost={ u.CostText() } data-usage-complete={ strconv.FormatBool(u.Complete) }>
-  { locale.T(ctx,"builder.tokens")+" " }
-  if u.Total.Valid {
- { locale.Digits(u.TotalText()) }
- } else {
- { locale.T(ctx,"builder.usage.unknown") }
- }
- if !u.Complete && (u.Total.Valid || u.Cost.Valid) {
-  { " · "+locale.T(ctx,"builder.usage.partial") }
- }
-  { " · "+locale.T(ctx,"builder.cost")+" " }
-  if u.Cost.Valid {
- <bdi dir="ltr">{ u.CostText()+" USD" }</bdi>
- } else {
- { locale.T(ctx,"builder.usage.unknown") }
- }
- </p>
-}
-
-func chatDeleteKey(c Chat) string {
- if c.BotID == 0 { return "piko.chat.delete.copy" }
- return "builder.delete.copy"
+ <span hidden data-total-tokens={ u.TotalText() } data-cost={ u.CostText() } data-usage-complete={ strconv.FormatBool(u.Complete) }></span>
 }
 
 templ chatDocument(csrf string,b bot.Bot,history Conversation,view ChatView) {
  <script src="/static/studio.js?v=studio5" defer></script>
- <script src="/static/studio-preview.js?v=preview1" defer></script>
+ <script src="/static/studio-preview.js?v=preview2" defer></script>
  <script src="/static/studio-flow.js?v=flow1" defer></script>
- <script src="/static/builder-status.js?v=studio2" defer></script>
+ <script src="/static/builder-status.js?v=studio3" defer></script>
  @chatContent(csrf,b,history,view)
 }
 

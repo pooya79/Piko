@@ -55,5 +55,5 @@ func (r *Repository) get(ctx context.Context, ownerID, id int64) (Bot, error) {
 // Normalize it here so credential-free Bot mapping has one definition.
 func botFromRow(row dbgen.GetOwnerBotRow) Bot {
 	return Bot{ID: row.ID, TelegramID: row.TelegramID.Int64, Name: row.Name, Username: row.Username,
-		HasWebhook: row.HasWebhook != 0, PendingUpdates: row.PendingUpdates, VerifiedAt: time.Unix(row.VerifiedAt, 0), PublishedVersion: row.PublishedVersion, DeliveryState: row.DeliveryState, DeliveryMode: DeliveryMode(row.DeliveryMode), DeliveryError: row.DeliveryError != 0, WebhookIsPiko: row.WebhookIsPiko != 0, Paused: row.Paused != 0, Disconnected: row.Disconnected != 0, Unconnected: row.Unconnected != 0}
+		HasWebhook: row.HasWebhook != 0, PendingUpdates: row.PendingUpdates, VerifiedAt: time.Unix(row.VerifiedAt, 0), PublishedVersion: row.PublishedVersion, DeliveryState: row.DeliveryState, DeliveryMode: DeliveryMode(row.DeliveryMode), DeliveryError: row.DeliveryError != 0, WebhookIsPiko: row.WebhookIsPiko != 0, Paused: row.Paused != 0, Disconnected: row.Disconnected != 0, Unconnected: row.Unconnected != 0, HasImplementation: row.HasImplementation != 0}
 }

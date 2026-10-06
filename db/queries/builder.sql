@@ -33,9 +33,6 @@ ORDER BY c.updated_at DESC, c.id DESC;
 SELECT c.* FROM builder_chats c
 WHERE c.owner_id = sqlc.arg(owner_id) AND COALESCE(c.bot_id, 0) = CAST(sqlc.arg(bot_id) AS INTEGER) AND c.id = sqlc.arg(chat_id);
 
--- name: DeleteOwnerBuilderChat :execrows
-DELETE FROM builder_chats WHERE builder_chats.id = sqlc.arg(chat_id) AND COALESCE(builder_chats.bot_id, 0) = CAST(sqlc.arg(bot_id) AS INTEGER)
-AND builder_chats.owner_id = sqlc.arg(owner_id);
 
 -- name: ListOwnerBuilderMessages :many
 SELECT m.* FROM builder_messages m

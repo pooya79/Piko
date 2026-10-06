@@ -301,7 +301,7 @@ func TestPikoConversionKeepsPrivateMemorySharedDraftAndDeletionScope(t *testing.
 	})
 	path, unrelated := fixture.StartPikoChat(t, b), fixture.StartPikoChat(t, b)
 	for turn := range 7 {
-		if got := b.Post(path+"/messages", url.Values{"message": {fmt.Sprintf("پرسش خصوصی کلاس %d", turn)}}); got.Code != 303 {
+		if got := b.Post(path+"/messages", url.Values{"message": {fixture.MemoryText(fmt.Sprintf("پرسش خصوصی کلاس %d", turn), 13000)}}); got.Code != 303 {
 			t.Fatal(got.Code)
 		}
 		fixture.WaitBuilder(t, b, path, "succeeded")

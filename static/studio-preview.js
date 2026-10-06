@@ -49,6 +49,7 @@
     const actionFocus = document.activeElement;
     captureReading();
     previous.setAttribute('aria-busy', 'true');
+    previous.querySelector('[data-preview-activity]').hidden = false;
     previous.querySelectorAll('button[type="submit"]').forEach(button => button.setAttribute('aria-disabled', 'true'));
     try {
       const response = await fetch(url, {
@@ -93,6 +94,7 @@
     } finally {
       pending = false;
       previous.removeAttribute('aria-busy');
+      previous.querySelector('[data-preview-activity]').hidden = true;
       previous.querySelectorAll('[aria-disabled]').forEach(button => button.removeAttribute('aria-disabled'));
     }
   }

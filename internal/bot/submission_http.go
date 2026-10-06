@@ -38,14 +38,6 @@ func (h *Handler) Submissions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Submission(w http.ResponseWriter, r *http.Request) {
-	h.submissionPage(w, r, false)
-}
-
-func (h *Handler) SubmissionDeleteForm(w http.ResponseWriter, r *http.Request) {
-	h.submissionPage(w, r, true)
-}
-
-func (h *Handler) submissionPage(w http.ResponseWriter, r *http.Request, deleting bool) {
 	b, ok := h.requestedBot(w, r)
 	if !ok {
 		return
@@ -61,26 +53,5 @@ func (h *Handler) submissionPage(w http.ResponseWriter, r *http.Request, deletin
 		return
 	}
 	u, _ := auth.UserFromContext(r.Context())
-	if deleting {
-		h.render(w, r, http.StatusOK, SubmissionDeletePage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, item))
-		return
-	}
 	h.render(w, r, http.StatusOK, SubmissionPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, item))
-}
-
-func (h *Handler) DeleteSubmission(w http.ResponseWriter, r *http.Request) {
-	b, ok := h.requestedBot(w, r)
-	if !ok {
-		return
-	}
-	id, err := strconv.ParseInt(chi.URLParam(r, "submissionID"), 10, 64)
-	if err != nil || id < 1 {
-		web.RenderError(w, r, http.StatusNotFound, "error.message.page.missing")
-		return
-	}
-	if err := h.service.DeleteSubmission(r.Context(), b.ID, id); err != nil {
-		h.draftError(w, r, err)
-		return
-	}
-	http.Redirect(w, r, b.URL()+"/submissions", http.StatusSeeOther)
 }

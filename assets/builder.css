@@ -10,7 +10,6 @@
 .piko-builder-list h2 { overflow-wrap: anywhere; }
 /* Override the shared single-line input style for multiline chat messages. */
 .piko-builder-composer { min-height: 8rem; margin-block-end: 1rem; resize: vertical; white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: hidden; overflow-y: auto; }
-.piko-builder-run + .piko-builder-run { border-block-start: 1px solid var(--color-base-300); padding-block-start: 1rem; }
 
 /* The studio keeps history, editing and the preview in separate scroll regions. */
 .piko-workspace-main:has(.piko-studio) { position: relative; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
@@ -71,14 +70,10 @@
 .piko-studio .piko-builder-message { border: 0; padding: 0; border-radius: 0; font-size: 13px; line-height: 2; }
 .piko-studio .piko-builder-message-owner { padding: 14px 18px; border-radius: 16px 4px 16px 16px; background: var(--piko-surface-lilac); margin-inline-start: 32px; }
 .piko-studio .piko-builder-message-result { border-inline-start: 3px solid var(--color-primary); padding-inline-start: 16px; }
-.piko-studio .piko-builder-message .piko-helper { font-size: 10px; }
-.piko-studio-progress { max-width: 760px; margin: 20px auto; padding: 18px; border: 1px solid var(--color-base-300); border-radius: 16px; font-size: 12px; line-height: 2; background: var(--color-base-100); }
+.piko-studio .piko-builder-message .piko-message-identity { margin-bottom: 8px; }
+.piko-studio-progress { max-width: 760px; margin: 20px auto; font-size: 12px; line-height: 2; }
 .piko-studio-progress form { margin-top: 12px; }
-.piko-studio-run-details { max-width: 760px; margin: 20px auto; font-size: 11px; border-top: 1px solid var(--color-base-300); padding-top: 12px; }
-.piko-studio-run-details summary { cursor: pointer; margin-bottom: 12px; }
-.piko-studio-scroll > .piko-helper { font-size: 11px; line-height: 1.9; }
-.piko-studio-scroll > .piko-submission-delete summary { font-size: 11px; color: var(--piko-text-secondary); }
-.piko-studio-scroll > .piko-submission-delete { max-width: 760px; margin-inline: auto; }
+.piko-studio-retry { max-width: 760px; margin: 16px auto; }
 .piko-studio-pane { min-width: 0; min-height: 0; overflow-y: auto; border-inline-start: 1px solid var(--color-base-300); background: var(--color-base-100); scrollbar-width: thin; }
 .piko-studio-pane-heading { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 20px; }
 .piko-studio-pane-heading .piko-icon { color: var(--color-primary); width: 18px; height: 18px; }
@@ -175,3 +170,8 @@
  .piko-studio-pane-content { max-width: 420px; width: 100%; margin-inline: auto; }
 }
 }
+
+.piko-context-usage { display: flex; justify-content: flex-end; align-items: center; gap: 6px; padding: 8px 3px 0; color: var(--piko-text-secondary); font-size: 10px; font-variant-numeric: tabular-nums; }
+.piko-context-ring { width: 16px; height: 16px; flex-shrink: 0; fill: none; stroke-width: 2; }
+.piko-context-track { stroke: var(--color-base-300); }
+.piko-context-fill { stroke: var(--color-primary); transform: rotate(-90deg); transform-origin: center; }

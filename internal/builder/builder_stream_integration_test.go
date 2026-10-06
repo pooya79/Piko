@@ -75,7 +75,7 @@ func TestBuilderStopBeforeCommitPreservesDraftAndAccounting(t *testing.T) {
 	}
 }
 
-func TestBuilderActiveChatDeletionCancelsWorkAndKeepsPriorDraftAndUsage(t *testing.T) {
+func TestBuilderActiveChatStopCancelsWorkAndKeepsPriorDraftAndUsage(t *testing.T) {
 	started, cancelled := make(chan struct{}), make(chan struct{})
 	var calls atomic.Int64
 	_, b := fixture.BuilderFixture(t, builder.Config{}, func(w http.ResponseWriter, r *http.Request) {
@@ -100,25 +100,21 @@ func TestBuilderActiveChatDeletionCancelsWorkAndKeepsPriorDraftAndUsage(t *testi
 	case <-time.After(3 * time.Second):
 		t.Fatal("provider did not start")
 	}
-	if got := b.Post("/bots/1/chats/1/delete", url.Values{}); got.Code != 303 {
-		t.Fatal("active deletion rejected", got.Code)
+	if got := b.Post("/bots/1/chats/1/runs/2/stop", url.Values{}); got.Code != 303 {
+		t.Fatal("active Stop rejected", got.Code)
 	}
 	select {
 	case <-cancelled:
 	case <-time.After(3 * time.Second):
-		t.Fatal("deleted chat still has provider work")
+		t.Fatal("stopped chat still has provider work")
 	}
-	for _, path := range []string{"/bots/1/chats/1", "/bots/1/chats/1/stream"} {
-		if got := b.Send("GET", path, nil); got.Code != 404 {
-			t.Fatal("deleted history returned", got.Code)
-		}
-	}
+	fixture.WaitBuilder(t, b, "/bots/1/chats/1", "stopped")
 	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode(); after != before {
-		t.Fatal("deletion reversed saved work or applied late candidate")
+		t.Fatal("Stop reversed saved work or applied late candidate")
 	}
 	page := b.Send("GET", "/bots/1/chats/2", nil).Body.String()
 	if !strings.Contains(page, `data-admitted="2"`) || !strings.Contains(page, `data-total-tokens="17"`) {
-		t.Fatal("deletion erased local accounting")
+		t.Fatal("Stop erased local accounting")
 	}
 }
 

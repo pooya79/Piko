@@ -26,19 +26,14 @@ async page => {
   check((await page.locator('.piko-submission-context').innerText()).includes('۲'), 'detail lost original published version');
   check(!(await page.locator('.piko-submission-answers').innerText()).includes('نام تازه'), 'new Draft altered frozen labels');
   check(await page.locator('.piko-submission-context bdi').getAttribute('dir')==='ltr', 'Participant identifier not isolated');
-  await page.getByRole('link',{name:'حذف درخواست ۵۱',exact:true}).click();
-  check(await page.getByRole('button',{name:'حذف دائمی این درخواست',exact:true}).count()===1, 'dedicated confirmation missing');
-  await page.getByRole('link',{name:'انصراف و بازگشت به درخواست',exact:true}).focus();
-  await page.keyboard.press('Enter');
-  await page.waitForURL('**/bots/1/submissions/51');
-  check((await page.locator('.piko-submission-answers').innerText()).includes('مینا Example 51'), 'cancel removed the record');
+  check(await page.locator('a[href$="/delete"]').count() === 0, 'detail still offers deletion');
   const layouts=[{width:1440,height:1000,name:'desktop'},{width:390,height:844,name:'mobile'}];
   for (const layout of layouts) {
     await page.setViewportSize({width:layout.width,height:layout.height});
     for (const theme of ['light','dark','system']) {
       await page.goto(origin+'/bots/1/submissions');
       await page.locator(`[data-theme-choice="${theme}"]`).click();
-      for (const [path,name] of [['/bots/1/submissions','inbox'],['/bots/1/submissions/51','detail'],['/bots/1/submissions/51/delete','delete'],['/bots/2/submissions','empty']]) {
+      for (const [path,name] of [['/bots/1/submissions','inbox'],['/bots/1/submissions/51','detail'],['/bots/2/submissions','empty']]) {
         await page.goto(origin+path);
         check(await page.locator('html').getAttribute('dir')==='rtl', 'missing RTL');
         check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth), `${layout.name} ${theme} overflow at ${path}`);
@@ -48,24 +43,8 @@ async page => {
   }
   await page.emulateMedia({reducedMotion:'reduce',colorScheme:'dark'});
   await page.goto(origin+'/bots/1/submissions/51');
-  const deleteLink=page.getByRole('link',{name:'حذف درخواست ۵۱',exact:true});
-  await deleteLink.focus();
-  check(await deleteLink.evaluate(el=>el===document.activeElement && getComputedStyle(el).outlineStyle!=='none'), 'deletion link lost visible keyboard focus');
-  await page.keyboard.press('Enter');
-  await page.waitForURL('**/bots/1/submissions/51/delete');
-  const confirm=page.getByRole('button',{name:'حذف دائمی این درخواست',exact:true});
-  await confirm.focus();
-  await page.keyboard.press('Tab');
-  check(await page.getByRole('link',{name:'انصراف و بازگشت به درخواست',exact:true}).evaluate(el=>el===document.activeElement), 'cancel unreachable from confirmation by keyboard');
-  await confirm.focus();
-  await page.keyboard.press('Enter');
-  await page.waitForURL('**/bots/1/submissions');
-  check(await page.locator('[data-submission-id="51"]').count()===0, 'deleted record remains');
-  check((await page.goto(origin+'/bots/1/submissions/51')).status()===404, 'deleted detail still accessible');
-  check((await page.goto(origin+'/bots/1/submissions/51/delete')).status()===404, 'deleted confirmation still accessible');
-  check((await page.goto(origin+'/bots/1/submissions/50')).status()===200, 'neighbor lost');
-  check((await page.goto(origin+'/bots/1/draft')).status()===200, 'Draft lost');
-  check((await page.goto(origin+'/bots/1/connection')).status()===200, 'connection lost');
+  check((await page.goto(origin+'/bots/1/submissions/51/delete')).status()===404, 'removed confirmation still accessible');
+  check((await page.goto(origin+'/bots/1/submissions/51')).status()===200, 'record lost');
   await page.goto(origin+'/bots/1/submissions?before=1');
   check((await page.locator('main').innerText()).includes('درخواست قدیمی‌تری برای نمایش وجود ندارد.'), 'empty cursor state misleading');
   await page.screenshot({path:'/tmp/piko-submissions-empty-cursor.png',fullPage:true});

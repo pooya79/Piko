@@ -70,7 +70,7 @@ func TestBuilderForwardMigrationAndExistingBotKeepPriorWork(t *testing.T) {
 	if sent[len(sent)-1].Text != "شماره تماس شما چیست؟" {
 		t.Fatal("upgrade lost credentials, published Flow or progress")
 	}
-	if got := d.b.Post("/bots/1/chats/1/delete", url.Values{}); got.Code != 303 {
+	if got := d.b.Post("/bots/1/chats/1/delete", url.Values{}); got.Code != 404 {
 		t.Fatal(got.Code)
 	}
 	d.text("09123456789", 1)

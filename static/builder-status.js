@@ -26,7 +26,7 @@
       const follow = history?.getClientRects().length && history.scrollHeight - history.clientHeight - history.scrollTop < 40;
       // Provisional text is plain text, never HTML or committed Draft feedback.
       if (reply) reply.textContent = run.text;
-      if (progress) progress.textContent = run.progress;
+      if (progress && run.progress) progress.textContent = run.progress;
       if (follow) history.scrollTop = history.scrollHeight;
     });
     source.addEventListener('error', () => {

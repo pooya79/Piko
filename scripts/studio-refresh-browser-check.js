@@ -21,7 +21,7 @@ async page => {
  check(await page.locator('[data-builder-stream-url]').count()===1,'terminal refresh interrupted IME composition');
  await page.locator('#builder-message').evaluate(el=>el.dispatchEvent(new CompositionEvent('compositionend',{bubbles:true})));
  await page.evaluate(()=>window.imeRefresh);
- await page.locator('[data-studio-outcome="succeeded"]').waitFor();
+ await page.locator('[data-studio-outcome="succeeded"]').waitFor({ state: 'attached' });
  check(await page.locator('#builder-message').inputValue()==='متن در حال ترکیب','IME text lost');
  // A composition that starts after GET dispatch also holds the refresh promise.
  await page.route('**/chats/*',async route=>{
@@ -51,7 +51,7 @@ async page => {
  const calls=(await(await page.request.get('http://127.0.0.1:18089/call-count')).json()).calls;
  await page.unroute('**/chats/*');
  await page.locator('[data-studio-refresh]').click();
- await page.locator('[data-studio-outcome="succeeded"]').waitFor();
+ await page.locator('[data-studio-outcome="succeeded"]').waitFor({ state: 'attached' });
  check((await(await page.request.get('http://127.0.0.1:18089/call-count')).json()).calls===calls,'refresh recovery replayed provider work');
  check(await page.locator('#builder-message').inputValue()==='پیام در زمان خطای نمایش','refresh recovery lost text');
  await page.addInitScript(()=>{window.EventSource=undefined;});
@@ -60,7 +60,7 @@ async page => {
  await page.locator('#builder-message').press('Control+Enter');
  await page.locator('[data-builder-stream-url]').waitFor();
  await page.locator('#builder-message').fill('پیام بدون EventSource');
- await page.locator('[data-studio-outcome="succeeded"]').waitFor();
+ await page.locator('[data-studio-outcome="succeeded"]').waitFor({ state: 'attached' });
  check(await page.locator('#builder-message').inputValue()==='پیام بدون EventSource','polling without EventSource lost text');
  return { imePreserved:true, refreshFailureRecoverable:true, noAutomaticReplay:true, withoutEventSource:true };
 }

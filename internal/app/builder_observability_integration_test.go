@@ -199,12 +199,12 @@ func TestBuilderMonitoringOutagesPreserveDraftAccountingAndBoundAppShutdown(t *t
 					}
 				}
 			}
-			if got := b.Post("/bots/1/chats/1/delete", url.Values{}); got.Code != 303 {
+			if got := b.Post("/bots/1/chats/1/delete", url.Values{}); got.Code != 404 {
 				t.Fatal(got.Code)
 			}
 			page := b.Send("GET", "/bots/1/chats/2", nil).Body.String()
 			if !strings.Contains(page, `data-admitted="2"`) || !strings.Contains(page, `data-total-tokens="10"`) || !strings.Contains(page, `data-cost="0"`) {
-				t.Fatal("deletion or monitoring lost local accounting")
+				t.Fatal("rejected deletion or monitoring lost local accounting")
 			}
 			if got := b.Post("/bots/1/chats/2/messages", url.Values{"message": {"over budget"}}); got.Code != 429 || calls.Load() != 4 {
 				t.Fatal("monitoring outage bypassed local limits")

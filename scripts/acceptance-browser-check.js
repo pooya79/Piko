@@ -40,7 +40,7 @@ async page => {
   await page.locator('#builder-message').press('Control+Enter');
   await page.waitForURL('**/chats/*');
   const originalChat = page.url();
-  await page.locator('[data-studio-outcome="succeeded"]').waitFor();
+  await page.locator('[data-studio-outcome="succeeded"]').waitFor({ state: 'attached' });
   check(!(await (await page.request.get(origin + '/bots')).text()).includes('piko-bot-card'), 'general question created a Bot');
   await page.evaluate(() => { window.acceptanceCreationProbe = true; });
   await page.locator('#builder-message').fill('ACCEPT_BUILD یک ربات درخواست بساز');

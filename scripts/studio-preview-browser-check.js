@@ -29,7 +29,7 @@ async page => {
   await page.locator('#builder-message').fill('STUDIO_BUILD یک ربات برای جمع آوری نام بساز');
   await page.locator('#builder-message').press('Control+Enter');
   await page.locator('[data-draft-revision]').waitFor();
-  await page.locator('[data-studio-outcome="succeeded"]').waitFor();
+  await page.locator('[data-studio-outcome="succeeded"]').waitFor({ state: 'attached' });
   check(await page.evaluate(() => window.previewNavigationProbe), 'initial build navigated');
   const chatURL = page.url();
   const botPath = chatURL.slice(origin.length).match(/^\/bots\/\d+/)[0];

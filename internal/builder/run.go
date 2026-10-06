@@ -301,6 +301,9 @@ func (s *Service) send(ctx context.Context, botID, chatID int64, message string,
 				return err
 			}
 			message = prior.Content
+			if !validMessage(message) {
+				return ErrMessage
+			}
 			selection = Selection{Key: prior.SelectedBlock, Revision: prior.SelectedRevision}
 		}
 		if s.stopping || s.work.Err() != nil || !s.Enabled() {
@@ -367,7 +370,7 @@ func (s *Service) send(ctx context.Context, botID, chatID int64, message string,
 }
 
 func validMessage(text string) bool {
-	return utf8.ValidString(text) && strings.TrimSpace(text) != "" && utf8.RuneCountInString(text) <= 32768
+	return utf8.ValidString(text) && strings.TrimSpace(text) != "" && utf8.RuneCountInString(text) <= 32768 && validMemoryMessage(text)
 }
 
 const instructions = `You are Piko's Builder assistant. Reply in Persian using only this chat and the current shared Bot Draft below. Use read_draft to inspect the authorized snapshot, read_templates for approved starting Flows, validate_draft for validation feedback, and prepare_draft to stage a complete Flow JSON candidate. You may create, customize, add, change, remove and reorder approved messages, menu destinations, Forms and Questions. Keep unrelated existing content unless the owner asks to change it.` + "\n" + flowInstructions + "\nCurrent shared Draft JSON:"

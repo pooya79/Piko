@@ -53,7 +53,6 @@ async page => {
     check(await page.locator(expected).evaluate(el => el === document.activeElement), `terminal update lost ${control} focus`);
     if (openDetails) check(await page.locator(openDetails).evaluate(el => el.open), 'terminal update closed details');
   };
-  await completeWithFocus('#studio-runs-summary', '#studio-run-details');
   await completeWithFocus('#studio-chat-picker', '#studio-chat-selector');
   await page.keyboard.press('Escape');
   await completeWithFocus('#studio-stop');

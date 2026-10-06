@@ -1,0 +1,19 @@
+package shell
+
+// MessageIdentity uses the existing brand and icon sprite for both chat surfaces.
+templ MessageIdentity(label string,participant bool) {
+ <div class="piko-message-identity">
+  <span class={ "piko-message-avatar", templ.KV("piko-message-avatar-user",participant) } aria-hidden="true">
+   if participant {
+    @Icon("user")
+   } else {
+    <img src="/static/brand/piko-mark-v2.webp" width="28" height="28" alt=""/>
+   }
+  </span>
+  <span><bdi dir="auto">{ label }</bdi></span>
+ </div>
+}
+
+templ Activity(label string) {
+ <p class="piko-chat-activity" role="status"><span class="piko-activity-spinner" aria-hidden="true"></span><span>{ label }</span></p>
+}

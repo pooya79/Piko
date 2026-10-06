@@ -44,7 +44,7 @@ func TestConversationalProposalIsDisabledWhileAnotherChatWorks(t *testing.T) {
 		t.Fatal("run not started")
 	}
 	page := b.Send("GET", "/bots/1/chats/1", nil).Body.String()
-	if strings.Contains(page, `action="`+target+`"`) || !strings.Contains(page, "سازنده هنوز") {
+	if strings.Contains(page, `action="`+target+`"`) || !strings.Contains(page, "پیکو هنوز") {
 		t.Fatal("busy card actionable")
 	}
 	if got := b.Post(target, url.Values{"operate": {"yes"}}); got.Code != 409 {

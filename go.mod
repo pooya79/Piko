@@ -10,6 +10,7 @@ require (
 	github.com/jalaali/go-jalaali v0.1.0
 	github.com/openai/openai-go v1.8.2
 	github.com/shopspring/decimal v1.4.0
+	github.com/tiktoken-go/tokenizer v0.8.1
 	go.opentelemetry.io/otel v1.36.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.36.0
 	go.opentelemetry.io/otel/sdk v1.36.0
@@ -26,6 +27,7 @@ require (
 	github.com/buger/jsonparser v1.1.2 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
 	github.com/coder/websocket v1.8.14 // indirect
+	github.com/dlclark/regexp2/v2 v2.5.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect

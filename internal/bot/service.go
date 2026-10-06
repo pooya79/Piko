@@ -30,20 +30,21 @@ const (
 // Bot exposes workspace identity and saved Telegram state, never credentials.
 // TelegramID is meaningful only when Unconnected is false.
 type Bot struct {
-	ID, TelegramID   int64
-	Name, Username   string
-	HasWebhook       bool
-	PendingUpdates   int64
-	VerifiedAt       time.Time
-	PublishedVersion int64
-	DeliveryState    string
-	DeliveryMode     DeliveryMode
-	DeliveryError    bool
-	WebhookIsPiko    bool
-	Paused           bool
-	Disconnected     bool
-	Unconnected      bool
-	BuilderBusy      bool
+	ID, TelegramID    int64
+	Name, Username    string
+	HasWebhook        bool
+	PendingUpdates    int64
+	VerifiedAt        time.Time
+	PublishedVersion  int64
+	DeliveryState     string
+	DeliveryMode      DeliveryMode
+	DeliveryError     bool
+	WebhookIsPiko     bool
+	Paused            bool
+	Disconnected      bool
+	Unconnected       bool
+	HasImplementation bool
+	BuilderBusy       bool
 }
 
 func (b Bot) URL() string { return "/bots/" + strconv.FormatInt(b.ID, 10) }

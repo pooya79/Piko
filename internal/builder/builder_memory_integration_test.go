@@ -10,11 +10,11 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-	"unicode/utf8"
 
 	"github.com/pooya79/Piko/internal/builder"
 	"github.com/pooya79/Piko/internal/platform/database"
 	fixture "github.com/pooya79/Piko/internal/testsupport/httpfixture"
+	"github.com/tiktoken-go/tokenizer"
 )
 
 func TestBuilderSummaryFailurePreservesHistoryDraftAndRetriesHonestly(t *testing.T) {
@@ -22,7 +22,7 @@ func TestBuilderSummaryFailurePreservesHistoryDraftAndRetriesHonestly(t *testing
 		name, text string
 		code       int
 	}{
-		{"provider", "", 500}, {"empty", " ", 200}, {"oversized", strings.Repeat("س", 4001), 200},
+		{"provider", "", 500}, {"empty", " ", 200}, {"oversized", "oversized-private-summary" + strings.Repeat(" x", 2049), 200},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var attempts atomic.Int64
@@ -66,7 +66,7 @@ func TestBuilderSummaryFailurePreservesHistoryDraftAndRetriesHonestly(t *testing
 	}
 }
 
-func TestBuilderSummarySharesModelBudgetAndDeletionPreservesAccounting(t *testing.T) {
+func TestBuilderSummarySharesModelBudgetAndRejectedDeletionPreservesAccounting(t *testing.T) {
 	var summaries, calls atomic.Int64
 	requests := make(chan string, 32)
 	_, b := fixture.BuilderFixture(t, builder.Config{MaxCalls: 1, DailyRequests: 8}, func(w http.ResponseWriter, r *http.Request) {
@@ -96,21 +96,21 @@ func TestBuilderSummarySharesModelBudgetAndDeletionPreservesAccounting(t *testin
 	if !strings.Contains(last, "خلاصه درست") || strings.Contains(last, "تاریخچه اصلی 0") || summaries.Load() != 1 {
 		t.Fatal("successful summary was lost after reply budget failure")
 	}
-	if got := b.Post("/bots/1/chats/1/delete", url.Values{"confirm_delete": {"yes"}}); got.Code != 303 {
+	if got := b.Post("/bots/1/chats/1/delete", url.Values{"confirm_delete": {"yes"}}); got.Code != 404 {
 		t.Fatal(got.Code)
 	}
 	if got := b.Post("/bots/1/chats/2/messages", url.Values{"message": {"بیش از سهمیه"}}); got.Code != 429 || calls.Load() != 8 {
-		t.Fatal("deletion bypassed daily allowance")
+		t.Fatal("rejected deletion bypassed daily allowance")
 	}
 	page = b.Send("GET", "/bots/1/chats/2", nil).Body.String()
 	if !strings.Contains(page, `data-admitted="8"`) || !strings.Contains(page, `data-total-tokens="40"`) || !strings.Contains(page, `data-cost="0.008"`) {
-		t.Fatal("summary deletion lost usage")
+		t.Fatal("rejected deletion lost usage")
 	}
 }
 
 func TestBuilderSummaryUsesRunDeadlineAndStopsWithoutBackgroundRetry(t *testing.T) {
 	var summaries atomic.Int64
-	_, b := fixture.BuilderFixture(t, builder.Config{RunTimeout: 200 * time.Millisecond}, func(w http.ResponseWriter, r *http.Request) {
+	a, b := fixture.BuilderFixture(t, builder.Config{RunTimeout: 2 * time.Second}, func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		if strings.Contains(string(body), "Summarize older messages") {
 			summaries.Add(1)
@@ -121,6 +121,9 @@ func TestBuilderSummaryUsesRunDeadlineAndStopsWithoutBackgroundRetry(t *testing.
 	})
 	fixture.FillMemoryChat(t, b)
 	b.Post("/bots/1/chats/1/messages", url.Values{"message": {"درخواست محدود"}})
+	// Join the admitted work before reading its durable result. Repeated full
+	// history renders are not needed to test the summary's deadline/cancellation.
+	a.Builder.Wait()
 	page := fixture.WaitBuilder(t, b, "/bots/1/chats/1", "timeout")
 	if summaries.Load() != 1 || !strings.Contains(page, "تاریخچه اصلی 0") || !strings.Contains(page, `data-admitted="7"`) {
 		t.Fatal("summary deadline lost history or retried")
@@ -151,7 +154,7 @@ func TestBuilderMemoryBoundsLargeMessagesAndForwardMigrationPreservesData(t *tes
 		<-requests
 	}
 	for range 3 {
-		if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {strings.Repeat("ب", 32768)}}); got.Code != 303 {
+		if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {strings.Repeat(" x", 16384)}}); got.Code != 303 {
 			t.Fatal(got.Code)
 		}
 		page := fixture.WaitBuilder(t, b, "/bots/1/chats/1", "succeeded")
@@ -160,9 +163,7 @@ func TestBuilderMemoryBoundsLargeMessagesAndForwardMigrationPreservesData(t *tes
 		}
 		for len(requests) > 0 {
 			request := <-requests
-			if utf8.RuneCountInString(request) > 90000 {
-				t.Fatal("summary batch or reply context exceeds fixed character bound")
-			}
+			assertMemoryWireBudget(t, request)
 		}
 	}
 }
@@ -192,7 +193,7 @@ func TestBuilderLongChatKeepsFullHistoryAndDurableIsolatedBoundedMemory(t *testi
 				t.Fatal(got.Code)
 			}
 		}
-		message := fmt.Sprintf("پیام تاریخی %02d", turn)
+		message := fixture.MemoryText(fmt.Sprintf("پیام تاریخی %02d", turn), 13000)
 		if got := b.Post("/bots/1/chats/1/messages", url.Values{"message": {message}}); got.Code != 303 {
 			t.Fatal(got.Code)
 		}
@@ -210,13 +211,7 @@ func TestBuilderLongChatKeepsFullHistoryAndDurableIsolatedBoundedMemory(t *testi
 				}
 				continue
 			}
-			var wire struct {
-				Messages []json.RawMessage `json:"messages"`
-			}
-			_ = json.Unmarshal([]byte(request), &wire)
-			if len(wire.Messages) > 14 {
-				t.Fatal("long conversation model context is unbounded")
-			}
+			assertMemoryWireBudget(t, request)
 			if turn >= 7 && (!strings.Contains(request, "یادآوری خصوصی") || !strings.Contains(request, "پیش نویس دستی authoritative") || !strings.Contains(request, "authoritative") || strings.Contains(request, "پیام تاریخی 00")) {
 				t.Fatal("summary, recent history or authoritative current Draft missing")
 			}
@@ -241,7 +236,7 @@ func TestBuilderLongChatKeepsFullHistoryAndDurableIsolatedBoundedMemory(t *testi
 		t.Fatal("older messages were never incrementally summarized")
 	}
 	for turn := range 8 {
-		if got := b.Post("/bots/1/chats/2/messages", url.Values{"message": {fmt.Sprintf("متن دوم %d", turn)}}); got.Code != 303 {
+		if got := b.Post("/bots/1/chats/2/messages", url.Values{"message": {fixture.MemoryText(fmt.Sprintf("متن دوم %d", turn), 13000)}}); got.Code != 303 {
 			t.Fatal(got.Code)
 		}
 		fixture.WaitBuilder(t, b, "/bots/1/chats/2", "succeeded")
@@ -335,7 +330,7 @@ func TestBuilderLegacyBacklogMakesProgressAcrossExplicitBudgetLimitedRequests(t 
 func TestBuilderLegacyBacklogRetainsValidatedMemoryAfterLaterBatchTimesOut(t *testing.T) {
 	requests := make(chan string, 8)
 	var summaries atomic.Int64
-	a, b := fixture.BuilderFixture(t, builder.Config{RunTimeout: 300 * time.Millisecond}, func(w http.ResponseWriter, r *http.Request) {
+	a, b := fixture.BuilderFixture(t, builder.Config{RunTimeout: 2 * time.Second}, func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		requests <- string(body)
 		if strings.Contains(string(body), "Summarize older messages") {
@@ -368,5 +363,50 @@ func TestBuilderLegacyBacklogRetainsValidatedMemoryAfterLaterBatchTimesOut(t *te
 	}
 	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()).Encode(); after != before {
 		t.Fatal("timeout recovery changed Draft")
+	}
+}
+
+func assertMemoryWireBudget(t *testing.T, request string) {
+	t.Helper()
+	var wire struct {
+		Messages []struct {
+			Role    string
+			Content json.RawMessage
+		}
+	}
+	if err := json.Unmarshal([]byte(request), &wire); err != nil {
+		t.Fatal(err)
+	}
+	codec, err := tokenizer.Get(tokenizer.O200kBase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	total := 0
+	summary := strings.Contains(request, "Summarize older messages")
+	for _, m := range wire.Messages {
+		if m.Role == "system" && !summary {
+			continue
+		} // Draft/tools are a separate budget.
+		var text string
+		if err := json.Unmarshal(m.Content, &text); err != nil {
+			var parts []struct{ Text string }
+			if err := json.Unmarshal(m.Content, &parts); err != nil {
+				t.Fatal(err)
+			}
+			for _, part := range parts {
+				text += part.Text
+			}
+		}
+		n, err := codec.Count(text)
+		if err != nil {
+			t.Fatal(err)
+		}
+		total += n + 4
+	}
+	if summary {
+		total += 2048
+	}
+	if total >= 64000 {
+		t.Fatalf("conversation/summary wire input exceeded 64k: %d", total)
 	}
 }

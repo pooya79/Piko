@@ -11,17 +11,12 @@ func submissionURL(b Bot, s Submission) string {
  return b.URL()+"/submissions/"+strconv.FormatInt(s.ID,10)
 }
 
-func submissionPage(ctx context.Context, b Bot, s Submission, deleting bool) shell.Page {
+func submissionPage(ctx context.Context, b Bot, s Submission) shell.Page {
  page := flowPage(ctx,b,"submission.title")
  page.Breadcrumbs[len(page.Breadcrumbs)-1].URL = b.URL()+"/submissions"
  label := locale.T(ctx,"submission.detail")+" "+locale.Digits(strconv.FormatInt(s.ID,10))
  page.Breadcrumbs = append(page.Breadcrumbs,shell.Breadcrumb{Label:label})
  page.Title = label
- if deleting {
-  page.Breadcrumbs[len(page.Breadcrumbs)-1].URL = submissionURL(b,s)
-  page.Title = locale.T(ctx,"submission.delete")
-  page.Breadcrumbs = append(page.Breadcrumbs,shell.Breadcrumb{Label:page.Title})
- }
  return page
 }
 
@@ -55,7 +50,7 @@ templ submissionsContent(b Bot,items []Submission,before,next int64) {
      <div class="piko-submission-row-heading"><h2><a href={ templ.URL(submissionURL(b,s)) }>{ locale.T(ctx,"submission.detail")+" "+locale.Digits(strconv.FormatInt(s.ID,10)) }</a></h2><span class="piko-submission-version">{ locale.T(ctx,"submission.version")+" "+locale.Digits(strconv.FormatInt(s.Version,10)) }</span></div>
      <p class="piko-submission-summary"><bdi dir="auto">{ s.Summary() }</bdi></p>
      @submissionMeta(s)
-     <div class="piko-submission-actions"><a class="piko-text-link" href={ templ.URL(submissionURL(b,s)) }>{ locale.T(ctx,"submission.open") } @shell.Icon("caret-left")</a><a class="piko-submission-delete-link" href={ templ.URL(submissionURL(b,s)+"/delete") }>{ locale.T(ctx,"submission.delete")+" "+locale.Digits(strconv.FormatInt(s.ID,10)) }</a></div>
+     <div class="piko-submission-actions"><a class="piko-text-link" href={ templ.URL(submissionURL(b,s)) }>{ locale.T(ctx,"submission.open") } @shell.Icon("caret-left")</a></div>
     </article>
    }
   </div>
@@ -73,7 +68,7 @@ templ submissionsContent(b Bot,items []Submission,before,next int64) {
 }
 
 templ SubmissionPage(displayName,csrf string,b Bot,s Submission) {
- @shell.Workspace(displayName,csrf,submissionPage(ctx,b,s,false),submissionContent(b,s))
+ @shell.Workspace(displayName,csrf,submissionPage(ctx,b,s),submissionContent(b,s))
 }
 
 templ submissionContent(b Bot,s Submission) {
@@ -95,26 +90,6 @@ templ submissionContent(b Bot,s Submission) {
     </div>
    }
   </dl></section>
-  <aside class="piko-card piko-submission-context" aria-labelledby="submission-context-title"><h2 id="submission-context-title">{ locale.T(ctx,"submission.record") }</h2>@submissionMeta(s)<a class="piko-submission-delete-link" href={ templ.URL(submissionURL(b,s)+"/delete") }>{ locale.T(ctx,"submission.delete")+" "+locale.Digits(strconv.FormatInt(s.ID,10)) }</a></aside>
+  <aside class="piko-card piko-submission-context" aria-labelledby="submission-context-title"><h2 id="submission-context-title">{ locale.T(ctx,"submission.record") }</h2>@submissionMeta(s)</aside>
  </div>
-}
-
-templ SubmissionDeletePage(displayName,csrf string,b Bot,s Submission) {
- @shell.Workspace(displayName,csrf,submissionPage(ctx,b,s,true),submissionDeleteContent(csrf,b,s))
-}
-
-templ submissionDeleteContent(csrf string,b Bot,s Submission) {
- <h1 class="piko-page-title">{ locale.T(ctx,"submission.delete")+" "+locale.Digits(strconv.FormatInt(s.ID,10)) }</h1>
- <p class="piko-page-copy"><bdi dir="auto">{ b.Name }</bdi></p>
- <section class="piko-card piko-delete-panel">
-  <h2>{ locale.T(ctx,"submission.delete.confirm") }</h2>
-  <p>{ locale.T(ctx,"submission.delete.copy") }</p>
-  <p class="piko-submission-summary"><bdi dir="auto">{ s.Summary() }</bdi></p>
-  @submissionMeta(s)
-  <p class="piko-helper">{ locale.T(ctx,"submission.delete.preserve") }</p>
-  <form method="post" action={ submissionURL(b,s)+"/delete" }>
-   <input type="hidden" name="csrf_token" value={ csrf }/>
-   <div class="piko-submission-actions"><button type="submit" class="piko-secondary-action piko-danger-action">{ locale.T(ctx,"submission.delete.confirm") }</button><a class="piko-secondary-action" href={ templ.URL(submissionURL(b,s)) }>{ locale.T(ctx,"submission.delete.cancel") }</a></div>
-  </form>
- </section>
 }

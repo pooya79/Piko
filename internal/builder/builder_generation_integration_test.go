@@ -175,7 +175,7 @@ func TestBuilderAdmissionStorageFailureDoesNotConsumeAllowance(t *testing.T) {
 	}
 }
 
-func TestBuilderAdmissionIsBusyWithoutLockingDraftAndRetainsAllowanceAfterDeletion(t *testing.T) {
+func TestBuilderAdmissionIsBusyWithoutLockingDraftAndRetainsAllowanceAfterRejectedDeletion(t *testing.T) {
 	started, release := make(chan struct{}), make(chan struct{})
 	var calls atomic.Int64
 	_, b := fixture.BuilderFixture(t, builder.Config{DailyRequests: 1, MaxCalls: 1}, func(w http.ResponseWriter, r *http.Request) {
@@ -211,12 +211,12 @@ func TestBuilderAdmissionIsBusyWithoutLockingDraftAndRetainsAllowanceAfterDeleti
 	if !strings.Contains(page, `data-cost="0"`) {
 		t.Fatal("reported zero became unknown")
 	}
-	if got := b.Post("/bots/1/chats/1/delete", url.Values{}); got.Code != 303 {
+	if got := b.Post("/bots/1/chats/1/delete", url.Values{}); got.Code != 404 {
 		t.Fatal(got.Code)
 	}
 	page = b.Send("GET", "/bots/1/chats/2", nil).Body.String()
 	if !strings.Contains(page, `data-admitted="1"`) || !strings.Contains(page, `data-total-tokens="6"`) || !strings.Contains(page, `data-cost="0"`) {
-		t.Fatal("deletion erased allowance/accounting")
+		t.Fatal("rejected deletion erased allowance/accounting")
 	}
 	if got := b.Post("/bots/1/chats/2/messages", url.Values{"message": {"تلاش دوباره"}}); got.Code != 429 || calls.Load() != 1 {
 		t.Fatal("daily allowance bypassed")

@@ -6,6 +6,7 @@ RETURNING id, telegram_id, name, username, has_webhook, pending_updates, verifie
 -- name: ListOwnerBots :many
 SELECT bots.id, bots.telegram_id, bots.name, bots.username, bots.has_webhook, bots.pending_updates, bots.verified_at, bots.webhook_is_piko, bots.paused,
 CAST(bots.telegram_id IS NULL AS INTEGER) AS unconnected,
+CAST(EXISTS(SELECT 1 FROM bot_drafts WHERE bot_id = bots.id) OR EXISTS(SELECT 1 FROM bot_publications WHERE bot_id = bots.id) AS INTEGER) AS has_implementation,
 CAST(bots.telegram_id IS NOT NULL AND length(bots.encrypted_token) = 0 AS INTEGER) AS disconnected,
 CAST(COALESCE((SELECT MAX(version) FROM bot_publications WHERE bot_id = bots.id), 0) AS INTEGER) AS published_version,
 CAST(COALESCE((SELECT state FROM bot_delivery WHERE bot_id = bots.id), 'inactive') AS TEXT) AS delivery_state,
@@ -16,6 +17,7 @@ FROM bots WHERE bots.owner_id = ?1 ORDER BY bots.id DESC;
 -- name: GetOwnerBot :one
 SELECT bots.id, bots.telegram_id, bots.name, bots.username, bots.has_webhook, bots.pending_updates, bots.verified_at, bots.webhook_is_piko, bots.paused,
 CAST(bots.telegram_id IS NULL AS INTEGER) AS unconnected,
+CAST(EXISTS(SELECT 1 FROM bot_drafts WHERE bot_id = bots.id) OR EXISTS(SELECT 1 FROM bot_publications WHERE bot_id = bots.id) AS INTEGER) AS has_implementation,
 CAST(bots.telegram_id IS NOT NULL AND length(bots.encrypted_token) = 0 AS INTEGER) AS disconnected,
 CAST(COALESCE((SELECT MAX(version) FROM bot_publications WHERE bot_id = bots.id), 0) AS INTEGER) AS published_version,
 CAST(COALESCE((SELECT state FROM bot_delivery WHERE bot_id = bots.id), 'inactive') AS TEXT) AS delivery_state,

@@ -147,25 +147,6 @@ func (q *Queries) CreateOwnerPikoChat(ctx context.Context, arg CreateOwnerPikoCh
 	return i, err
 }
 
-const deleteOwnerBuilderChat = `-- name: DeleteOwnerBuilderChat :execrows
-DELETE FROM builder_chats WHERE builder_chats.id = ?1 AND COALESCE(builder_chats.bot_id, 0) = CAST(?2 AS INTEGER)
-AND builder_chats.owner_id = ?3
-`
-
-type DeleteOwnerBuilderChatParams struct {
-	ChatID  int64
-	BotID   int64
-	OwnerID int64
-}
-
-func (q *Queries) DeleteOwnerBuilderChat(ctx context.Context, arg DeleteOwnerBuilderChatParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteOwnerBuilderChat, arg.ChatID, arg.BotID, arg.OwnerID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
-}
-
 const getOwnerBuilderChat = `-- name: GetOwnerBuilderChat :one
 SELECT c.id, c.owner_id, c.bot_id, c.title, c.created_at, c.updated_at, c.start_key FROM builder_chats c
 WHERE c.owner_id = ?1 AND COALESCE(c.bot_id, 0) = CAST(?2 AS INTEGER) AND c.id = ?3

@@ -146,6 +146,7 @@ func (q *Queries) GetBotPaused(ctx context.Context, id int64) (int64, error) {
 const getOwnerBot = `-- name: GetOwnerBot :one
 SELECT bots.id, bots.telegram_id, bots.name, bots.username, bots.has_webhook, bots.pending_updates, bots.verified_at, bots.webhook_is_piko, bots.paused,
 CAST(bots.telegram_id IS NULL AS INTEGER) AS unconnected,
+CAST(EXISTS(SELECT 1 FROM bot_drafts WHERE bot_id = bots.id) OR EXISTS(SELECT 1 FROM bot_publications WHERE bot_id = bots.id) AS INTEGER) AS has_implementation,
 CAST(bots.telegram_id IS NOT NULL AND length(bots.encrypted_token) = 0 AS INTEGER) AS disconnected,
 CAST(COALESCE((SELECT MAX(version) FROM bot_publications WHERE bot_id = bots.id), 0) AS INTEGER) AS published_version,
 CAST(COALESCE((SELECT state FROM bot_delivery WHERE bot_id = bots.id), 'inactive') AS TEXT) AS delivery_state,
@@ -160,21 +161,22 @@ type GetOwnerBotParams struct {
 }
 
 type GetOwnerBotRow struct {
-	ID               int64
-	TelegramID       sql.NullInt64
-	Name             string
-	Username         string
-	HasWebhook       int64
-	PendingUpdates   int64
-	VerifiedAt       int64
-	WebhookIsPiko    int64
-	Paused           int64
-	Unconnected      int64
-	Disconnected     int64
-	PublishedVersion int64
-	DeliveryState    string
-	DeliveryMode     string
-	DeliveryError    int64
+	ID                int64
+	TelegramID        sql.NullInt64
+	Name              string
+	Username          string
+	HasWebhook        int64
+	PendingUpdates    int64
+	VerifiedAt        int64
+	WebhookIsPiko     int64
+	Paused            int64
+	Unconnected       int64
+	HasImplementation int64
+	Disconnected      int64
+	PublishedVersion  int64
+	DeliveryState     string
+	DeliveryMode      string
+	DeliveryError     int64
 }
 
 func (q *Queries) GetOwnerBot(ctx context.Context, arg GetOwnerBotParams) (GetOwnerBotRow, error) {
@@ -191,6 +193,7 @@ func (q *Queries) GetOwnerBot(ctx context.Context, arg GetOwnerBotParams) (GetOw
 		&i.WebhookIsPiko,
 		&i.Paused,
 		&i.Unconnected,
+		&i.HasImplementation,
 		&i.Disconnected,
 		&i.PublishedVersion,
 		&i.DeliveryState,
@@ -219,6 +222,7 @@ func (q *Queries) GetOwnerBotByTelegramID(ctx context.Context, arg GetOwnerBotBy
 const listOwnerBots = `-- name: ListOwnerBots :many
 SELECT bots.id, bots.telegram_id, bots.name, bots.username, bots.has_webhook, bots.pending_updates, bots.verified_at, bots.webhook_is_piko, bots.paused,
 CAST(bots.telegram_id IS NULL AS INTEGER) AS unconnected,
+CAST(EXISTS(SELECT 1 FROM bot_drafts WHERE bot_id = bots.id) OR EXISTS(SELECT 1 FROM bot_publications WHERE bot_id = bots.id) AS INTEGER) AS has_implementation,
 CAST(bots.telegram_id IS NOT NULL AND length(bots.encrypted_token) = 0 AS INTEGER) AS disconnected,
 CAST(COALESCE((SELECT MAX(version) FROM bot_publications WHERE bot_id = bots.id), 0) AS INTEGER) AS published_version,
 CAST(COALESCE((SELECT state FROM bot_delivery WHERE bot_id = bots.id), 'inactive') AS TEXT) AS delivery_state,
@@ -228,21 +232,22 @@ FROM bots WHERE bots.owner_id = ?1 ORDER BY bots.id DESC
 `
 
 type ListOwnerBotsRow struct {
-	ID               int64
-	TelegramID       sql.NullInt64
-	Name             string
-	Username         string
-	HasWebhook       int64
-	PendingUpdates   int64
-	VerifiedAt       int64
-	WebhookIsPiko    int64
-	Paused           int64
-	Unconnected      int64
-	Disconnected     int64
-	PublishedVersion int64
-	DeliveryState    string
-	DeliveryMode     string
-	DeliveryError    int64
+	ID                int64
+	TelegramID        sql.NullInt64
+	Name              string
+	Username          string
+	HasWebhook        int64
+	PendingUpdates    int64
+	VerifiedAt        int64
+	WebhookIsPiko     int64
+	Paused            int64
+	Unconnected       int64
+	HasImplementation int64
+	Disconnected      int64
+	PublishedVersion  int64
+	DeliveryState     string
+	DeliveryMode      string
+	DeliveryError     int64
 }
 
 func (q *Queries) ListOwnerBots(ctx context.Context, ownerID int64) ([]ListOwnerBotsRow, error) {
@@ -265,6 +270,7 @@ func (q *Queries) ListOwnerBots(ctx context.Context, ownerID int64) ([]ListOwner
 			&i.WebhookIsPiko,
 			&i.Paused,
 			&i.Unconnected,
+			&i.HasImplementation,
 			&i.Disconnected,
 			&i.PublishedVersion,
 			&i.DeliveryState,

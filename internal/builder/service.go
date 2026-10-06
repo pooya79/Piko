@@ -51,12 +51,13 @@ func (m Message) FeedbackKey() string {
 // Conversation contains display history and its committed shared Draft in one
 // snapshot. Model admission separately loads this chat's private memory.
 type Conversation struct {
-	Chat      Chat
-	Bot       bot.Bot
-	Messages  []Message
-	Runs      []Run
-	Draft     bot.Draft
-	Proposals []bot.ActionProposal
+	Chat         Chat
+	Bot          bot.Bot
+	Messages     []Message
+	Runs         []Run
+	Draft        bot.Draft
+	Proposals    []bot.ActionProposal
+	MemoryTokens int
 }
 
 func (c Conversation) LatestRun() Run {
@@ -208,7 +209,7 @@ func (s *Service) History(ctx context.Context, botID, chatID int64) (Conversatio
 	if err != nil {
 		return Conversation{}, err
 	}
-	// Keep chat metadata and full history in one snapshot during deletion/appends.
+	// Keep chat metadata, memory and full history in one snapshot during appends.
 	tx, err := s.repo.db.BeginTx(ctx, nil)
 	if err != nil {
 		return Conversation{}, err
@@ -258,7 +259,27 @@ func (s *Service) History(ctx context.Context, botID, chatID int64) (Conversatio
 	if err != nil {
 		return Conversation{}, err
 	}
-	return history, tx.Commit()
+	summary, err := q.GetOwnerBuilderSummary(ctx, dbgen.GetOwnerBuilderSummaryParams{OwnerID: ownerID, BotID: botID, ChatID: chatID})
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return Conversation{}, err
+	}
+	uncovered := make([]Message, 0, len(history.Messages))
+	for _, m := range history.Messages {
+		if m.Sequence > summary.ThroughSequence {
+			uncovered = append(uncovered, m)
+		}
+	}
+	// Counting can be CPU-intensive for long Unicode histories. The captured
+	// snapshot is immutable; release SQLite before tokenizing so rendering cannot
+	// hold up run completion or unrelated writes.
+	if err := tx.Commit(); err != nil {
+		return Conversation{}, err
+	}
+	_, history.MemoryTokens, err = memoryTokens(chatSummary{through: summary.ThroughSequence, content: summary.Content}, uncovered)
+	if err != nil {
+		return Conversation{}, err
+	}
+	return history, nil
 }
 
 // Status avoids loading full history or per-call accounting on every display poll.
@@ -324,35 +345,6 @@ func (s *Service) Append(ctx context.Context, botID, chatID int64, role Role, co
 		return Message{}, err
 	}
 	return message, nil
-}
-
-// Deletion's immediate transaction fences completion before cascading history.
-// Accounting remains attached to the owner; cancellation never reverses a Draft.
-func (s *Service) Delete(ctx context.Context, botID, chatID int64) error {
-	ownerID, err := owner(ctx)
-	if err != nil {
-		return err
-	}
-	err = database.RetryWrite(ctx, s.repo.db, func(conn *sql.Conn) error {
-		n, err := dbgen.New(conn).DeleteOwnerBuilderChat(ctx, dbgen.DeleteOwnerBuilderChatParams{OwnerID: ownerID, BotID: botID, ChatID: chatID})
-		if err != nil {
-			return err
-		}
-		if n != 1 {
-			return bot.ErrNotFound
-		}
-		return nil
-	})
-	if err == nil {
-		s.mu.Lock()
-		for _, live := range s.live {
-			if live.botID == botID && live.chatID == chatID {
-				live.cancel()
-			}
-		}
-		s.mu.Unlock()
-	}
-	return err
 }
 
 // StopRun is idempotent. SQLite serializes this terminal transition with finish:

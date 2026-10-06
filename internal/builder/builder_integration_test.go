@@ -115,7 +115,7 @@ func TestBuilderHistoryIsOrderedPrivateAndDurable(t *testing.T) {
 	assertHistory(b)
 }
 
-func TestBuilderOwnershipMethodsValidationAndIdleDeletion(t *testing.T) {
+func TestBuilderOwnershipMethodsValidationAndUnavailableDeletion(t *testing.T) {
 	a, b := fixture.UnconnectedFixture(t)
 	for range 2 {
 		if got := b.Post("/bots/new", url.Values{"name": {"ربات"}}); got.Code != 303 {
@@ -147,7 +147,7 @@ func TestBuilderOwnershipMethodsValidationAndIdleDeletion(t *testing.T) {
 			t.Fatal("history exposed to another owner")
 		}
 	}
-	for _, path := range []string{"/bots/1/chats", "/bots/1/chats/1/delete"} {
+	for _, path := range []string{"/bots/1/chats"} {
 		if got := stranger.Post(path, url.Values{"title": {"بیگانه"}}); got.Code != 404 {
 			t.Fatalf("cross-owner mutation: %d", got.Code)
 		}
@@ -158,49 +158,16 @@ func TestBuilderOwnershipMethodsValidationAndIdleDeletion(t *testing.T) {
 			t.Fatalf("non-POST mutation: %d", got.Code)
 		}
 	}
-	if got := b.Send("GET", "/bots/1/chats/1/delete", nil); got.Code != 405 {
-		t.Fatal("GET allowed deletion")
+	for _, path := range []string{"/bots/1/chats/1/delete", "/chats/1/delete"} {
+		if got := b.Send("GET", path, nil); got.Code != 404 {
+			t.Fatal("removed confirmation route remains available", got.Code)
+		}
+		if got := b.Post(path, url.Values{}); got.Code != 404 {
+			t.Fatal("removed deletion action remains available", got.Code)
+		}
 	}
-	if _, err := a.DB.Exec("INSERT INTO builder_messages VALUES(1,1,'result','تاریخچه حذف\u200cشدنی',1)"); err != nil {
-		t.Fatal(err)
-	}
-	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
-	// A failed cascaded deletion must leave both the chat and history available.
-	if _, err := a.DB.Exec("CREATE TRIGGER fail_chat_delete BEFORE DELETE ON builder_messages BEGIN SELECT RAISE(ABORT,'forced failure'); END"); err != nil {
-		t.Fatal(err)
-	}
-	if got := b.Post("/bots/1/chats/1/delete", url.Values{}); got.Code != 500 {
-		t.Fatal(got.Code)
-	}
-	if got := b.Send("GET", "/bots/1/chats/1", nil); got.Code != 200 || !strings.Contains(got.Body.String(), "تاریخچه حذف\u200cشدنی") {
-		t.Fatal("failed deletion lost history")
-	}
-	if _, err := a.DB.Exec("DROP TRIGGER fail_chat_delete"); err != nil {
-		t.Fatal(err)
-	}
-	if got := b.Post("/bots/1/chats/1/delete", url.Values{}); got.Code != 303 || got.Header().Get("Location") != "/bots/1/chats" {
-		t.Fatal("idle deletion failed")
-	}
-	if got := b.Send("GET", "/bots/1/chats/1", nil); got.Code != 404 {
-		t.Fatal("deleted history still accessible")
-	}
-	if got := b.Send("GET", "/bots/2/chats/2", nil); got.Code != 200 {
-		t.Fatal("deletion affected another chat")
-	}
-	if got := b.Send("GET", "/bots/1", nil); got.Code != 200 {
-		t.Fatal("deletion removed Bot")
-	}
-	if after := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String()); !reflect.DeepEqual(before, after) {
-		t.Fatal("deletion changed Draft")
-	}
-	if got := b.Post("/bots/1/chats", url.Values{"title": {"جدید"}}); got.Code != 303 || got.Header().Get("Location") == "/bots/1/chats/1" {
-		t.Fatal("deleted chat URL reused")
-	}
-	if got := b.Post("/bots/1/chats/3/delete", url.Values{}); got.Code != 303 {
-		t.Fatal(got.Code)
-	}
-	if got := b.Post("/bots/1/chats", url.Values{"title": {"جدیدتر"}}); got.Code != 303 || got.Header().Get("Location") == "/bots/1/chats/3" {
-		t.Fatal("last deleted chat URL reused")
+	if got := b.Send("GET", "/bots/1/chats/1", nil); got.Code != 200 || strings.Contains(got.Body.String(), "studio-delete") {
+		t.Fatal("chat was deleted or still offers deletion")
 	}
 	if got := b.Post("/bots/2/delete", url.Values{"confirm_delete": {"yes"}}); got.Code != 303 {
 		t.Fatal(got.Code)

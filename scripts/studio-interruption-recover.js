@@ -1,7 +1,7 @@
 // Run after restarting the same temporary server/database; no automatic retry.
 async page => {
  const check=(value,reason)=>{if(!value)throw new Error(reason);};
- await page.locator('[data-studio-outcome="interrupted"]').waitFor();
+ await page.locator('[data-studio-outcome="interrupted"]').waitFor({ state: 'attached' });
  check(await page.locator('#builder-message').inputValue()==='پیام من در زمان راه اندازی دوباره','restart lost unsent input before recovery');
  const providerCalls=async()=>(await(await page.request.get('http://127.0.0.1:18089/call-count')).json()).calls;
  const before=await page.evaluate(()=>Number(sessionStorage.getItem('studio-interruption-calls')));
@@ -16,7 +16,7 @@ async page => {
  check(await providerCalls()===before+1,'explicit recovery admitted more than one call');
  check(await page.locator('#builder-message').inputValue()==='پیام من در زمان راه اندازی دوباره','recovery lost unsent input');
  await page.locator('#studio-stop').click();
- await page.locator('[data-studio-outcome="stopped"]').waitFor();
+ await page.locator('[data-studio-outcome="stopped"]').waitFor({ state: 'attached' });
  check(await page.locator('form[action$="/retry"]').count()===0,'stopped recovery still offers retry');
  return { interrupted:true, explicitRecovery:true, noReplay:true, composerPreserved:true };
 }

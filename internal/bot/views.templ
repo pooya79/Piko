@@ -11,7 +11,6 @@ templ ListPage(displayName, csrf string, bots []Bot, warning bool) {
 
 templ listContent(bots []Bot, warning bool) {
  @lifecycleNotice(warning)
- <p class="piko-page-copy"><a class="piko-text-link" href="/bots/connect">{ locale.T(ctx,"bot.connect.title") }</a></p>
  <div class="piko-section-heading"><h1 class="piko-page-title">{ locale.T(ctx, "workspace.bots") }</h1><a class="piko-primary-action" href="/bots/new">@shell.Icon("plus")<span>{ locale.T(ctx, "bot.create.title") }</span></a></div>
  if len(bots) == 0 {
   <section class="piko-card piko-bot-empty"><span class="piko-empty-icon">@shell.Icon("robot")</span><h2>{ locale.T(ctx, "dashboard.bots.empty") }</h2><p class="piko-page-copy">{ locale.T(ctx, "bot.list.empty") }</p><a class="piko-text-link" href="/bots/new">{ locale.T(ctx, "bot.create.title") }</a></section>
@@ -24,16 +23,58 @@ templ listContent(bots []Bot, warning bool) {
 templ Cards(bots []Bot) {
  <div class="piko-bot-grid">
   for _, bot := range bots {
-   <article class="piko-card piko-bot-card"><span class="piko-empty-icon">@shell.Icon("robot")</span><h2><a href={ templ.URL(bot.URL()) }><bdi dir="auto">{ bot.Name }</bdi></a></h2>
-   if !bot.Unconnected {
-    <p><bdi dir="ltr">{ "@" + bot.Username }</bdi></p>
- }
-<p class="piko-bot-status" data-bot-state={ overviewState(bot) }>@shell.Icon("robot")<span>{ locale.T(ctx, overviewStatusKey(bot)) }</span></p>
-   <p class="piko-helper">{ locale.T(ctx, credentialStatus(bot)) }</p>
-   if bot.DeliveryMode != "" {
-    <p class="piko-helper">{ locale.T(ctx,"delivery.mode."+string(bot.DeliveryMode)) }</p>
-   }
-   <a class="piko-text-link" href={ templ.URL(bot.URL()) }>{ locale.T(ctx, "bot.detail.link") }</a></article>
+   <article class="piko-card piko-bot-card" data-bot-state={ overviewState(bot) }>
+    <div class="piko-bot-card-top"><span class="piko-empty-icon">@shell.Icon("robot")</span><span class="piko-bot-card-status" title={ locale.T(ctx, overviewStatusKey(bot)) }>{ locale.T(ctx, overviewStatusKey(bot)) }</span></div>
+    <div class="piko-bot-card-identity">
+     <h2><a class="piko-bot-card-link" href={ templ.URL(bot.URL()) } aria-label={ locale.T(ctx, "bot.detail.link") + ": " + bot.Name } title={ bot.Name }><bdi dir="auto">{ bot.Name }</bdi></a></h2>
+     <p class="piko-helper">
+      if bot.Unconnected {
+       { locale.T(ctx, "bot.card.noidentity") }
+      } else {
+       <bdi dir="ltr">{ "@" + bot.Username }</bdi>
+      }
+     </p>
+    </div>
+    <dl class="piko-bot-card-facts">
+     <div><dt>@shell.Icon("telegram-logo")<span>{ locale.T(ctx, "bot.card.connection") }</span></dt><dd>
+      if bot.Unconnected || bot.Disconnected {
+       { locale.T(ctx, "bot.card.notconnected") }
+      } else {
+       { locale.T(ctx, "bot.card.connected") }
+      }
+     </dd></div>
+     <div><dt>@shell.Icon("squares-four")<span>{ locale.T(ctx, "bot.card.flow") }</span></dt><dd>
+      if bot.HasImplementation {
+       { locale.T(ctx, "bot.card.built") }
+      } else {
+       { locale.T(ctx, "bot.card.notbuilt") }
+      }
+     </dd></div>
+    </dl>
+    <p class="piko-bot-card-delivery"
+     if bot.DeliveryMode != "" {
+      title={ locale.T(ctx, "delivery.mode."+string(bot.DeliveryMode)) }
+     }
+    >
+     if bot.DeliveryMode != "" {
+      { locale.T(ctx, "delivery.mode."+string(bot.DeliveryMode)) }
+     }
+    </p>
+    <div class="piko-bot-card-actions">
+     <a class="piko-primary-action" href={ templ.URL(bot.URL()+"/studio") }>
+      if bot.HasImplementation {
+       @shell.Icon("sliders")<span>{ locale.T(ctx, "bot.card.edit") }</span>
+      } else {
+       @shell.Icon("sparkle")<span>{ locale.T(ctx, "bot.card.build") }</span>
+      }
+     </a>
+     if bot.Unconnected {
+      <a class="piko-secondary-action" href={ templ.URL(bot.URL()+"/connect") }>@shell.Icon("telegram-logo")<span>{ locale.T(ctx, "bot.card.connect") }</span></a>
+     } else if bot.Disconnected {
+      <a class="piko-secondary-action" href={ templ.URL(bot.URL()+"/connection") }>@shell.Icon("arrow-clockwise")<span>{ locale.T(ctx, "bot.card.reconnect") }</span></a>
+     }
+    </div>
+   </article>
   }
  </div>
 }

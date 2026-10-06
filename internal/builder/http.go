@@ -36,6 +36,7 @@ type ChatView struct {
 	Bots                 []bot.Bot
 	ActiveChat           Chat
 	ActiveRun            Run
+	MemoryTokens         int
 }
 
 func NewHandler(service *Service, bots *bot.Service, log *slog.Logger) *Handler {
@@ -281,7 +282,7 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request, b bot.Bot, id i
 		h.failed(w, r, err)
 		return
 	}
-	view := ChatView{Canvas: canvas, Revision: revision, Enabled: h.service.Enabled(), Allowance: allowance, Message: message, FeedbackKey: key, RequestKey: requestKey, Chats: chats, DraftKey: strconv.FormatInt(u.ID, 10) + ":" + strconv.FormatInt(id, 10)}
+	view := ChatView{MemoryTokens: history.MemoryTokens, Canvas: canvas, Revision: revision, Enabled: h.service.Enabled(), Allowance: allowance, Message: message, FeedbackKey: key, RequestKey: requestKey, Chats: chats, DraftKey: strconv.FormatInt(u.ID, 10) + ":" + strconv.FormatInt(id, 10)}
 	if b.ID != 0 {
 		view.ActiveChat, err = h.service.ActiveChat(r.Context(), b.ID)
 		if err != nil {
@@ -446,26 +447,6 @@ func (h *Handler) updated(w http.ResponseWriter, r *http.Request, b bot.Bot, id 
 		return
 	}
 	http.Redirect(w, r, (Chat{BotID: b.ID, ID: id}).URL(), http.StatusSeeOther)
-}
-
-func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
-	b, ok := h.requestedBot(w, r)
-	if !ok {
-		return
-	}
-	id, err := chatID(r)
-	if err == nil {
-		err = h.service.Delete(r.Context(), b.ID, id)
-	}
-	if err != nil {
-		h.failed(w, r, err)
-		return
-	}
-	target := "/builder"
-	if b.ID != 0 {
-		target = b.URL() + "/chats"
-	}
-	http.Redirect(w, r, target, http.StatusSeeOther)
 }
 
 func (h *Handler) failed(w http.ResponseWriter, r *http.Request, err error) {

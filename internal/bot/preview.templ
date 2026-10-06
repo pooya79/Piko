@@ -1,6 +1,7 @@
 package bot
 
 import (
+ "context"
  "strconv"
  "github.com/pooya79/Piko/internal/locale"
  "github.com/pooya79/Piko/internal/web/shell"
@@ -60,13 +61,7 @@ templ PreviewPane(csrf string,b Bot,p Preview,saved bool,message string) {
  <div class="piko-preview-thread">
  <ol class="piko-preview-transcript" tabindex="0" aria-label={ locale.T(ctx,"preview.conversation") }>
  for _, msg := range p.Conversation.Messages {
-  <li class={ "piko-preview-message", templ.KV("piko-preview-participant",msg.Participant) }><span class="piko-helper">
-  if msg.Participant {
-   { locale.T(ctx,"preview.participant") }
-  } else {
-   { locale.T(ctx,"preview.bot") }
-  }
-  </span><p><bdi dir="auto">{ msg.Text }</bdi></p></li>
+  <li class={ "piko-preview-message", templ.KV("piko-preview-participant",msg.Participant) }>@shell.MessageIdentity(previewSpeaker(ctx,b,msg.Participant),msg.Participant)<p><bdi dir="auto">{ msg.Text }</bdi></p></li>
  }
  </ol>
  <form class="piko-preview-buttons" data-preview-revision={ strconv.FormatInt(p.Revision,10) } method="post" action={ templ.URL(b.URL()+"/preview/"+p.ID+"/choose") }><input type="hidden" name="csrf_token" value={ csrf }/><input type="hidden" name="revision" value={ strconv.FormatInt(p.Revision,10) }/>
@@ -79,6 +74,7 @@ templ PreviewPane(csrf string,b Bot,p Preview,saved bool,message string) {
  <form class="piko-draft-form piko-preview-answer" method="post" action={ templ.URL(b.URL()+"/preview/"+p.ID+"/choose") }><input type="hidden" name="csrf_token" value={ csrf }/><input type="hidden" name="revision" value={ strconv.FormatInt(p.Revision,10) }/><label class="sr-only" for="preview-answer">{ locale.T(ctx,"inquiry.answer") }</label><textarea class="piko-input piko-draft-textarea" id="preview-answer" placeholder={ locale.T(ctx,"inquiry.answer") } name="answer" dir="auto" maxlength="2000"></textarea><button class="piko-primary-action" type="submit">@shell.Icon("arrow-up-left")<span class="sr-only">{ locale.T(ctx,"inquiry.answer.send") }</span></button></form>
  }
  }
+ <div class="piko-preview-activity" data-preview-activity hidden>@shell.Activity(locale.T(ctx,"preview.progress"))</div>
  </section>
  if p.ID != "" {
  <div class="piko-preview-footer"><form method="post" action={ templ.URL(b.URL()+"/preview/"+p.ID+"/restart") }><input type="hidden" name="csrf_token" value={ csrf }/><input type="hidden" name="revision" value={ strconv.FormatInt(p.Revision,10) }/><button class="piko-subtle-action" type="submit">@shell.Icon("arrow-clockwise")<span>{ locale.T(ctx,"preview.restart") }</span></button></form><form method="post" action={ templ.URL(b.URL()+"/preview") }><input type="hidden" name="csrf_token" value={ csrf }/><button class="piko-secondary-action" type="submit">{ locale.T(ctx,"preview.new") }</button></form><p class="sr-only">{ locale.T(ctx,"preview.restart.hint") }</p></div>
@@ -120,4 +116,9 @@ templ previewRevision(p Preview) {
    }
   </p>
  </div>
+}
+
+func previewSpeaker(ctx context.Context,b Bot,participant bool) string {
+ if participant { return locale.T(ctx,"builder.role.owner") }
+ return b.Name
 }

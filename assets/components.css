@@ -34,3 +34,17 @@
  .piko-account-details > div:last-child { background: var(--piko-surface-mint); }
  .piko-account-details dd { @apply mt-2 leading-7; overflow-wrap: anywhere; }
 }
+
+@layer components {
+ .piko-message-identity { display: flex; align-items: center; gap: 8px; color: var(--piko-text-secondary); font-size: 11px; font-weight: 600; line-height: 1.5; }
+ .piko-message-avatar { display: grid; place-items: center; flex: none; width: 32px; height: 32px; }
+ .piko-message-avatar img { width: 28px; height: 28px; object-fit: contain; }
+ .piko-message-avatar-user { border-radius: 50%; background: var(--color-base-100); border: 1px solid var(--color-base-300); }
+ .piko-message-avatar .piko-icon { width: 18px; height: 18px; }
+ .piko-chat-activity { display: flex; align-items: center; gap: 8px; margin-block: 12px; color: var(--piko-text-secondary); font-size: 12px; }
+ .piko-activity-spinner { width: 14px; height: 14px; flex: none; border: 2px solid var(--color-base-300); border-top-color: var(--color-primary); border-radius: 50%; }
+ @media (prefers-reduced-motion: no-preference) {
+  .piko-activity-spinner { animation: piko-activity-spin .8s linear infinite; }
+ }
+ @keyframes piko-activity-spin { to { transform: rotate(360deg); } }
+}
