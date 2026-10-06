@@ -213,11 +213,11 @@ func (s *Service) Send(ctx context.Context, botID, chatID int64, message string)
 }
 
 func (s *Service) SendRequest(ctx context.Context, botID, chatID int64, message, key string) error {
-	return s.send(ctx, botID, chatID, message, 0, key, Selection{})
+	return s.send(ctx, botID, chatID, message, 0, key, Selection{}, nil)
 }
 
 func (s *Service) SendSelectedRequest(ctx context.Context, botID, chatID int64, message, key string, selection Selection) error {
-	return s.send(ctx, botID, chatID, message, 0, key, selection)
+	return s.send(ctx, botID, chatID, message, 0, key, selection, nil)
 }
 
 // Retry resolves the saved request inside admission's transaction, so a stale
@@ -226,10 +226,10 @@ func (s *Service) Retry(ctx context.Context, botID, chatID, runID int64) error {
 	if runID <= 0 {
 		return ErrRetry
 	}
-	return s.send(ctx, botID, chatID, "", runID, "", Selection{})
+	return s.send(ctx, botID, chatID, "", runID, "", Selection{}, nil)
 }
 
-func (s *Service) send(ctx context.Context, botID, chatID int64, message string, retryID int64, key string, selection Selection) error {
+func (s *Service) send(ctx context.Context, botID, chatID int64, message string, retryID int64, key string, selection Selection, started *Chat) error {
 	ownerID, err := owner(ctx)
 	if err != nil {
 		return err
@@ -255,6 +255,7 @@ func (s *Service) send(ctx context.Context, botID, chatID int64, message string,
 	var r dbgen.BuilderRun
 	var m Message
 	duplicate := false
+	var admittedChat Chat
 	var selectedContext string
 	err = database.RetryWrite(ctx, s.repo.db, func(conn *sql.Conn) error {
 		tx, err := conn.BeginTx(ctx, nil)
@@ -266,7 +267,14 @@ func (s *Service) send(ctx context.Context, botID, chatID int64, message string,
 		if err := recoverRuns(ctx, q); err != nil {
 			return err
 		}
-		chat, err := q.ResolveOwnerChat(ctx, dbgen.ResolveOwnerChatParams{OwnerID: ownerID, ChatID: chatID})
+		var chat dbgen.BuilderChat
+		if started != nil {
+			// Reserve inside each transaction attempt: failed admission rolls back
+			// the chat too. Bot-scoped keys cannot collide with general starts.
+			chat, err = q.ReserveOwnerBuilderChat(ctx, dbgen.ReserveOwnerBuilderChatParams{OwnerID: ownerID, BotID: botID, Title: conversationTitle(message), CreatedAt: s.now().Unix(), StartKey: sql.NullString{String: "bot:" + strconv.FormatInt(botID, 10) + ":" + key, Valid: true}})
+		} else {
+			chat, err = q.ResolveOwnerChat(ctx, dbgen.ResolveOwnerChatParams{OwnerID: ownerID, ChatID: chatID})
+		}
 		if err != nil {
 			return storageError(err)
 		}
@@ -274,6 +282,8 @@ func (s *Service) send(ctx context.Context, botID, chatID int64, message string,
 			return bot.ErrNotFound
 		}
 		botID = chat.BotID.Int64
+		chatID = chat.ID
+		admittedChat = chatFromRow(chat)
 		if key != "" {
 			prior, err := q.FindOwnerBuilderRequest(ctx, dbgen.FindOwnerBuilderRequestParams{OwnerID: ownerID, ChatID: sql.NullInt64{Int64: chatID, Valid: true}, RequestKey: key})
 			if err == nil {
@@ -352,6 +362,9 @@ func (s *Service) send(ctx context.Context, botID, chatID int64, message string,
 	})
 	if err != nil {
 		return err
+	}
+	if started != nil {
+		*started = admittedChat
 	}
 	if duplicate {
 		return nil

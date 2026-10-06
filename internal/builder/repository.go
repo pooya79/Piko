@@ -30,18 +30,6 @@ func (r *Repository) create(ctx context.Context, ownerID, botID int64, title str
 	return chatFromRow(row), storageError(err)
 }
 
-func (r *Repository) list(ctx context.Context, ownerID, botID int64) ([]Chat, error) {
-	rows, err := r.q.ListOwnerBuilderChats(ctx, dbgen.ListOwnerBuilderChatsParams{OwnerID: ownerID, BotID: botID})
-	if err != nil {
-		return nil, err
-	}
-	chats := make([]Chat, 0, len(rows))
-	for _, row := range rows {
-		chats = append(chats, chatFromRow(row))
-	}
-	return chats, nil
-}
-
 func (r *Repository) savedChats(ctx context.Context, ownerID int64) ([]Chat, error) {
 	rows, err := r.q.ListOwnerPikoChats(ctx, ownerID)
 	if err != nil {

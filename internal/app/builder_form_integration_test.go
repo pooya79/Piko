@@ -50,9 +50,7 @@ func TestBuilderFormReplacementPreservesPublishedInteractionsAndPrivateAnswers(t
 	}
 	d.a, d.b.Router = restarted, restarted.server.Handler
 	runDeliveryApp(t, restarted)
-	if got := d.b.Post("/bots/1/chats", url.Values{"title": {"فرم تازه"}}); got.Code != 303 {
-		t.Fatal(got.Code)
-	}
+	fixture.SeedBotChat(t, d.a.db, 1, "فرم تازه")
 	if got := d.b.Post("/bots/1/chats/1/messages", url.Values{"message": {"فرم قدیمی را با فرم تازه جایگزین کن"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}

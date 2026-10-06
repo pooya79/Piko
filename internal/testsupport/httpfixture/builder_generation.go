@@ -25,9 +25,7 @@ func BuilderFixtureWithLogLevel(t *testing.T, config builder.Config, logLevel st
 		t.Fatal(got.Code)
 	}
 	for _, title := range []string{"گفتگوی اول", "گفتگوی دوم"} {
-		if got := b.Post("/bots/1/chats", url.Values{"title": {title}}); got.Code != 303 {
-			t.Fatal(got.Code)
-		}
+		SeedBotChat(t, a.DB, 1, title)
 	}
 	return a, b
 }

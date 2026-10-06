@@ -23,11 +23,7 @@ templ createdContent(csrf string, bot Bot) {
   }
   <p class="piko-page-copy">{ locale.T(ctx,"bot.created.copy") }</p>
   <div class="piko-overview-links">
-   <form method="post" action={ templ.URL(bot.URL()+"/chats") }>
-    <input type="hidden" name="csrf_token" value={ csrf }/>
-    <input type="hidden" name="title" value={ locale.T(ctx,"bot.created.chat") }/>
-    <button class="piko-primary-action" type="submit">@shell.Icon("chat-circle-dots")<span>{ locale.T(ctx,"bot.created.chat") }</span></button>
-   </form>
+   <a class="piko-primary-action" href={ templ.URL(bot.URL()+"/studio") }>@shell.Icon("chat-circle-dots")<span>{ locale.T(ctx,"bot.created.chat") }</span></a>
    <a class="piko-secondary-action" href={ templ.URL(bot.URL()) }>@shell.Icon("squares-four")<span>{ locale.T(ctx,"bot.created.dashboard") }</span></a>
   </div>
  </section>

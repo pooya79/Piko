@@ -34,14 +34,12 @@ func TestConnectionBrowserFixture(t *testing.T) {
 	if got := b.Post("/bots/new", url.Values{"name": {"ربات آزمایش اتصال"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	if got := b.Post("/bots/1/chats", url.Values{"title": {"گفتگوی محفوظ"}}); got.Code != 303 {
-		t.Fatal(got.Code)
-	}
+	fixture.SeedBotChat(t, a.db, 1, "گفتگوی محفوظ")
 	if settings != "" {
 		if got := b.PostDraft(t, "/bots/1/draft", fixture.CombinedDraft()); got.Code != 303 {
 			t.Fatal(got.Code)
 		}
-		b.Post("/bots/1/chats", url.Values{"title": {"گفتگوی دوم"}})
+		fixture.SeedBotChat(t, a.db, 1, "گفتگوی دوم")
 		b.Post("/chats", url.Values{})
 		b.Post("/bots/new", url.Values{"name": {"ربات مستقل"}})
 	}

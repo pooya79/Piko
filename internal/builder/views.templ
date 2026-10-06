@@ -10,7 +10,7 @@ import (
 
 func page(ctx context.Context, b bot.Bot) shell.Page {
  if b.ID == 0 { return shell.Page{Title:locale.T(ctx,"piko.chat.title"),ActiveNav:shell.BuilderNav,Breadcrumbs:[]shell.Breadcrumb{{Label:locale.T(ctx,"piko.chat.title"),URL:"/builder"}}} }
- return shell.Page{Title:locale.T(ctx,"builder.title"),BotURL:b.URL(),BotSection:shell.BotStudio,ActiveNav:shell.BuilderNav,Breadcrumbs:[]shell.Breadcrumb{{Label:locale.T(ctx,"workspace.bots"),URL:"/bots"},{Label:b.Name,URL:b.URL()},{Label:locale.T(ctx,"builder.title"),URL:b.URL()+"/chats"}}}
+ return shell.Page{Title:locale.T(ctx,"builder.title"),BotURL:b.URL(),BotSection:shell.BotStudio,ActiveNav:shell.BuilderNav,Breadcrumbs:[]shell.Breadcrumb{{Label:locale.T(ctx,"workspace.bots"),URL:"/bots"},{Label:b.Name,URL:b.URL()},{Label:locale.T(ctx,"builder.title"),URL:b.URL()+"/studio"}}}
 }
 
 templ IndexPage(displayName,csrf string,chats []Chat,view ChatView) {
@@ -103,39 +103,8 @@ templ composer(csrf,action string,view ChatView,running bool) {
  </section>
 }
 
-templ ListPage(displayName,csrf string,b bot.Bot,chats []Chat,title,errorKey string) {
- @shell.Workspace(displayName,csrf,page(ctx,b),listContent(csrf,b,chats,title,errorKey))
-}
-
-templ listContent(csrf string,b bot.Bot,chats []Chat,title,errorKey string) {
- <div class="piko-section-heading"><h1 class="piko-page-title">{ locale.T(ctx,"builder.title") }</h1><a class="piko-text-link" href={ templ.URL(b.URL()) }><bdi dir="auto">{ b.Name }</bdi></a></div>
- <p class="piko-page-copy">{ locale.T(ctx,"builder.shared") }</p>
- <section class="piko-card piko-draft-section">
-  <h2>{ locale.T(ctx,"builder.create") }</h2>
-  <form method="post" action={ b.URL()+"/chats" } class="piko-builder-create">
-   <input type="hidden" name="csrf_token" value={ csrf }/>
-   <label class="piko-label" for="chat-title">{ locale.T(ctx,"builder.title.label") }</label>
-   <input id="chat-title" class="piko-input" name="title" dir="auto" value={ title } required maxlength="80" aria-describedby="chat-title-hint"
-   if errorKey!="" {
- aria-invalid="true"
- }
-   />
-   <p id="chat-title-hint" class="piko-helper">{ locale.T(ctx,"builder.title.hint") }</p>
-   if errorKey!="" {
- <p class="piko-field-error" role="alert">{ locale.T(ctx,errorKey) }</p>
- }
-   <button type="submit" class="piko-primary-action">{ locale.T(ctx,"builder.create") }</button>
-  </form>
- </section>
- if len(chats)==0 {
-  <section class="piko-card piko-draft-section mt-6"><p>{ locale.T(ctx,"builder.empty") }</p></section>
- } else {
-  <ul class="piko-builder-list">
-  for _,c:=range chats {
-   <li class="piko-card piko-draft-section"><h2><a class="piko-text-link" href={ templ.URL(c.URL()) }><bdi dir="auto">{ c.Title }</bdi></a></h2><p class="piko-helper">{ locale.T(ctx,"builder.idle") }</p><p class="piko-helper"><time datetime={ c.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z") } data-persian-date>{ locale.Digits(c.UpdatedAt.UTC().Format("2006-01-02 15:04")) }</time></p></li>
-  }
-  </ul>
- }
+templ NewChatPage(displayName,csrf string,b bot.Bot,history Conversation,view ChatView) {
+ @shell.Workspace(displayName,csrf,page(ctx,b),chatDocument(csrf,b,history,view))
 }
 
 templ ChatPage(displayName,csrf string,b bot.Bot,history Conversation,view ChatView) {
@@ -146,8 +115,12 @@ templ ChatPage(displayName,csrf string,b bot.Bot,history Conversation,view ChatV
 
 templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
  {{ c := history.Chat }}
+ {{ chatURL := c.URL(); messageURL := chatURL+"/messages"; if c.ID==0 { chatURL=b.URL()+"/studio"; messageURL=b.URL()+"/chats" } }}
  {{ latest := history.LatestRun() }}
- <section class="piko-studio" data-piko-studio data-chat-url={ c.URL() } data-draft-key={ view.DraftKey }
+ <section class="piko-studio" data-piko-studio data-chat-url={ chatURL } data-draft-key={ view.DraftKey }
+  if c.ID==0 {
+   data-studio-unsaved
+  }
   if latest.Status == RunRunning {
    data-builder-stream-url={ c.URL()+"/stream" } data-builder-run-id={ strconv.FormatInt(latest.ID,10) }
   } else if view.ActiveRun.Status == RunRunning {
@@ -230,7 +203,7 @@ templ chatContent(csrf string,b bot.Bot,history Conversation,view ChatView) {
  }
 
     </div>
-    @composer(csrf,c.URL()+"/messages",view,latest.Status==RunRunning || view.ActiveRun.Status==RunRunning)
+    @composer(csrf,messageURL,view,latest.Status==RunRunning || view.ActiveRun.Status==RunRunning)
    </section>
    @studioPane(csrf,b,history,view)
   </div>
@@ -251,7 +224,7 @@ templ chatSidebar(csrf string,b bot.Bot,chats []Chat,bots []bot.Bot,currentID in
    <a id="studio-new-chat" class="piko-studio-new piko-secondary-action" href="/builder">@shell.Icon("plus")<span>{ locale.T(ctx,"piko.chat.start") }</span></a>
    @savedChats(chats,currentID)
    if b.ID != 0 {
-    <form method="post" action={ b.URL()+"/chats" }><input type="hidden" name="csrf_token" value={ csrf }/><input type="hidden" name="title" value={ locale.T(ctx,"builder.create") }/><button id="studio-new-bot-chat" class="piko-secondary-action" type="submit">{ locale.T(ctx,"studio.chat.new.bot") }</button></form>
+    <a id="studio-new-bot-chat" class="piko-secondary-action" href={ templ.URL(b.URL()+"/studio") }>{ locale.T(ctx,"studio.chat.new.bot") }</a>
    }
    @savedBots(bots)
   </div>
@@ -319,7 +292,7 @@ templ savedBots(bots []bot.Bot) {
  if len(bots)>0 {
   <nav class="piko-studio-saved" aria-label={ locale.T(ctx,"workspace.bots") }><h2>{ locale.T(ctx,"workspace.bots") }</h2>
    for _,b:=range bots {
-    <a id={ "studio-bot-"+strconv.FormatInt(b.ID,10) } class="piko-saved-chat" href={ templ.URL(b.URL()+"/chats") }><bdi dir="auto">{ b.Name }</bdi>@shell.Icon("caret-left")</a>
+    <a id={ "studio-bot-"+strconv.FormatInt(b.ID,10) } class="piko-saved-chat" href={ templ.URL(b.URL()+"/studio") }><bdi dir="auto">{ b.Name }</bdi>@shell.Icon("caret-left")</a>
    }
   </nav>
  }

@@ -165,10 +165,10 @@ func TestStudioFirstSubmissionReplayKeepsOneChatRunAndBot(t *testing.T) {
 }
 
 func TestStudioSavedSelectionShowsOwnedGeneralAndBotChats(t *testing.T) {
-	_, b := fixture.UnconnectedFixture(t)
+	a, b := fixture.UnconnectedFixture(t)
 	general := fixture.StartPikoChat(t, b)
 	b.Post("/bots/new", url.Values{"name": {"کافه لیمو"}})
-	attached := b.Post("/bots/1/chats", url.Values{"title": {"منوی کافه"}}).Header().Get("Location")
+	attached := fixture.SeedBotChat(t, a.DB, 1, "منوی کافه")
 	for _, path := range []string{"/builder", general, attached} {
 		got := b.Send("GET", path, nil)
 		body := got.Body.String()

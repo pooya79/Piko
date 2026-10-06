@@ -71,9 +71,7 @@ func TestBuilderDraftOutcomeMigrationPreservesExistingReplyAndBotData(t *testing
 	draft := fixture.RenderedDraft(t, d.b.Send("GET", "/bots/1/draft", nil).Body.String())
 	submission := d.b.Send("GET", "/bots/1/submissions/1", nil).Body.String()
 	previewBody := d.b.Send("GET", preview, nil).Body.String()
-	if got := d.b.Post("/bots/1/chats", url.Values{"title": {"گفتگوی پیشین"}}); got.Code != 303 {
-		t.Fatal(got.Code)
-	}
+	fixture.SeedBotChat(t, d.a.db, 1, "گفتگوی پیشین")
 	stop()
 	legacy, err := database.Open(context.Background(), d.a.cfg.DatabasePath)
 	if err != nil {

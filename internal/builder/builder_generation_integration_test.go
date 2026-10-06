@@ -121,9 +121,9 @@ func TestBuilderMalformedCostCannotExpandUnboundedDecimal(t *testing.T) {
 }
 
 func TestBuilderWithoutCredentialsKeepsHistoryAndManualFeaturesAvailable(t *testing.T) {
-	_, b := fixture.UnconnectedFixture(t)
+	a, b := fixture.UnconnectedFixture(t)
 	b.Post("/bots/new", url.Values{"name": {"بدون کلید"}})
-	b.Post("/bots/1/chats", url.Values{"title": {"گفتگو"}})
+	fixture.SeedBotChat(t, a.DB, 1, "گفتگو")
 	page := b.Send("GET", "/bots/1/chats/1", nil)
 	if page.Code != 200 || !strings.Contains(page.Body.String(), "disabled") || strings.Contains(page.Body.String(), `action="/bots/1/chats/1/messages"`) {
 		t.Fatal("missing key not handled before initialization")

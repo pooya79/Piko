@@ -377,14 +377,11 @@ func TestPikoConversionKeepsPrivateMemorySharedDraftAndDeletionScope(t *testing.
 	if got := b.Post("/bots/1/preview", url.Values{}); got.Code != 303 || b.Send("GET", got.Header().Get("Location"), nil).Code != 200 {
 		t.Fatal("converted Draft cannot Preview")
 	}
-	second := b.Post("/bots/1/chats", url.Values{"title": {"گفتگوی تازه ربات"}})
-	if second.Code != 303 {
-		t.Fatal(second.Code)
-	}
-	if got := b.Post(second.Header().Get("Location")+"/messages", url.Values{"message": {"چه چیزی ساخته شد؟"}}); got.Code != 303 {
+	second := fixture.SeedBotChat(t, restarted.DB, 1, "گفتگوی تازه ربات")
+	if got := b.Post(second+"/messages", url.Values{"message": {"چه چیزی ساخته شد؟"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	fixture.WaitBuilder(t, b, second.Header().Get("Location"), "succeeded")
+	fixture.WaitBuilder(t, b, second, "succeeded")
 	last := ""
 	for len(requests) > 0 {
 		last = <-requests
@@ -399,7 +396,7 @@ func TestPikoConversionKeepsPrivateMemorySharedDraftAndDeletionScope(t *testing.
 	if got := b.Post("/bots/1/delete", url.Values{"confirm_delete": {"yes"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	for _, urlPath := range []string{path, second.Header().Get("Location"), "/bots/1/draft"} {
+	for _, urlPath := range []string{path, second, "/bots/1/draft"} {
 		if got := b.Send("GET", urlPath, nil); got.Code != 404 {
 			t.Fatal("Bot deletion retained associated work", urlPath)
 		}
@@ -449,7 +446,7 @@ func TestPikoInitialBuildSupportsApprovedTemplatesWithoutTelegram(t *testing.T) 
 func TestPikoConvertedChatKeepsBotBusyAndRevisionGuards(t *testing.T) {
 	staged, release := make(chan struct{}), make(chan struct{})
 	var calls atomic.Int64
-	_, b := fixture.GeneralBuilderFixture(t, builder.Config{}, "error", func(w http.ResponseWriter, r *http.Request) {
+	a, b := fixture.GeneralBuilderFixture(t, builder.Config{}, "error", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(io.Discard, r.Body)
 		switch calls.Add(1) {
 		case 1:
@@ -474,7 +471,7 @@ func TestPikoConvertedChatKeepsBotBusyAndRevisionGuards(t *testing.T) {
 	path := fixture.StartPikoChat(t, b)
 	b.Post(path+"/messages", url.Values{"message": {"ربات بساز"}})
 	fixture.WaitBuilder(t, b, path, "succeeded")
-	second := b.Post("/bots/1/chats", url.Values{"title": {"دوم"}}).Header().Get("Location")
+	second := fixture.SeedBotChat(t, a.DB, 1, "دوم")
 	if got := b.Post(path+"/messages", url.Values{"message": {"پیام تغییر کن"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}

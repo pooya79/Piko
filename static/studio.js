@@ -72,6 +72,11 @@
     // cannot replace the studio or cause an automatic repeat of a POST.
     const next = new DOMParser().parseFromString(await response.text(), 'text/html').querySelector('[data-piko-studio]');
     if (!next) throw new Error('studio unavailable');
+    // Refreshing an unsaved bot composer must retain its first-submit key.
+    // A lost response can then replay the same admission instead of another chat.
+    if (root()?.hasAttribute('data-studio-unsaved') && next.hasAttribute('data-studio-unsaved') && root().dataset.chatUrl === next.dataset.chatUrl) {
+      next.querySelector('[name="request_key"]').setAttribute('value', root().querySelector('[name="request_key"]').value);
+    }
     return next;
   }
   function applyFragment(next, acceptedMessage, acceptedSelection) {

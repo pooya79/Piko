@@ -26,18 +26,19 @@ func TestStudioPreviewRemainsIndependentForUnconnectedAndPausedBots(t *testing.T
 	for _, state := range []string{"unconnected", "paused"} {
 		t.Run(state, func(t *testing.T) {
 			var b *fixture.Browser
+			var a *App
 			if state == "unconnected" {
-				_, b = unconnectedFixture(t)
+				a, b = unconnectedFixture(t)
 				b.Post("/bots/new", url.Values{"name": {"ربات آزمایش"}})
 				b.PostDraft(t, "/bots/1/draft", fixture.InquiryDraft())
 			} else {
 				d := newInquiryDriver(t)
-				b = d.b
+				a, b = d.a, d.b
 				if got := b.Post("/bots/1/pause", url.Values{}); got.Code != 303 {
 					t.Fatal(got.Code)
 				}
 			}
-			b.Post("/bots/1/chats", url.Values{"title": {"گفتگوی آزمایش"}})
+			fixture.SeedBotChat(t, a.db, 1, "گفتگوی آزمایش")
 			path := fixture.PreviewRequest(b, "POST", "/bots/1/preview", nil).Header().Get("Location")
 			for i, v := range []url.Values{{"choice": {"inquiry"}}, {"answer": {"مینا"}}, {"answer": {"09123456789"}}, {"choice": {"skip"}}, {"choice": {"cancel"}}} {
 				v.Set("revision", strconv.Itoa(i+1))

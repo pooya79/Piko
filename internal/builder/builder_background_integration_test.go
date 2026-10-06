@@ -19,7 +19,7 @@ import (
 func TestBuilderDeletedBotCannotFinishLateRun(t *testing.T) {
 	started, release, cancelled := make(chan struct{}), make(chan struct{}), make(chan struct{})
 	var calls atomic.Int64
-	_, b := fixture.BuilderFixture(t, builder.Config{}, func(w http.ResponseWriter, r *http.Request) {
+	a, b := fixture.BuilderFixture(t, builder.Config{}, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(io.Discard, r.Body)
 		if calls.Add(1) == 1 {
 			fixture.BuilderToolReply(w, "prepare_draft", map[string]string{"definition": fixture.BuilderFormDraft})
@@ -57,9 +57,7 @@ func TestBuilderDeletedBotCannotFinishLateRun(t *testing.T) {
 	if got := b.Post("/bots/new", url.Values{"name": {"ربات دوم"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	if got := b.Post("/bots/2/chats", url.Values{"title": {"گفتگو"}}); got.Code != 303 {
-		t.Fatal(got.Code)
-	}
+	fixture.SeedBotChat(t, a.DB, 2, "گفتگو")
 	page := b.Send("GET", "/bots/2/chats/3", nil)
 	if page.Code != 200 || !strings.Contains(page.Body.String(), `data-admitted="1"`) {
 		t.Fatal("deletion lost daily accounting")

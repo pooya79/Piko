@@ -37,9 +37,7 @@ func TestCredentialFailuresKeepFocusedFormAndAllowRecovery(t *testing.T) {
 
 func TestDisconnectHasDedicatedConfirmationAndRetainsStudio(t *testing.T) {
 	d := newInquiryDriver(t)
-	if got := d.b.Post("/bots/1/chats", url.Values{"title": {"گفتگوی محفوظ"}}); got.Code != 303 {
-		t.Fatal(got.Code)
-	}
+	fixture.SeedBotChat(t, d.a.db, 1, "گفتگوی محفوظ")
 	connection := d.b.Send("GET", "/bots/1/connection", nil)
 	if !strings.Contains(connection.Body.String(), `href="/bots/1/connection/disconnect"`) || strings.Contains(connection.Body.String(), `action="/bots/1/disconnect"`) {
 		t.Fatal("disconnection must have a separate focused screen")

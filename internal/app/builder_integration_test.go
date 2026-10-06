@@ -46,10 +46,8 @@ func TestBuilderForwardMigrationAndExistingBotKeepPriorWork(t *testing.T) {
 	}
 	d.a, d.b.Router = restarted, restarted.server.Handler
 	runDeliveryApp(t, restarted)
-	if got := d.b.Post("/bots/1/chats", url.Values{"title": {"ربات موجود"}}); got.Code != 303 {
-		t.Fatal(got.Code)
-	}
-	if got := d.b.Send("GET", "/builder", nil); got.Code != 200 || !strings.Contains(got.Body.String(), `href="/bots/1/chats"`) {
+	fixture.SeedBotChat(t, d.a.db, 1, "ربات موجود")
+	if got := d.b.Send("GET", "/builder", nil); got.Code != 200 || !strings.Contains(got.Body.String(), `href="/bots/1/studio"`) {
 		t.Fatal("existing Bot missing from chat selection")
 	}
 	if got := d.b.Send("GET", "/bots/1/chats/1", nil); got.Code != 200 || !strings.Contains(got.Body.String(), "ربات موجود") {

@@ -173,48 +173,6 @@ func (q *Queries) GetOwnerBuilderChat(ctx context.Context, arg GetOwnerBuilderCh
 	return i, err
 }
 
-const listOwnerBuilderChats = `-- name: ListOwnerBuilderChats :many
-SELECT c.id, c.owner_id, c.bot_id, c.title, c.created_at, c.updated_at, c.start_key FROM builder_chats c
-WHERE c.owner_id = ?1 AND COALESCE(c.bot_id, 0) = CAST(?2 AS INTEGER)
-ORDER BY c.id DESC
-`
-
-type ListOwnerBuilderChatsParams struct {
-	OwnerID int64
-	BotID   int64
-}
-
-func (q *Queries) ListOwnerBuilderChats(ctx context.Context, arg ListOwnerBuilderChatsParams) ([]BuilderChat, error) {
-	rows, err := q.db.QueryContext(ctx, listOwnerBuilderChats, arg.OwnerID, arg.BotID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []BuilderChat{}
-	for rows.Next() {
-		var i BuilderChat
-		if err := rows.Scan(
-			&i.ID,
-			&i.OwnerID,
-			&i.BotID,
-			&i.Title,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.StartKey,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listOwnerBuilderMessages = `-- name: ListOwnerBuilderMessages :many
 SELECT m.chat_id, m.sequence, m.role, m.content, m.created_at FROM builder_messages m
 JOIN builder_chats c ON c.id = m.chat_id
@@ -305,6 +263,43 @@ func (q *Queries) ListOwnerPikoChats(ctx context.Context, ownerID int64) ([]List
 		return nil, err
 	}
 	return items, nil
+}
+
+const reserveOwnerBuilderChat = `-- name: ReserveOwnerBuilderChat :one
+INSERT INTO builder_chats (owner_id, bot_id, title, created_at, updated_at, start_key)
+SELECT b.owner_id, b.id, ?1, ?2, ?2, ?3
+FROM bots b WHERE b.owner_id = ?4 AND b.id = ?5
+ON CONFLICT(owner_id, start_key) WHERE start_key IS NOT NULL DO UPDATE SET start_key = excluded.start_key
+RETURNING id, owner_id, bot_id, title, created_at, updated_at, start_key
+`
+
+type ReserveOwnerBuilderChatParams struct {
+	Title     string
+	CreatedAt int64
+	StartKey  sql.NullString
+	OwnerID   int64
+	BotID     int64
+}
+
+func (q *Queries) ReserveOwnerBuilderChat(ctx context.Context, arg ReserveOwnerBuilderChatParams) (BuilderChat, error) {
+	row := q.db.QueryRowContext(ctx, reserveOwnerBuilderChat,
+		arg.Title,
+		arg.CreatedAt,
+		arg.StartKey,
+		arg.OwnerID,
+		arg.BotID,
+	)
+	var i BuilderChat
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.BotID,
+		&i.Title,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.StartKey,
+	)
+	return i, err
 }
 
 const reserveOwnerPikoChat = `-- name: ReserveOwnerPikoChat :one

@@ -46,7 +46,7 @@ func TestTokenCreationShowsGuideThenOwnedStudioAndDashboard(t *testing.T) {
 		if page.Code != 200 || page.Header().Get("Cache-Control") != "no-store" {
 			t.Fatalf("success page: %d", page.Code)
 		}
-		for _, want := range []string{"ربات ساخته شد", "Created &lt;bot&gt;", "@created_bot", `action="/bots/1/chats"`, `href="/bots/1"`, "داشبورد ربات"} {
+		for _, want := range []string{"ربات ساخته شد", "Created &lt;bot&gt;", "@created_bot", `href="/bots/1/studio"`, `href="/bots/1"`, "داشبورد ربات"} {
 			if !strings.Contains(page.Body.String(), want) {
 				t.Errorf("success missing %q", want)
 			}
@@ -61,13 +61,12 @@ func TestTokenCreationShowsGuideThenOwnedStudioAndDashboard(t *testing.T) {
 	if b.Send("GET", "/bots/1/chats/1", nil).Code != 404 {
 		t.Fatal("success page created a chat before the owner chose to start one")
 	}
-	chat := b.Post("/bots/1/chats", url.Values{"title": {"شروع گفت\u200cوگوی ربات"}})
-	if chat.Code != 303 || chat.Header().Get("Location") != "/bots/1/chats/1" {
-		t.Fatal("chat button does not start the bot's builder chat")
+	studio := b.Send("GET", "/bots/1/studio", nil)
+	if studio.Code != 200 || !strings.Contains(studio.Body.String(), `data-piko-studio`) || !strings.Contains(studio.Body.String(), `data-studio-unsaved`) || !strings.Contains(studio.Body.String(), `id="builder-message"`) {
+		t.Fatal("chat button does not reach the unsaved bot conversation")
 	}
-	studio := b.Send("GET", chat.Header().Get("Location"), nil)
-	if studio.Code != 200 || !strings.Contains(studio.Body.String(), `data-piko-studio`) || !strings.Contains(studio.Body.String(), `id="builder-message"`) {
-		t.Fatal("chat button does not reach the bot conversation")
+	if b.Send("GET", "/bots/1/chats/1", nil).Code != 404 {
+		t.Fatal("opening the bot studio saved an empty chat")
 	}
 	if dashboard := b.Send("GET", "/bots/1", nil); dashboard.Code != 200 || !strings.Contains(dashboard.Body.String(), `data-bot-state="inactive"`) {
 		t.Fatal("dashboard button does not reach the inactive bot overview")

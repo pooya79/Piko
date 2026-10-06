@@ -103,6 +103,25 @@ func (s *Service) StartConversation(ctx context.Context, title, message, request
 	return chat, s.SendRequest(ctx, 0, chat.ID, message, requestKey)
 }
 
+// StartBotConversation saves the chat with its first admitted message and run.
+// Rejected admission leaves the fresh studio unsaved, including across retries.
+func (s *Service) StartBotConversation(ctx context.Context, botID int64, message, requestKey string, selection Selection) (Chat, error) {
+	if botID <= 0 || strings.TrimSpace(requestKey) == "" {
+		return Chat{}, ErrMessage
+	}
+	var chat Chat
+	err := s.send(ctx, botID, 0, message, 0, requestKey, selection, &chat)
+	return chat, err
+}
+
+func conversationTitle(message string) string {
+	title := []rune(strings.Join(strings.Fields(message), " "))
+	if len(title) > 80 {
+		title = append(title[:79], '…')
+	}
+	return string(title)
+}
+
 func (c Chat) URL() string {
 	if c.BotID == 0 {
 		return "/chats/" + strconv.FormatInt(c.ID, 10)
@@ -189,19 +208,6 @@ func (s *Service) Create(ctx context.Context, botID int64, title string) (Chat, 
 		return Chat{}, ErrTitle
 	}
 	return s.repo.create(ctx, ownerID, botID, title)
-}
-
-func (s *Service) List(ctx context.Context, botID int64) ([]Chat, error) {
-	ownerID, err := owner(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if botID != 0 {
-		if _, err := s.bots.Get(ctx, botID); err != nil {
-			return nil, err
-		}
-	}
-	return s.repo.list(ctx, ownerID, botID)
 }
 
 func (s *Service) History(ctx context.Context, botID, chatID int64) (Conversation, error) {

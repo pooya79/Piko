@@ -39,9 +39,7 @@ func TestBuilderUndoLeavesLivePublicationInteractionsAndSubmissionsIntact(t *tes
 	if err := d.a.builder.Configure(builder.Config{APIKey: "test-server-key", BaseURL: fake.URL + "/v1"}, time.Now); err != nil {
 		t.Fatal(err)
 	}
-	if got := d.b.Post("/bots/1/chats", url.Values{"title": {"ویرایش پیش\u200cنویس"}}); got.Code != 303 {
-		t.Fatal(got.Code)
-	}
+	fixture.SeedBotChat(t, d.a.db, 1, "ویرایش پیش\u200cنویس")
 	fixture.SaveBuilderChange(t, d.b, "/bots/1/chats/1")
 	if got := d.b.Post("/bots/1/publish", url.Values{}); got.Code != 303 {
 		t.Fatal(got.Code)

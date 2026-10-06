@@ -17,9 +17,9 @@ import (
 )
 
 func TestStudioFlowShowsCommittedSequentialFormAndMessagePaths(t *testing.T) {
-	_, b := fixture.DraftFixture(t)
+	a, b := fixture.DraftFixture(t)
 	b.PostDraft(t, "/bots/1/draft", fixture.InquiryDraft())
-	b.Post("/bots/1/chats", url.Values{"title": {"جریان واقعی"}})
+	fixture.SeedBotChat(t, a.DB, 1, "جریان واقعی")
 	page := fixture.StudioRequest(b, "GET", "/bots/1/chats/1", nil)
 	for _, want := range []string{`data-studio-flow`, `data-flow-revision="1"`, `data-flow-key="block:d2VsY29tZQ"`, `data-flow-key="question:aW5xdWlyeQ:bmFtZQ"`, `data-flow-key="review:aW5xdWlyeQ"`, `data-flow-key="ack:aW5xdWlyeQ"`, "نام شما چیست؟", "شماره تماس", "درخواست شما دریافت شد"} {
 		if page.Code != 200 || !strings.Contains(page.Body.String(), want) {

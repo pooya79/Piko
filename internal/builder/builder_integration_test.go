@@ -13,17 +13,15 @@ import (
 )
 
 func TestOwnerOrganizesSeparateBuilderChatsOnSharedDraft(t *testing.T) {
-	_, b := fixture.UnconnectedFixture(t)
+	a, b := fixture.UnconnectedFixture(t)
 	if got := b.Post("/bots/new", url.Values{"name": {"ربات گفت\u200cوگو"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
 	before := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
 	for _, title := range []string{"پرسش\u200cهای مشتری", "منوی تازه <script>alert(1)</script>"} {
-		if got := b.Post("/bots/1/chats", url.Values{"title": {title}}); got.Code != 303 {
-			t.Fatalf("create chat: %d", got.Code)
-		}
+		fixture.SeedBotChat(t, a.DB, 1, title)
 	}
-	list := b.Send("GET", "/bots/1/chats", nil)
+	list := b.Send("GET", "/bots/1/studio", nil)
 	if list.Code != 200 || !strings.Contains(list.Body.String(), `href="/bots/1/chats/1"`) || !strings.Contains(list.Body.String(), `href="/bots/1/chats/2"`) {
 		t.Fatal("separate saved chats missing")
 	}
@@ -55,9 +53,7 @@ func TestBuilderHistoryIsOrderedPrivateAndDurable(t *testing.T) {
 		t.Fatal(got.Code)
 	}
 	for _, title := range []string{"تاریخچه اول", "تاریخچه دوم"} {
-		if got := b.Post("/bots/1/chats", url.Values{"title": {title}}); got.Code != 303 {
-			t.Fatal(got.Code)
-		}
+		fixture.SeedBotChat(t, a.DB, 1, title)
 	}
 	// Historical records represent results saved by the later runtime slice.
 	// Insert out of order and with tied timestamps to exercise durable ordering.
@@ -127,10 +123,8 @@ func TestBuilderOwnershipMethodsValidationAndUnavailableDeletion(t *testing.T) {
 			t.Fatalf("title validation: %d", got.Code)
 		}
 	}
-	for _, path := range []string{"/bots/1/chats", "/bots/2/chats"} {
-		if got := b.Post(path, url.Values{"title": {"گفت\u200cوگوی امن"}}); got.Code != 303 {
-			t.Fatal(got.Code)
-		}
+	for _, botID := range []int64{1, 2} {
+		fixture.SeedBotChat(t, a.DB, botID, "گفت\u200cوگوی امن")
 	}
 	for _, path := range []string{"/bots/1/chats/2", "/bots/2/chats/1", "/bots/1/chats/nope", "/bots/1/chats/0"} {
 		if got := b.Send("GET", path, nil); got.Code != 404 {

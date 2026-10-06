@@ -10,9 +10,9 @@ import (
 
 func TestConnectionGuidesStudioDeploymentAndPausedReconnection(t *testing.T) {
 	fake := &fixture.TelegramFake{}
-	_, b, _ := fixture.BotFixture(t, fake.ServeHTTP)
+	a, b, _ := fixture.BotFixture(t, fake.ServeHTTP)
 	b.Post("/bots/new", url.Values{"name": {"کار محفوظ"}})
-	b.Post("/bots/1/chats", url.Values{"title": {"گفتگوی محفوظ"}})
+	fixture.SeedBotChat(t, a.DB, 1, "گفتگوی محفوظ")
 	studio := b.Send("GET", "/bots/1/chats/1", nil).Body.String()
 	if !strings.Contains(studio, `href="/bots/1/connect"`) || strings.Contains(studio, `name="token"`) {
 		t.Fatal("studio lacks a dedicated connection entry")

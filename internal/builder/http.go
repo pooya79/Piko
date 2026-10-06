@@ -115,35 +115,67 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	h.list(w, r, b, 200, "", "")
+	http.Redirect(w, r, b.URL()+"/studio", http.StatusSeeOther)
 }
 
-// Studio opens saved work without creating a conversation on a GET request.
+// Studio opens a fresh composer without creating a conversation on GET.
 func (h *Handler) Studio(w http.ResponseWriter, r *http.Request) {
 	b, ok := h.requestedBot(w, r)
 	if !ok {
 		return
 	}
-	chats, err := h.service.List(r.Context(), b.ID)
+	h.fresh(w, r, b, http.StatusOK, "", "")
+}
+
+func (h *Handler) fresh(w http.ResponseWriter, r *http.Request, b bot.Bot, status int, message, key string) {
+	draft, err := h.bots.LoadDraft(r.Context(), b.ID)
 	if err != nil {
 		h.failed(w, r, err)
 		return
 	}
-	if len(chats) == 0 {
-		h.list(w, r, b, 200, "", "")
-		return
-	}
-	http.Redirect(w, r, chats[0].URL(), http.StatusSeeOther)
-}
-
-func (h *Handler) list(w http.ResponseWriter, r *http.Request, b bot.Bot, status int, title, key string) {
-	chats, err := h.service.List(r.Context(), b.ID)
+	chats, err := h.service.SavedChats(r.Context())
 	if err != nil {
 		h.failed(w, r, err)
 		return
 	}
 	u, _ := auth.UserFromContext(r.Context())
-	h.render(w, r, status, ListPage(u.DisplayName, request.CookieValue(r, auth.CSRFCookie), b, chats, title, key))
+	view := ChatView{Enabled: h.service.Enabled(), Chats: chats, Message: message, FeedbackKey: key, Revision: draft.Revision, Canvas: flow.ProjectCanvas(draft.Definition), DraftKey: strconv.FormatInt(u.ID, 10) + ":bot:" + strconv.FormatInt(b.ID, 10) + ":new", RequestKey: r.PostForm.Get("request_key")}
+	if view.RequestKey == "" {
+		view.RequestKey = "studio:" + rand.Text()
+	}
+	view.Allowance, err = h.service.Allowance(r.Context())
+	if err != nil {
+		h.failed(w, r, err)
+		return
+	}
+	view.Bots, err = h.bots.List(r.Context())
+	if err != nil {
+		h.failed(w, r, err)
+		return
+	}
+	view.ActiveChat, err = h.service.ActiveChat(r.Context(), b.ID)
+	if err != nil {
+		h.failed(w, r, err)
+		return
+	}
+	if view.ActiveChat.ID != 0 {
+		view.ActiveRun, err = h.service.Status(r.Context(), b.ID, view.ActiveChat.ID)
+		if err != nil {
+			h.failed(w, r, err)
+			return
+		}
+	}
+	if status != http.StatusOK {
+		view.Selection.Key = r.PostForm.Get("selected_block")
+		view.Selection.Revision, _ = strconv.ParseInt(r.PostForm.Get("selected_revision"), 10, 64)
+	}
+	csrf := request.CookieValue(r, auth.CSRFCookie)
+	history := Conversation{Chat: Chat{BotID: b.ID, Title: locale.T(r.Context(), "studio.chat.new.bot")}}
+	if r.Header.Get("X-Piko-Studio") == "fragment" {
+		h.render(w, r, status, chatContent(csrf, b, history, view))
+		return
+	}
+	h.render(w, r, status, NewChatPage(u.DisplayName, csrf, b, history, view))
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
@@ -151,29 +183,22 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := r.ParseForm(); err != nil || (b.ID != 0 && len(r.PostForm["title"]) != 1) {
-		if b.ID == 0 {
-			h.index(w, r, 422, "", "builder.message.error")
-		} else {
-			h.list(w, r, b, 422, "", "builder.title.error")
-		}
+	if b.ID != 0 {
+		h.startBot(w, r, b)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		h.index(w, r, 422, "", "builder.message.error")
 		return
 	}
 	if len(r.PostForm["message"]) > 1 || len(r.PostForm["request_key"]) > 1 {
 		h.index(w, r, 422, "", "builder.message.error")
 		return
 	}
-	title := r.PostForm.Get("title")
-	if b.ID == 0 {
-		title = locale.T(r.Context(), "piko.chat.title")
-	}
+	title := locale.T(r.Context(), "piko.chat.title")
 	if len(r.PostForm["message"]) == 1 {
-		if b.ID != 0 {
-			h.list(w, r, b, 422, title, "builder.message.error")
-			return
-		}
 		message := r.PostForm.Get("message")
-		chat, err := h.service.StartConversation(r.Context(), title, message, r.PostForm.Get("request_key"))
+		chat, err := h.service.StartConversation(r.Context(), conversationTitle(message), message, r.PostForm.Get("request_key"))
 		if err == nil {
 			if r.Header.Get("X-Piko-Studio") == "fragment" {
 				h.sent(w, r, b, chat.ID, message, nil)
@@ -190,15 +215,49 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	chat, err := h.service.Create(r.Context(), b.ID, title)
-	if errors.Is(err, ErrTitle) {
-		h.list(w, r, b, 422, r.PostForm.Get("title"), "builder.title.error")
-		return
-	}
 	if err != nil {
 		h.failed(w, r, err)
 		return
 	}
 	http.Redirect(w, r, chat.URL(), http.StatusSeeOther)
+}
+
+func (h *Handler) startBot(w http.ResponseWriter, r *http.Request, b bot.Bot) {
+	if err := r.ParseForm(); err != nil || len(r.PostForm["message"]) != 1 || len(r.PostForm["request_key"]) != 1 || len(r.PostForm["selected_block"]) > 1 || len(r.PostForm["selected_revision"]) > 1 {
+		message := ""
+		if len(r.PostForm["message"]) == 1 {
+			message = r.PostForm.Get("message")
+		}
+		h.fresh(w, r, b, 422, message, "builder.message.error")
+		return
+	}
+	message := r.PostForm.Get("message")
+	selection := Selection{Key: r.PostForm.Get("selected_block")}
+	if raw := r.PostForm.Get("selected_revision"); raw != "" {
+		var err error
+		selection.Revision, err = strconv.ParseInt(raw, 10, 64)
+		if err != nil || selection.Revision < 0 {
+			h.fresh(w, r, b, 422, message, "builder.message.error")
+			return
+		}
+	}
+	chat, err := h.service.StartBotConversation(r.Context(), b.ID, message, r.PostForm.Get("request_key"), selection)
+	switch {
+	case err == nil:
+		h.sent(w, r, b, chat.ID, message, nil)
+	case errors.Is(err, ErrMessage):
+		h.fresh(w, r, b, 422, message, "builder.message.error")
+	case errors.Is(err, ErrSelection):
+		h.fresh(w, r, b, 409, message, "flow.stale")
+	case errors.Is(err, ErrBusy):
+		h.fresh(w, r, b, 409, message, "builder.busy")
+	case errors.Is(err, ErrDailyLimit):
+		h.fresh(w, r, b, 429, message, "builder.limit")
+	case errors.Is(err, ErrUnavailable):
+		h.fresh(w, r, b, 503, message, "builder.unavailable")
+	default:
+		h.failed(w, r, err)
+	}
 }
 
 func chatID(r *http.Request) (int64, error) {

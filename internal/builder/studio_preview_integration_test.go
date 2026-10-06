@@ -13,7 +13,7 @@ import (
 func TestStudioPreviewUsesInteractiveFragmentsWithValidationAndIsolation(t *testing.T) {
 	a, b := fixture.DraftFixture(t)
 	b.PostDraft(t, "/bots/1/draft", fixture.InquiryDraft())
-	b.Post("/bots/1/chats", url.Values{"title": {"آزمایش گفتگو"}})
+	fixture.SeedBotChat(t, a.DB, 1, "آزمایش گفتگو")
 	studio := fixture.StudioRequest(b, "GET", "/bots/1/chats/1", nil)
 	if studio.Code != 200 || !strings.Contains(studio.Body.String(), `data-studio-preview`) || !strings.Contains(studio.Body.String(), `action="/bots/1/preview"`) {
 		t.Fatal("studio has no embedded Preview launch")

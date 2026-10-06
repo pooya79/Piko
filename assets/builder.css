@@ -1,13 +1,11 @@
 @layer components {
 /* Saved Builder history keeps plain text readable in either writing direction. */
-.piko-builder-create { max-width: 36rem; }
-.piko-builder-list, .piko-builder-history { list-style: none; padding: 0; display: grid; gap: 1rem; margin-block: 1.5rem; }
+.piko-builder-history { list-style: none; padding: 0; display: grid; gap: 1rem; margin-block: 1.5rem; }
 .piko-builder-actions { display: flex; flex-wrap: wrap; gap: .75rem; }
 .piko-builder-message { padding: 1rem; border: 1px solid var(--color-base-300); border-radius: 1rem; min-width: 0; }
 .piko-builder-message-owner { background: var(--color-base-200); }
 .piko-builder-text { white-space: pre-wrap; overflow-wrap: anywhere; margin-block: .5rem 0; }
 .piko-builder-text bdi { unicode-bidi: plaintext; }
-.piko-builder-list h2 { overflow-wrap: anywhere; }
 /* Override the shared single-line input style for multiline chat messages. */
 .piko-builder-composer { min-height: 8rem; margin-block-end: 1rem; resize: vertical; white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: hidden; overflow-y: auto; }
 

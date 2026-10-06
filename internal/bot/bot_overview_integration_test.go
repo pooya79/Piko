@@ -13,7 +13,7 @@ func TestBotManagementNavigationUsesOwnedDestinations(t *testing.T) {
 	if got := b.Post("/bots/new", url.Values{"name": {"مدیریت <ربات>"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	paths := []string{"/bots/1", "/bots/1/settings", "/bots/1/connection", "/bots/1/submissions", "/bots/1/draft", "/bots/1/chats"}
+	paths := []string{"/bots/1", "/bots/1/settings", "/bots/1/connection", "/bots/1/submissions", "/bots/1/draft", "/bots/1/studio"}
 	visitor := fixture.NewAccountBrowser(t, a.Handler)
 	for _, path := range append(paths, "/bots/1/studio") {
 		if got := visitor.Send("GET", path, nil); got.Code != 303 || got.Header().Get("Location") != "/login" {
@@ -110,24 +110,22 @@ func TestBotOverviewTracksLifecycleAndRecoveryActions(t *testing.T) {
 	}
 }
 
-func TestBotStudioEntryOpensSavedWorkWithoutCreatingChats(t *testing.T) {
-	_, b := fixture.UnconnectedFixture(t)
+func TestBotStudioEntryOpensFreshConversationWithoutCreatingChats(t *testing.T) {
+	a, b := fixture.UnconnectedFixture(t)
 	if got := b.Post("/bots/new", url.Values{"name": {"استودیو"}}); got.Code != 303 {
 		t.Fatal(got.Code)
 	}
-	if got := b.Send("GET", "/bots/1/studio", nil); got.Code != 200 || !strings.Contains(got.Body.String(), `action="/bots/1/chats"`) {
+	if got := b.Send("GET", "/bots/1/studio", nil); got.Code != 200 || !strings.Contains(got.Body.String(), `data-studio-unsaved`) || strings.Contains(got.Body.String(), `name="title"`) {
 		t.Fatal("empty studio does not offer explicit chat creation")
 	}
 	if got := b.Send("GET", "/bots/1/chats/1", nil); got.Code != 404 {
 		t.Fatal("studio GET created a chat")
 	}
 	for _, title := range []string{"اول", "تازه"} {
-		if got := b.Post("/bots/1/chats", url.Values{"title": {title}}); got.Code != 303 {
-			t.Fatal(got.Code)
-		}
+		fixture.SeedBotChat(t, a.DB, 1, title)
 	}
-	if got := b.Send("GET", "/bots/1/studio", nil); got.Code != 303 || got.Header().Get("Location") != "/bots/1/chats/2" {
-		t.Fatal("studio entry does not open the latest saved chat")
+	if got := b.Send("GET", "/bots/1/studio", nil); got.Code != 200 || !strings.Contains(got.Body.String(), `data-studio-unsaved`) || !strings.Contains(got.Body.String(), `href="/bots/1/chats/2"`) {
+		t.Fatal("studio entry does not open a fresh conversation with saved chats accessible")
 	}
 	page := b.Send("GET", "/bots/1/chats/2", nil)
 	if page.Code != 200 || !strings.Contains(page.Body.String(), `href="/bots/1/settings"`) || !strings.Contains(page.Body.String(), `data-piko-studio`) {

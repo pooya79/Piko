@@ -72,9 +72,9 @@ func TestWorkspaceNameRequiresOwnerPOSTAndCSRF(t *testing.T) {
 }
 
 func TestManualSettingsRemainSharedUnpublishedAndAvailableToFreshPreview(t *testing.T) {
-	_, b := fixture.DraftFixture(t)
+	a, b := fixture.DraftFixture(t)
 	b.PostDraft(t, "/bots/1/draft", fixture.CombinedDraft())
-	b.Post("/bots/1/chats", url.Values{"title": {"تنظیمات مشترک"}})
+	fixture.SeedBotChat(t, a.DB, 1, "تنظیمات مشترک")
 	loaded := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
 	stale := fixture.RenderedDraft(t, b.Send("GET", "/bots/1/draft", nil).Body.String())
 	loaded.Set("welcome", "سلام از تنظیمات دستی")
@@ -105,7 +105,7 @@ func TestManualSettingsRemainSharedUnpublishedAndAvailableToFreshPreview(t *test
 
 func TestBotDeletionRemovesConvertedDiscussionAndAllAttachedChatsOnly(t *testing.T) {
 	var calls atomic.Int64
-	_, b := fixture.GeneralBuilderFixture(t, builder.Config{}, "error", func(w http.ResponseWriter, r *http.Request) {
+	a, b := fixture.GeneralBuilderFixture(t, builder.Config{}, "error", func(w http.ResponseWriter, r *http.Request) {
 		switch calls.Add(1) {
 		case 1:
 			fixture.MemoryReply(w, "پاسخ پیش از ساخت")
@@ -125,12 +125,12 @@ func TestBotDeletionRemovesConvertedDiscussionAndAllAttachedChatsOnly(t *testing
 	if !strings.Contains(page, "گفتگوی عمومی پیش از ساخت") || !strings.Contains(page, `href="/bots/1/draft"`) {
 		t.Fatal("fixture did not retain earlier discussion on conversion")
 	}
-	attached := b.Post("/bots/1/chats", url.Values{"title": {"گفتگوی دوم"}}).Header().Get("Location")
+	attached := fixture.SeedBotChat(t, a.DB, 1, "گفتگوی دوم")
 	general := fixture.StartPikoChat(t, b)
 	b.Post(general+"/messages", url.Values{"message": {"گفتگوی مستقل محفوظ"}})
 	fixture.WaitBuilder(t, b, general, "succeeded")
 	b.Post("/bots/new", url.Values{"name": {"ربات محفوظ"}})
-	otherChat := b.Post("/bots/2/chats", url.Values{"title": {"گفتگوی محفوظ"}}).Header().Get("Location")
+	otherChat := fixture.SeedBotChat(t, a.DB, 2, "گفتگوی محفوظ")
 	beforeOther := fixture.RenderedDraft(t, b.Send("GET", "/bots/2/draft", nil).Body.String())
 	if got := b.Post("/bots/1/delete", url.Values{"confirm_delete": {"yes"}}); got.Code != 303 {
 		t.Fatal(got.Code)
