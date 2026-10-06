@@ -8,6 +8,8 @@
 .piko-builder-text bdi { unicode-bidi: plaintext; }
 /* Override the shared single-line input style for multiline chat messages. */
 .piko-builder-composer { min-height: 8rem; margin-block-end: 1rem; resize: vertical; white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: hidden; overflow-y: auto; }
+/* Empty auto-direction fields fall back to LTR; keep the Persian hint on the right. */
+.piko-builder-composer:placeholder-shown { direction: rtl; }
 
 /* The studio keeps history, editing and the preview in separate scroll regions. */
 .piko-workspace-main:has(.piko-studio) { position: relative; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
